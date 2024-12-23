@@ -1,4 +1,4 @@
-import { VersionedTransaction, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { VersionedTransaction, PublicKey } from "@solana/web3.js";
 import { SolanaAgentKit } from "../index";
 import { TOKENS, DEFAULT_OPTIONS, JUP_API } from "../constants";
 
@@ -24,7 +24,7 @@ export async function trade(
         `${JUP_API}/quote?` +
           `inputMint=${inputMint.toString()}` +
           `&outputMint=${outputMint.toString()}` +
-          `&amount=${inputAmount * LAMPORTS_PER_SOL}` +
+          `&amount=${inputAmount}` +
           `&slippageBps=${slippageBps}` +
           `&onlyDirectRoutes=true` +
           `&maxAccounts=20`,
