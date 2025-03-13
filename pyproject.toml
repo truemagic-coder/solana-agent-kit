@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "agent-kit"
-version = "0.2.0"
-description = "Plugins for Solana Agent"
+name = "sakit"
+version = "0.0.1"
+description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
 readme = "README.md"
@@ -11,7 +11,7 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-packages = [{ include = "agent_kit" }]
+packages = [{ include = "sakit" }]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0"
@@ -23,4 +23,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.plugins."solana_agent.plugins"]
-search_internet = "agent_kit.search_internet:SolanaPlugin"
+search_internet = "sakit.search_internet:SolanaPlugin"
