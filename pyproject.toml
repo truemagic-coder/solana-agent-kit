@@ -21,4 +21,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.plugins."solana_agent.plugins"]
-search_internet = "solana_agent_kit.search_internet:SolanaPlugin"
+search_internet = "agent_kit.search_internet:SolanaPlugin"
