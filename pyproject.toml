@@ -5,11 +5,13 @@ description = "Plugins for Solana Agent"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
 readme = "README.md"
+repository = "https://github.com/truemagic-coder/solana-agent-kit"
 keywords = ["ai", "openai", "ai agents", "agi"]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
+packages = [{ include = "agent_kit" }]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0"
