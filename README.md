@@ -1,6 +1,6 @@
 # Solana Agent Kit
 
-[![PyPI - Version](https://img.shields.io/pypi/v/solana-agent-kit)](https://pypi.org/project/solana-agent-kit/)
+[![PyPI - Version](https://img.shields.io/pypi/v/sakit)](https://pypi.org/project/sakit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-orange.svg)](https://www.python.org/downloads/)
 
