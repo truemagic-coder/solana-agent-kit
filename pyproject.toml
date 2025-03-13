@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "solana-agent-kit"
+version = "0.1.0"
+description = "Solana Agent Kit Plugins"
+authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
+license = "MIT"
+readme = "README.md"
+keywords = ["ai", "openai", "ai agents", "agi"]
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0"
+requests = "^2.32.3"
+solana-agent = "^11.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.plugins."solana_agent.plugins"]
+search_internet = "solana_agent_kit.search_internet:SolanaPlugin"
