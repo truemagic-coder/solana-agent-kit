@@ -17,10 +17,10 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 
 ```bash
 # Using pip
-pip install solana-agent-kit
+pip install agent-kit
 
 # Using Poetry
-poetry add solana-agent-kit
+poetry add agent-kit
 ```
 
 🔌 Plugins
