@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "solana-agent-kit"
 version = "0.1.0"
-description = "Solana Agent Kit Plugins"
+description = "Plugins for Solana Agent"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
 readme = "README.md"
