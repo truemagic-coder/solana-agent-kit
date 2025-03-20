@@ -19,30 +19,26 @@ class SearchInternetTool(AutoTool):
     def configure(self, config: Dict[str, Any]) -> None:
         """Configure with all possible API key locations."""
         super().configure(config)
-
-        # Try multiple locations for the API key with explicit debugging
-        if "perplexity_api_key" in config:
+        
+        # First check directly at root level (which is what you have)
+        if config and "perplexity_api_key" in config and config["perplexity_api_key"]:
             self._api_key = config["perplexity_api_key"]
-            print("Found API key directly in config root")
-        elif (
-            "tools" in config
-            and "search_internet" in config["tools"]
-            and "api_key" in config["tools"]["search_internet"]
-        ):
-            self._api_key = config["tools"]["search_internet"]["api_key"]
-            print("Found API key in tools.search_internet.api_key")
-
-        # Debug output
-        print(f"API key configured: {'YES' if self._api_key else 'NO'}")
-        print(f"Config keys available: {list(config.keys())}")
-
-        # Get default model
-        if (
-            "tools" in config
-            and "search_internet" in config["tools"]
-            and "default_model" in config["tools"]["search_internet"]
-        ):
-            self._default_model = config["tools"]["search_internet"]["default_model"]
+            print(f"Using API key from root perplexity_api_key: {self._api_key[:4]}...")
+            return
+            
+        # Only try these other locations if we haven't found it yet
+        if not self._api_key and "tools" in config and isinstance(config["tools"], dict):
+            if "search_internet" in config["tools"] and isinstance(config["tools"]["search_internet"], dict):
+                if "api_key" in config["tools"]["search_internet"]:
+                    self._api_key = config["tools"]["search_internet"]["api_key"]
+                    print(f"Using API key from tools.search_internet.api_key: {self._api_key[:4]}...")
+                    return
+        
+        # Still no API key found, log this clearly
+        print("WARNING: No Perplexity API key found in configuration!")
+        print("Available config keys:", list(config.keys() if config else []))
+        if "tools" in config and isinstance(config["tools"], dict):
+            print("Available tools config:", list(config["tools"].keys()))
 
     def get_schema(self) -> Dict[str, Any]:
         """Return parameter schema for the tool."""
@@ -139,31 +135,51 @@ class SolanaPlugin:
         self.name = "search_internet"
         self.config = None
         self.tool_registry = None
+        self._tool = None
+        print(f"Created SolanaPlugin object with name: {self.name}")
+        
+    @property
+    def description(self):
+        """Return the plugin description."""
+        return "Plugin for searching the internet with Perplexity AI"
 
-    def initialize(self, config: Dict[str, Any]) -> None:
-        """Initialize with config from Solana Agent."""
+    def initialize(self, tool_registry: ToolRegistry) -> None:
+        """Initialize with tool registry from Solana Agent."""
+        self.tool_registry = tool_registry
+        print("Initializing search_internet plugin")
+        
+        # Create and immediately register the tool
+        self._tool = SearchInternetTool(registry=tool_registry)
+        success = tool_registry.register_tool(self._tool)
+        print(f"Tool registration success: {success}")
+        
+        # Check available tools in registry
+        all_tools = tool_registry.list_all_tools()
+        print(f"All registered tools: {all_tools}")
+        
+        # Force a check to make sure it's registered
+        registered_tool = tool_registry.get_tool("search_internet")
+        print(f"Tool registration verification: {'Success' if registered_tool else 'Failed'}")
+
+    def configure(self, config: Dict[str, Any]) -> None:
+        """Configure the plugin with the provided config."""
         self.config = config
-        self.tool_registry = ToolRegistry()
-
-        # Debug the config
-        print(
-            f"Initializing search_internet plugin with config keys: {list(config.keys())}"
-        )
-
-        # Check for API key and print if found
-        if "perplexity_api_key" in config:
-            print("Perplexity API key is properly included in config")
+        
+        # Configure the tool now that we have the config
+        if self._tool:
+            self._tool.configure(self.config)
+            
+            print(
+                f"SearchInternetTool initialized with API key: {'Found' if self._tool._api_key else 'Not found'}"
+            )
+            print(f"SearchInternetTool default model: {self._tool._default_model}")
 
     def get_tools(self) -> List[AutoTool]:
-        """Return tool with explicit registry passing."""
-        # Create and register the tool
-        tool = SearchInternetTool()
-        tool.configure(self.config)  # Pass the stored config
-
-        print(
-            f"Created search_internet tool with API key: {'Present' if tool._api_key else 'Missing'}"
-        )
-        return [tool]
+        """Return the list of tools provided by this plugin."""
+        if self._tool:
+            print(f"Returning tool with name: {self._tool.name}")
+            return [self._tool]
+        return []
 
 
 # Entry point function
