@@ -49,7 +49,7 @@ config = {
     },
     
     # Grant access to specific agents
-    "ai_agents": [
+    "agents": [
         {
             "name": "research_specialist",
             "tools": ["search_internet"],  # Enable the tool for this agent
