@@ -67,33 +67,6 @@ config = {
 * sonar-reasoning-pro: Advanced reasoning with search
 * sonar-reasoning: Basic reasoning with search
 
-## Usage Examples
-
-### Direct command:
-
-`!search_internet What are the latest developments in quantum computing?`
-
-### #With model parameter:
-`!search_internet --model=sonar-pro What is the current Bitcoin price?`
-
-### Automatic usage by agents:
-
-AI agents with access to the tool will automatically use it when they determine current information is necessary to answer a query.
-
-### Programmatic usage:
-
-```python
-# Execute the search tool directly
-result = await solana_agent.get_tool_service().execute_tool(
-    "search_internet",
-    user_id="user123",
-    params={
-        "query": "Latest developments in AI",
-        "model": "sonar-reasoning-pro"  # Optional, overrides default
-    }
-)
-```
-
 ## 🧩 Plugin Development
 Want to add your own plugins to Solana Agent Kit? Follow these guidelines:
 
