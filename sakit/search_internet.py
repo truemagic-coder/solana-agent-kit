@@ -16,6 +16,7 @@ class SearchInternetTool(AutoTool):
         self._api_key = None
         self._default_model = "sonar"
 
+
     def configure(self, config: Dict[str, Any]) -> None:
         """Configure with all possible API key locations."""
         super().configure(config)
