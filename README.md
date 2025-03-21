@@ -40,7 +40,6 @@ config = {
         }
     },
     
-    # Grant access to specific agents
     "agents": [
         {
             "name": "research_specialist",
