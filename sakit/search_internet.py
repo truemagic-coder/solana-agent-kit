@@ -15,54 +15,63 @@ class SearchInternetTool(AutoTool):
         )
         self._api_key = None
         self._default_model = "sonar"
+        self._include_citations = True  # Default to True
 
 
     def configure(self, config: Dict[str, Any]) -> None:
         """Configure with all possible API key locations."""
         super().configure(config)
         
-        # First check directly at root level (which is what you have)
-        if config and "perplexity_api_key" in config and config["perplexity_api_key"]:
-            self._api_key = config["perplexity_api_key"]
-            print(f"Using API key from root perplexity_api_key: {self._api_key[:4]}...")
-            return
-            
-        # Only try these other locations if we haven't found it yet
-        if not self._api_key and "tools" in config and isinstance(config["tools"], dict):
+        # First check for tool-specific configuration (preferred location)
+        if "tools" in config and isinstance(config["tools"], dict):
             if "search_internet" in config["tools"] and isinstance(config["tools"]["search_internet"], dict):
+                # Check for API key in tool config
                 if "api_key" in config["tools"]["search_internet"]:
                     self._api_key = config["tools"]["search_internet"]["api_key"]
                     print(f"Using API key from tools.search_internet.api_key: {self._api_key[:4]}...")
-                    return
+                
+                # Check for citations setting in tool config
+                if "citations" in config["tools"]["search_internet"]:
+                    self._include_citations = bool(config["tools"]["search_internet"]["citations"])
+                    print(f"Citations setting: {self._include_citations}")
+        
+        # Fall back to root level for backward compatibility
+        if not self._api_key and config and "perplexity_api_key" in config:
+            self._api_key = config["perplexity_api_key"]
+            print(f"Using API key from root perplexity_api_key: {self._api_key[:4]}... (deprecated location)")
         
         # Still no API key found, log this clearly
-        print("WARNING: No Perplexity API key found in configuration!")
-        print("Available config keys:", list(config.keys() if config else []))
-        if "tools" in config and isinstance(config["tools"], dict):
-            print("Available tools config:", list(config["tools"].keys()))
+        if not self._api_key:
+            print("WARNING: No Perplexity API key found in configuration!")
+            print("Please add an 'api_key' entry in the tools.search_internet section of your config:")
+            print('config = {')
+            print('    "tools": {')
+            print('        "search_internet": {')
+            print('            "api_key": "your-perplexity-api-key",')
+            print('            "citations": true')
+            print('        }')
+            print('    }')
+            print('}')
 
-    def get_schema(self) -> Dict[str, Any]:
-        """Return parameter schema for the tool."""
-        return {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "The search query to look up online",
-                },
-                "model": {
-                    "type": "string",
-                    "enum": [
-                        "sonar",
-                        "sonar-pro",
-                        "sonar-reasoning-pro",
-                        "sonar-reasoning",
-                    ],
-                    "description": f"The Perplexity model to use (default: {self._default_model})",
-                },
-            },
-            "required": ["query"],
-        }
+        if "tools" in config and isinstance(config["tools"], dict):
+            if "search_internet" in config["tools"] and isinstance(config["tools"]["search_internet"], dict):
+                # Check for API key in tool config
+                if not self._api_key and "api_key" in config["tools"]["search_internet"]:
+                    self._api_key = config["tools"]["search_internet"]["api_key"]
+                    print(f"Using API key from tools.search_internet.api_key: {self._api_key[:4]}...")
+                
+                # Check for citations setting in tool config
+                if "citations" in config["tools"]["search_internet"]:
+                    self._include_citations = bool(config["tools"]["search_internet"]["citations"])
+                    print(f"Citations setting: {self._include_citations}")
+        
+        # Still no API key found, log this clearly
+        if not self._api_key:
+            print("WARNING: No Perplexity API key found in configuration!")
+            print("Available config keys:", list(config.keys() if config else []))
+            if "tools" in config and isinstance(config["tools"], dict):
+                print("Available tools config:", list(config["tools"].keys()))
+
 
     def execute(self, query: str, model: Optional[str] = None) -> Dict[str, Any]:
         """Execute the search."""
@@ -73,12 +82,20 @@ class SearchInternetTool(AutoTool):
         
         try:
             url = "https://api.perplexity.ai/chat/completions"
+            
+            # Choose appropriate prompt based on citations setting
+            system_content = (
+                "You search the internet for current information. Include detailed information with citations like [1], [2], etc." 
+                if self._include_citations else
+                "You search the internet for current information. Provide a comprehensive answer without citations or source references."
+            )
+            
             payload = {
                 "model": search_model,
                 "messages": [
                     {
                         "role": "system",
-                        "content": "You search the internet for current information. Include detailed information with citations like [1], [2], etc.",
+                        "content": system_content,
                     },
                     {"role": "user", "content": query},
                 ],
@@ -94,23 +111,28 @@ class SearchInternetTool(AutoTool):
                 data = response.json()
                 content = data["choices"][0]["message"]["content"]
                 
-                # Remove the existing Sources section if present
-                if "Sources:" in content:
-                    content = content.split("Sources:")[0].strip()
-                
-                # Get citations if available
-                links = []
-                if "citations" in data:
-                    citations = data["citations"]
-                    for i, citation in enumerate(citations, 1):
-                        url = citation if isinstance(citation, str) else (citation["url"] if "url" in citation else "")
-                        if url:
-                            links.append(f"[{i}] {url}")
-                
-                # Format the final content with properly numbered sources
-                if links:
-                    formatted_content = content + "\n\n**Sources:**\n" + "\n".join(links)
+                # Only process citations if setting is enabled
+                if self._include_citations:
+                    # Remove the existing Sources section if present
+                    if "Sources:" in content:
+                        content = content.split("Sources:")[0].strip()
+                    
+                    # Get citations if available
+                    links = []
+                    if "citations" in data:
+                        citations = data["citations"]
+                        for i, citation in enumerate(citations, 1):
+                            url = citation if isinstance(citation, str) else (citation["url"] if "url" in citation else "")
+                            if url:
+                                links.append(f"[{i}] {url}")
+                    
+                    # Format the final content with properly numbered sources
+                    if links:
+                        formatted_content = content + "\n\n**Sources:**\n" + "\n".join(links)
+                    else:
+                        formatted_content = content
                 else:
+                    # No citation processing needed
                     formatted_content = content
                     
                 return {
