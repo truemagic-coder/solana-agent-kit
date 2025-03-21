@@ -38,13 +38,11 @@ config = {
         "default_model": "gpt-4o-mini"
     },
     
-    # Required for the internet search plugin
-    "perplexity_api_key": "your-perplexity-key",
-    
-    # Optional: Configure default search model
     "tools": {
         "search_internet": {
-            "default_model": "sonar-reasoning-pro"  # Optional, defaults to "sonar"
+            "api_key": "your-perplexity-key", # Required
+            "citations": True, # Optional, defaults to True
+            "default_model": "sonar-reasoning-pro"  # Optional, defaults to "sonar
         }
     },
     
@@ -52,10 +50,9 @@ config = {
     "agents": [
         {
             "name": "research_specialist",
-            "tools": ["search_internet"],  # Enable the tool for this agent
             "instructions": "You are an expert researcher who synthesizes complex information clearly.",
             "specialization": "Research and knowledge synthesis",
-            "model": "gpt-4o-mini"
+            "tools": ["search_internet"],  # Enable the tool for this agent
         }
     ]
 }
