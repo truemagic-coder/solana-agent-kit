@@ -31,13 +31,7 @@ Configuration
 Add your Perplexity API key to your Solana Agent configuration:
 
 ```python
-config = {
-    # Standard Solana Agent config
-    "openai": {
-        "api_key": "your-openai-key",
-        "default_model": "gpt-4o-mini"
-    },
-    
+config = {    
     "tools": {
         "search_internet": {
             "api_key": "your-perplexity-key", # Required
