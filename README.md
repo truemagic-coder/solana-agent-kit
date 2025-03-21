@@ -42,7 +42,7 @@ config = {
         "search_internet": {
             "api_key": "your-perplexity-key", # Required
             "citations": True, # Optional, defaults to True
-            "default_model": "sonar-reasoning-pro"  # Optional, defaults to "sonar
+            "default_model": "sonar-reasoning-pro"  # Optional, defaults to "sonar"
         }
     },
     
