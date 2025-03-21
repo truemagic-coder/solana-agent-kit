@@ -40,7 +40,7 @@ class SearchInternetTool(AutoTool):
                     self._model = config["tools"]["search_internet"]["model"]
                     print(f"Using model from tools.search_internet.model: {self._model}")
 
-    def execute(self, query: str, model: Optional[str] = None) -> Dict[str, Any]:
+    def execute(self, query: str) -> Dict[str, Any]:
         """Execute the search."""
         
         if not self._api_key:

@@ -54,11 +54,9 @@ config = {
 **Available Search Models**
 * sonar: Fast, general-purpose search
 * sonar-pro: Enhanced search capabilities
-* sonar-reasoning-pro: Advanced reasoning with search
-* sonar-reasoning: Basic reasoning with search
 
 **Notes**
-* The sonar reasoning models will output their reasoning in the text or audio for Solana Agent which is bad.
+* The sonar reasoning models will output their reasoning in the text or audio for Solana Agent which is bad so they should not be used.
 
 ## 🧩 Plugin Development
 Want to add your own plugins to Solana Agent Kit? Follow these guidelines:
