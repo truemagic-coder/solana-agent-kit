@@ -14,8 +14,8 @@ class SearchInternetTool(AutoTool):
             registry=registry,
         )
         self._api_key = None
-        self._default_model = "sonar"
-        self._include_citations = True  # Default to True
+        self._model = "sonar"
+        self._citations = True  # Default to True
 
 
     def configure(self, config: Dict[str, Any]) -> None:
@@ -32,50 +32,16 @@ class SearchInternetTool(AutoTool):
                 
                 # Check for citations setting in tool config
                 if "citations" in config["tools"]["search_internet"]:
-                    self._include_citations = bool(config["tools"]["search_internet"]["citations"])
-                    print(f"Citations setting: {self._include_citations}")
-        
-        # Fall back to root level for backward compatibility
-        if not self._api_key and config and "perplexity_api_key" in config:
-            self._api_key = config["perplexity_api_key"]
-            print(f"Using API key from root perplexity_api_key: {self._api_key[:4]}... (deprecated location)")
-        
-        # Still no API key found, log this clearly
-        if not self._api_key:
-            print("WARNING: No Perplexity API key found in configuration!")
-            print("Please add an 'api_key' entry in the tools.search_internet section of your config:")
-            print('config = {')
-            print('    "tools": {')
-            print('        "search_internet": {')
-            print('            "api_key": "your-perplexity-api-key",')
-            print('            "citations": true')
-            print('        }')
-            print('    }')
-            print('}')
+                    self._citations = bool(config["tools"]["search_internet"]["citations"])
+                    print(f"Citations setting: {self._citations}")
 
-        if "tools" in config and isinstance(config["tools"], dict):
-            if "search_internet" in config["tools"] and isinstance(config["tools"]["search_internet"], dict):
-                # Check for API key in tool config
-                if not self._api_key and "api_key" in config["tools"]["search_internet"]:
-                    self._api_key = config["tools"]["search_internet"]["api_key"]
-                    print(f"Using API key from tools.search_internet.api_key: {self._api_key[:4]}...")
-                
-                # Check for citations setting in tool config
-                if "citations" in config["tools"]["search_internet"]:
-                    self._include_citations = bool(config["tools"]["search_internet"]["citations"])
-                    print(f"Citations setting: {self._include_citations}")
-        
-        # Still no API key found, log this clearly
-        if not self._api_key:
-            print("WARNING: No Perplexity API key found in configuration!")
-            print("Available config keys:", list(config.keys() if config else []))
-            if "tools" in config and isinstance(config["tools"], dict):
-                print("Available tools config:", list(config["tools"].keys()))
-
+                # Check for model setting in tool config
+                if "model" in config["tools"]["search_internet"]:
+                    self._model = config["tools"]["search_internet"]["model"]
+                    print(f"Using model from tools.search_internet.model: {self._model}")
 
     def execute(self, query: str, model: Optional[str] = None) -> Dict[str, Any]:
         """Execute the search."""
-        search_model = model or self._default_model
         
         if not self._api_key:
             return {"status": "error", "message": "Perplexity API key not configured"}
@@ -86,12 +52,12 @@ class SearchInternetTool(AutoTool):
             # Choose appropriate prompt based on citations setting
             system_content = (
                 "You search the internet for current information. Include detailed information with citations like [1], [2], etc." 
-                if self._include_citations else
+                if self._citations else
                 "You search the internet for current information. Provide a comprehensive answer without citations or source references."
             )
             
             payload = {
-                "model": search_model,
+                "model": self._model,
                 "messages": [
                     {
                         "role": "system",
@@ -112,7 +78,7 @@ class SearchInternetTool(AutoTool):
                 content = data["choices"][0]["message"]["content"]
                 
                 # Only process citations if setting is enabled
-                if self._include_citations:
+                if self._citations:
                     # Remove the existing Sources section if present
                     if "Sources:" in content:
                         content = content.split("Sources:")[0].strip()
@@ -138,7 +104,7 @@ class SearchInternetTool(AutoTool):
                 return {
                     "status": "success",
                     "result": formatted_content,
-                    "model_used": search_model,
+                    "model_used": self._model,
                 }
             else:
                 return {
@@ -195,7 +161,7 @@ class SolanaPlugin:
             print(
                 f"SearchInternetTool initialized with API key: {'Found' if self._tool._api_key else 'Not found'}"
             )
-            print(f"SearchInternetTool default model: {self._tool._default_model}")
+            print(f"SearchInternetTool default model: {self._tool._model}")
 
     def get_tools(self) -> List[AutoTool]:
         """Return the list of tools provided by this plugin."""

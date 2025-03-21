@@ -36,7 +36,7 @@ config = {
         "search_internet": {
             "api_key": "your-perplexity-key", # Required
             "citations": True, # Optional, defaults to True
-            "default_model": "sonar-reasoning-pro"  # Optional, defaults to "sonar"
+            "model": "sonar"  # Optional, defaults to "sonar"
         }
     },
     
@@ -56,6 +56,9 @@ config = {
 * sonar-pro: Enhanced search capabilities
 * sonar-reasoning-pro: Advanced reasoning with search
 * sonar-reasoning: Basic reasoning with search
+
+**Notes**
+* The sonar reasoning models will output their reasoning in the text or audio for Solana Agent which is bad.
 
 ## 🧩 Plugin Development
 Want to add your own plugins to Solana Agent Kit? Follow these guidelines:
