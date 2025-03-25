@@ -612,20 +612,20 @@ files = [
 
 [[package]]
 name = "solana-agent"
-version = "17.0.5"
-description = "The Future of Work"
+version = "17.1.10"
+description = "Agentic IQ"
 optional = false
 python-versions = "<4.0,>=3.12"
 files = [
-    {file = "solana_agent-17.0.5-py3-none-any.whl", hash = "sha256:8288d2ee3ea743d4241e0b0c98818059f21b45abcce90245bb2db47092992605"},
-    {file = "solana_agent-17.0.5.tar.gz", hash = "sha256:d4fd56816eeeabe702de6cd0a31a9db98ec973c980ee74bfa92aaf92ee7eac66"},
+    {file = "solana_agent-17.1.10-py3-none-any.whl", hash = "sha256:78629705b0a4bbfda6f27a78592a2cbeec64043501392a772961733886eb7384"},
+    {file = "solana_agent-17.1.10.tar.gz", hash = "sha256:215ebf3507696ad661e13ce2898e19d8b876904da042a2631d3ecddc8bcf4ce5"},
 ]
 
 [package.dependencies]
-openai = ">=1.68.1,<2.0.0"
+openai = ">=1.68.2,<2.0.0"
 pydantic = ">=2.10.6,<3.0.0"
 pymongo = ">=4.11.3,<5.0.0"
-zep-cloud = ">=2.7.0,<3.0.0"
+zep-cloud = ">=2.8.0,<3.0.0"
 zep-python = ">=2.0.2,<3.0.0"
 
 [[package]]
@@ -679,13 +679,13 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "zep-cloud"
-version = "2.7.0"
+version = "2.8.0"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.9.0"
 files = [
-    {file = "zep_cloud-2.7.0-py3-none-any.whl", hash = "sha256:ebb9a340939ded1055b821ed4c31b98d1e525d93e9b00864747829e8ec371fa3"},
-    {file = "zep_cloud-2.7.0.tar.gz", hash = "sha256:62af22e2ba64d978cd2a4e29813c363f3746ca78fa4612051bfbfb26a9f1faa7"},
+    {file = "zep_cloud-2.8.0-py3-none-any.whl", hash = "sha256:43c20d94de65e6531049269c55fec6303733c6d036c33aeff95d99c050ed0d05"},
+    {file = "zep_cloud-2.8.0.tar.gz", hash = "sha256:35790b34ff45833c7ceb6c7f3b128fe676423438dd2551ba25e7b02aec61cd03"},
 ]
 
 [package.dependencies]
