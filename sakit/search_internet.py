@@ -17,6 +17,14 @@ class SearchInternetTool(AutoTool):
         self._model = "sonar"
         self._citations = True  # Default to True
 
+    def get_schema(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query text"},
+            },
+            "required": ["query"]
+        }
 
     def configure(self, config: Dict[str, Any]) -> None:
         """Configure with all possible API key locations."""
