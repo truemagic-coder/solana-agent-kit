@@ -9,26 +9,19 @@ A collection of powerful plugins to extend the capabilities of Solana Agent.
 ## 🚀 Features
 Solana Agent Kit provides a growing library of plugins that enhance your Solana Agent with new capabilities:
 
-🔍 Internet Search - Search the internet in real-time using Perplexity AI
-
-📝 More plugins coming soon!
+* Internet Search - Search the internet in real-time using Perplexity AI
+* MCP - Interface with any MCP server
 
 ## 📦 Installation
 
 ```bash
-# Using pip
 pip install sakit
-
-# Using Poetry
-poetry add sakit
 ```
 
 🔌 Plugins
-Internet Search Plugin
-This plugin enables Solana Agent to search the internet for up-to-date information using Perplexity AI.
 
-Configuration
-Add your Perplexity API key to your Solana Agent configuration:
+### Internet Search Plugin
+This plugin enables Solana Agent to search the internet for up-to-date information using Perplexity AI.
 
 ```python
 config = {    
@@ -39,7 +32,6 @@ config = {
             "model": "sonar"  # Optional, defaults to "sonar"
         }
     },
-    
     "agents": [
         {
             "name": "research_specialist",
@@ -57,6 +49,31 @@ config = {
 
 **Notes**
 * The sonar reasoning models will output their reasoning in the text or audio for Solana Agent which is bad so they should not be used.
+
+### MCP
+This plugin enables Solana Agent to interact with multiple MCP servers via URLs.
+
+```python
+    config = {
+        "tools": {
+            "mcp": {
+                "server_urls": [
+                    "http://mcp-server1.com/mcp",
+                    "http://mcp-server2.com/mcp",
+                    "http://mcp-server3.com/mcp"
+                ]
+            }
+        },
+        "agents": [
+            {
+                "name": "research_specialist",
+                "instructions": "You are an expert researcher who synthesizes complex information clearly.",
+                "specialization": "Research and knowledge synthesis",
+                "tools": ["mcp"],  # Enable the tool for this agent
+            }
+        ]
+    }
+```
 
 ## 🧩 Plugin Development
 Want to add your own plugins to Solana Agent Kit? Follow these guidelines:

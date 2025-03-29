@@ -1,9 +1,5 @@
 """Search Internet plugin for Solana Agent."""
-from .search_internet import SearchInternetTool, SolanaPlugin
+from .search_internet import SearchInternetTool, SearchInternetPlugin
+from .mcp import MCPTool, MCPPlugin
 
-# This function MUST return a SolanaPlugin instance
-def get_plugin():
-    """Return the plugin instance for registration."""
-    return SolanaPlugin()
-
-__all__ = ["SearchInternetTool", "SolanaPlugin", "get_plugin"]
+__all__ = ["SearchInternetTool", "SearchInternetPlugin", "MCPTool", "MCPPlugin"]

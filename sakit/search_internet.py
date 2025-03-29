@@ -124,7 +124,7 @@ class SearchInternetTool(AutoTool):
             return {"status": "error", "message": f"Error: {str(e)}"}
 
 
-class SolanaPlugin:
+class SearchInternetPlugin:
     """Plugin for Solana Agent."""
 
     def __init__(self):
@@ -182,4 +182,4 @@ class SolanaPlugin:
 # Entry point function
 def get_plugin():
     """Return plugin instance for registration."""
-    return SolanaPlugin()
+    return SearchInternetPlugin()
