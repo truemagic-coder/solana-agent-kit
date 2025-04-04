@@ -137,31 +137,28 @@ class SearchInternetTool(AutoTool):
                 messages = [
                     {
                         "role": "system",
-                        "content": (
-                            "You are a helpful assistant that searches the internet for current information. "
-                            "Provide a comprehensive answer without citations or source references."
-                        ),
+                        "content": "You are a helpful assistant that searches the internet for current information.",
                     },
                     {"role": "user", "content": query},
                 ]
                 request_params = {
                     "messages": messages,
-                    "stream": False,
                     "model": self._model,
                 }
-                client = OpenAI(api_key=self._api_key)
-                response = client.chat.completions.create(**request_params)
-                if response and "choices" in response:
-                    content = response["choices"][0]["message"]["content"]
+                try:
+                    client = OpenAI(api_key=self._api_key)
+                    response = client.chat.completions.create(**request_params)
+                    content = response.choices[0].message.content
                     return {
                         "status": "success",
                         "result": content,
                         "model_used": self._model,
                     }
-                else:
+                except Exception as e:
                     return {
                         "status": "error",
-                        "message": "No valid response from OpenAI API",
+                        "message": "OpenAI API error",
+                        "details": str(e),
                     }
                             
         except Exception as e:
