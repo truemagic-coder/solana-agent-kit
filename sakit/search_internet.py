@@ -1,5 +1,6 @@
 from solana_agent import AutoTool, ToolRegistry
 import requests
+from openai import OpenAI
 from typing import Dict, Any, List
 
 
@@ -14,8 +15,9 @@ class SearchInternetTool(AutoTool):
             registry=registry,
         )
         self._api_key = None
-        self._model = "sonar"
-        self._citations = True  # Default to True
+        self._model = ""
+        self._citations = True
+        self._provider = "perplexity"
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -38,6 +40,11 @@ class SearchInternetTool(AutoTool):
                     self._api_key = config["tools"]["search_internet"]["api_key"]
                     print(f"Using API key from tools.search_internet.api_key: {self._api_key[:4]}...")
                 
+                # Check for provider setting in tool config
+                if "provider" in config["tools"]["search_internet"]:
+                    self._provider = config["tools"]["search_internet"]["provider"]
+                    print(f"Using provider from tools.search_internet.provider: {self._provider}")
+
                 # Check for citations setting in tool config
                 if "citations" in config["tools"]["search_internet"]:
                     self._citations = bool(config["tools"]["search_internet"]["citations"])
@@ -47,79 +54,116 @@ class SearchInternetTool(AutoTool):
                 if "model" in config["tools"]["search_internet"]:
                     self._model = config["tools"]["search_internet"]["model"]
                     print(f"Using model from tools.search_internet.model: {self._model}")
+                else:
+                    if self._provider == "perplexity":
+                        self._model = "sonar"
+                    elif self._provider == "openai":
+                        self._model = "gpt-4o-mini-search-preview"
 
     async def execute(self, query: str) -> Dict[str, Any]:
         """Execute the search."""
         
         if not self._api_key:
-            return {"status": "error", "message": "Perplexity API key not configured"}
+            return {"status": "error", "message": "API key not configured"}
         
-        try:
-            url = "https://api.perplexity.ai/chat/completions"
-            
-            # Choose appropriate prompt based on citations setting
-            system_content = (
-                "You search the internet for current information. Include detailed information with citations like [1], [2], etc." 
-                if self._citations else
-                "You search the internet for current information. Provide a comprehensive answer without citations or source references."
-            )
-            
-            payload = {
-                "model": self._model,
-                "messages": [
+        try:        
+            if self._provider == "perplexity":
+                url = "https://api.perplexity.ai/chat/completions"
+                
+                # Choose appropriate prompt based on citations setting
+                system_content = (
+                    "You search the internet for current information. Include detailed information with citations like [1], [2], etc." 
+                    if self._citations else
+                    "You search the internet for current information. Provide a comprehensive answer without citations or source references."
+                )
+                
+                payload = {
+                    "model": self._model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": system_content,
+                        },
+                        {"role": "user", "content": query},
+                    ],
+                }
+                headers = {
+                    "Authorization": f"Bearer {self._api_key}",
+                    "Content-Type": "application/json",
+                }
+        
+                response = requests.post(url, json=payload, headers=headers)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    content = data["choices"][0]["message"]["content"]
+                    
+                    # Only process citations if setting is enabled
+                    if self._citations:
+                        # Remove the existing Sources section if present
+                        if "Sources:" in content:
+                            content = content.split("Sources:")[0].strip()
+                        
+                        # Get citations if available
+                        links = []
+                        if "citations" in data:
+                            citations = data["citations"]
+                            for i, citation in enumerate(citations, 1):
+                                url = citation if isinstance(citation, str) else (citation["url"] if "url" in citation else "")
+                                if url:
+                                    links.append(f"[{i}] {url}")
+                        
+                        # Format the final content with properly numbered sources
+                        if links:
+                            formatted_content = content + "\n\n**Sources:**\n" + "\n".join(links)
+                        else:
+                            formatted_content = content
+                    else:
+                        # No citation processing needed
+                        formatted_content = content
+                        
+                    return {
+                        "status": "success",
+                        "result": formatted_content,
+                        "model_used": self._model,
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "message": f"Failed to search: {response.status_code}",
+                        "details": response.text
+                    }
+            elif self._provider == "openai":
+                messages = [
                     {
                         "role": "system",
-                        "content": system_content,
+                        "content": (
+                            "You are a helpful assistant that searches the internet for current information. "
+                            "Provide a comprehensive answer without citations or source references."
+                        ),
                     },
                     {"role": "user", "content": query},
-                ],
-            }
-            headers = {
-                "Authorization": f"Bearer {self._api_key}",
-                "Content-Type": "application/json",
-            }
-    
-            response = requests.post(url, json=payload, headers=headers)
-            
-            if response.status_code == 200:
-                data = response.json()
-                content = data["choices"][0]["message"]["content"]
-                
-                # Only process citations if setting is enabled
-                if self._citations:
-                    # Remove the existing Sources section if present
-                    if "Sources:" in content:
-                        content = content.split("Sources:")[0].strip()
-                    
-                    # Get citations if available
-                    links = []
-                    if "citations" in data:
-                        citations = data["citations"]
-                        for i, citation in enumerate(citations, 1):
-                            url = citation if isinstance(citation, str) else (citation["url"] if "url" in citation else "")
-                            if url:
-                                links.append(f"[{i}] {url}")
-                    
-                    # Format the final content with properly numbered sources
-                    if links:
-                        formatted_content = content + "\n\n**Sources:**\n" + "\n".join(links)
-                    else:
-                        formatted_content = content
+                ]
+                request_params = {
+                    "messages": messages,
+                    "stream": False,
+                    "model": self._model,
+                }
+                client = OpenAI(api_key=self._api_key)
+                response = client.chat.completions.create(**request_params)
+                if response and "choices" in response:
+                    content = response["choices"][0]["message"]["content"]
+                    return {
+                        "status": "success",
+                        "result": content,
+                        "model_used": self._model,
+                    }
                 else:
-                    # No citation processing needed
-                    formatted_content = content
-                    
-                return {
-                    "status": "success",
-                    "result": formatted_content,
-                    "model_used": self._model,
-                }
-            else:
-                return {
-                    "status": "error",
-                    "message": f"Failed to search: {response.status_code}",
-                    "details": response.text
-                }
+                    return {
+                        "status": "error",
+                        "message": "No valid response from OpenAI API",
+                    }
+                            
         except Exception as e:
             return {"status": "error", "message": f"Error: {str(e)}"}
 

@@ -9,7 +9,7 @@ A collection of powerful plugins to extend the capabilities of Solana Agent.
 ## 🚀 Features
 Solana Agent Kit provides a growing library of plugins that enhance your Solana Agent with new capabilities:
 
-* Internet Search - Search the internet in real-time using Perplexity AI
+* Internet Search - Search the internet in real-time using Perplexity or OpenAI
 * MCP - Interface with any MCP server
 
 ## 📦 Installation
@@ -21,21 +21,24 @@ pip install sakit
 🔌 Plugins
 
 ### Internet Search Plugin
-This plugin enables Solana Agent to search the internet for up-to-date information using Perplexity AI.
+This plugin enables Solana Agent to search the internet for up-to-date information using Perplexity or OpenAI.
+
+Please ensure you include a prompt to instruct the agent to use the tool - otherwise it may not use it.
 
 ```python
 config = {    
     "tools": {
         "search_internet": {
-            "api_key": "your-perplexity-key", # Required
-            "citations": True, # Optional, defaults to True
-            "model": "sonar"  # Optional, defaults to "sonar"
+            "api_key": "your-api-key", # Required - either a Perplexity or OpenAI API key
+            "provider": "perplexity", # Optional, defaults to perplexity - can also be openai (lowercase)
+            "citations": True, # Optional, defaults to True - only applies for Perplexity
+            "model": "sonar"  # Optional, defaults to "sonar" for Perplexity and "gpt-4o-mini-search-preview" for OpenAI
         }
     },
     "agents": [
         {
             "name": "research_specialist",
-            "instructions": "You are an expert researcher who synthesizes complex information clearly.",
+            "instructions": "You are an expert researcher who synthesizes complex information clearly. You use your search_internet tool to get the latest information.",
             "specialization": "Research and knowledge synthesis",
             "tools": ["search_internet"],  # Enable the tool for this agent
         }
@@ -43,9 +46,13 @@ config = {
 }
 ```
 
-**Available Search Models**
-* sonar: Fast, general-purpose search
-* sonar-pro: Enhanced search capabilities
+**Available Search Models for Perplexity**
+* sonar
+* sonar-pro
+
+**Available Search Models for OpenAI**
+* gpt-4o-mini-search-preview
+* gpt-4o-search-preview
 
 **Notes**
 * The sonar reasoning models will output their reasoning in the text or audio for Solana Agent which is bad so they should not be used.

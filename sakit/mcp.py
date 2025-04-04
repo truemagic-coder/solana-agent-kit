@@ -1,5 +1,7 @@
 from typing import Dict, Any, List, Optional
-from mcp import ClientSession, sse_client
+from mcp import ClientSession
+from mcp.client.sse import sse_client
+
 from solana_agent import AutoTool, ToolRegistry
 
 
@@ -234,7 +236,7 @@ class MCPPlugin:
             self._tool.configure(self.config)
             
             print(
-                f"MCP Tool initialized with server URL: {'Found' if self._tool._server_url else 'Not found'}"
+                f"MCP Tool initialized with server URL: {'Found' if self._tool._server_urls else 'Not found'}"
             )
 
     def get_tools(self) -> List[AutoTool]:
