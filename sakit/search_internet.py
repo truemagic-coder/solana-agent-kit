@@ -1,6 +1,6 @@
 from solana_agent import AutoTool, ToolRegistry
-import requests
-from openai import OpenAI
+import httpx
+from openai import AsyncOpenAI
 from typing import Dict, Any, List
 
 
@@ -92,47 +92,50 @@ class SearchInternetTool(AutoTool):
                     "Content-Type": "application/json",
                 }
         
-                response = requests.post(url, json=payload, headers=headers)
+                # Use httpx for async requests
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.post(url, json=payload, headers=headers)
                 
-                if response.status_code == 200:
-                    data = response.json()
-                    content = data["choices"][0]["message"]["content"]
-                    
-                    # Only process citations if setting is enabled
-                    if self._citations:
-                        # Remove the existing Sources section if present
-                        if "Sources:" in content:
-                            content = content.split("Sources:")[0].strip()
+                    if response.status_code == 200:
+                        data = response.json()
+                        content = data["choices"][0]["message"]["content"]
                         
-                        # Get citations if available
-                        links = []
-                        if "citations" in data:
-                            citations = data["citations"]
-                            for i, citation in enumerate(citations, 1):
-                                url = citation if isinstance(citation, str) else (citation["url"] if "url" in citation else "")
-                                if url:
-                                    links.append(f"[{i}] {url}")
-                        
-                        # Format the final content with properly numbered sources
-                        if links:
-                            formatted_content = content + "\n\n**Sources:**\n" + "\n".join(links)
+                        # Only process citations if setting is enabled
+                        if self._citations:
+                            # Remove the existing Sources section if present
+                            if "Sources:" in content:
+                                content = content.split("Sources:")[0].strip()
+                            
+                            # Get citations if available
+                            links = []
+                            if "citations" in data:
+                                citations = data["citations"]
+                                for i, citation in enumerate(citations, 1):
+                                    url = citation if isinstance(citation, str) else (citation["url"] if "url" in citation else "")
+                                    if url:
+                                        links.append(f"[{i}] {url}")
+                            
+                            # Format the final content with properly numbered sources
+                            if links:
+                                formatted_content = content + "\n\n**Sources:**\n" + "\n".join(links)
+                            else:
+                                formatted_content = content
                         else:
+                            # No citation processing needed
                             formatted_content = content
+                            
+                        return {
+                            "status": "success",
+                            "result": formatted_content,
+                            "model_used": self._model,
+                        }
                     else:
-                        # No citation processing needed
-                        formatted_content = content
-                        
-                    return {
-                        "status": "success",
-                        "result": formatted_content,
-                        "model_used": self._model,
-                    }
-                else:
-                    return {
-                        "status": "error",
-                        "message": f"Failed to search: {response.status_code}",
-                        "details": response.text
-                    }
+                        print(f"Error: {response.status_code} - {response.text}")
+                        return {
+                            "status": "error",
+                            "message": f"Failed to search: {response.status_code}",
+                            "details": response.text
+                        }
             elif self._provider == "openai":
                 messages = [
                     {
@@ -146,8 +149,8 @@ class SearchInternetTool(AutoTool):
                     "model": self._model,
                 }
                 try:
-                    client = OpenAI(api_key=self._api_key)
-                    response = client.chat.completions.create(**request_params)
+                    client = AsyncOpenAI(api_key=self._api_key)
+                    response = await client.chat.completions.create(**request_params)
                     content = response.choices[0].message.content
                     return {
                         "status": "success",
@@ -155,6 +158,7 @@ class SearchInternetTool(AutoTool):
                         "model_used": self._model,
                     }
                 except Exception as e:
+                    print(f"OpenAI API error: {str(e)}")
                     return {
                         "status": "error",
                         "message": "OpenAI API error",
@@ -162,6 +166,9 @@ class SearchInternetTool(AutoTool):
                     }
                             
         except Exception as e:
+            print(f"Error in search: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             return {"status": "error", "message": f"Error: {str(e)}"}
 
 
