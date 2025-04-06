@@ -5,19 +5,19 @@ from typing import Dict, Any, List
 
 
 class SearchInternetTool(AutoTool):
-    """Tool for searching the internet using Perplexity AI."""
+    """Tool for searching the internet using Perplexity AI or OpenAI."""
 
     def __init__(self, registry=None):
         """Initialize with auto-registration."""
         super().__init__(
             name="search_internet",
-            description="Search the internet for current information using Perplexity AI",
+            description="Search the internet for current information using Perplexity AI or OpenAI.",
             registry=registry,
         )
         self._api_key = None
         self._model = ""
         self._citations = True
-        self._provider = "perplexity"
+        self._provider = "openai"
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -93,7 +93,7 @@ class SearchInternetTool(AutoTool):
                 }
         
                 # Use httpx for async requests
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.post(url, json=payload, headers=headers)
                 
                     if response.status_code == 200:
