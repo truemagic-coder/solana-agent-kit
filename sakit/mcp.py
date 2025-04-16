@@ -1,6 +1,6 @@
 from typing import Dict, Any, List, Optional
 from mcp import ClientSession
-from mcp.client.sse import sse_client
+from mcp.client.sse import sse_client # type: ignore[import]
 
 from solana_agent import AutoTool, ToolRegistry
 
