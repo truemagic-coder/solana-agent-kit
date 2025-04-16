@@ -17,7 +17,7 @@ packages = [{ include = "sakit" }]
 python = ">=3.12,<4.0"
 httpx = "^0.28.1"
 mcp = "^1.6.0"
-solana-agent = ">=27.3.1"
+solana-agent = ">=27.3.2"
 agentipy = "2.1.1"
 solders = "*"
 

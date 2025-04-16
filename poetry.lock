@@ -4438,14 +4438,14 @@ websockets = ">=9.0,<=15.0"
 
 [[package]]
 name = "solana-agent"
-version = "27.3.1"
+version = "27.3.2"
 description = "Agentic IQ"
 optional = false
 python-versions = "<4.0,>=3.12"
 groups = ["main"]
 files = [
-    {file = "solana_agent-27.3.1-py3-none-any.whl", hash = "sha256:b4465aaf497204c367973eeef678e5e687d1d222bc906dd2442037c57ce6cf91"},
-    {file = "solana_agent-27.3.1.tar.gz", hash = "sha256:8bdfec38f0776a806e10c9dfd11edae5970137197cb3638c03f9eb92cc293901"},
+    {file = "solana_agent-27.3.2-py3-none-any.whl", hash = "sha256:5507cd612cdeccc028775959e368613961a60b7682f7788ebc79f6c8709d3aa2"},
+    {file = "solana_agent-27.3.2.tar.gz", hash = "sha256:c18053402c28a8bda040cae576220c4c9465542dfad73f7fb1e888be0145b50b"},
 ]
 
 [package.dependencies]
@@ -5437,4 +5437,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "5d57488f3b2b340545dd7fe57713fcc8b72ccac71aef7ba86ab458898d16a607"
+content-hash = "81fb736723ef1a11d082365be0f6465209c9800b18eb30bf7dad2debf02ff12c"
