@@ -19,7 +19,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 pip install sakit
 ```
 
-🔌 Plugins
+## 🔌 Plugins
 
 ### Solana
 This plugin integrates the [agentipy](https://github.com/niceberginc/agentipy) package, providing your Solana Agent with direct access to Solana ecosystem.
