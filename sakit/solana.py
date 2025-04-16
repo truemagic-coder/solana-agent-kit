@@ -424,10 +424,14 @@ Common Examples (Illustrative):
                     if hasattr(expected_type, '__origin__') and (expected_type.__origin__ is Optional or expected_type.__origin__ is Union):
                         inner_types = getattr(expected_type, '__args__', ())
                         actual_inner_types = [t for t in inner_types if t is not type(None)]
-                        if type(None) in inner_types: is_optional = True
-                        if len(actual_inner_types) == 1: expected_type = actual_inner_types[0]
-                        elif len(actual_inner_types) > 1: expected_type = Any # Treat complex Union as Any
-                        else: expected_type = Any # Only NoneType
+                        if type(None) in inner_types: 
+                            is_optional = True
+                        if len(actual_inner_types) == 1: 
+                            expected_type = actual_inner_types[0]
+                        elif len(actual_inner_types) > 1: 
+                            expected_type = Any # Treat complex Union as Any
+                        else: 
+                            expected_type = Any # Only NoneType
 
                     if is_optional and arg_value is None:
                         processed_args[arg_name] = None
@@ -456,7 +460,8 @@ Common Examples (Illustrative):
                                     processed_args[arg_name] = False
                                 else: 
                                     raise ValueError(f"Cannot convert string '{arg_value}' to bool")
-                            else: processed_args[arg_name] = bool(arg_value)
+                            else: 
+                                processed_args[arg_name] = bool(arg_value)
                         elif hasattr(expected_type, '__origin__') and expected_type.__origin__ is list and isinstance(arg_value, list):
                             inner_list_type = getattr(expected_type, '__args__', (Any,))[0]
                             if inner_list_type is str: 

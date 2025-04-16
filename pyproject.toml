@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "8.0.0"
+version = "8.1.0"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -17,9 +17,12 @@ packages = [{ include = "sakit" }]
 python = ">=3.12,<4.0"
 httpx = "^0.28.1"
 mcp = "^1.6.0"
-solana-agent = ">=27.3.2"
+solana-agent = ">=27.3.5"
 agentipy = "2.1.1"
 solders = "*"
+langchain = "^0.3.23"
+langchain-openai = "^0.3.13"
+mcp-use = "^1.1.5"
 
 [build-system]
 requires = ["poetry-core"]

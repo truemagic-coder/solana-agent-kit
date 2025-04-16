@@ -2285,6 +2285,24 @@ files = [
 ]
 
 [[package]]
+name = "jsonschema-pydantic"
+version = "0.6"
+description = "Convert JSON Schemas to Pydantic models"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "jsonschema_pydantic-0.6-py3-none-any.whl", hash = "sha256:98385ed53ab87598665956b43756746350e2b60411a38381231f9703d36e40eb"},
+    {file = "jsonschema_pydantic-0.6.tar.gz", hash = "sha256:6069a8929a333a7c7ea8510e9de50f062e747e655e6ba106da5af1981f995270"},
+]
+
+[package.dependencies]
+pydantic = ">=1.10.0"
+
+[package.extras]
+test = ["black", "coverage", "flake8", "gitchangelog", "isort", "mkdocs", "pydantic (>=2.5.3,<3.0.0)", "pytest", "pytest-cov"]
+
+[[package]]
 name = "langchain"
 version = "0.3.23"
 description = "Building applications with LLMs through composability"
@@ -2325,6 +2343,32 @@ together = ["langchain-together"]
 xai = ["langchain-xai"]
 
 [[package]]
+name = "langchain-community"
+version = "0.3.21"
+description = "Community contributed LangChain integrations."
+optional = false
+python-versions = "<4.0,>=3.9"
+groups = ["main"]
+files = [
+    {file = "langchain_community-0.3.21-py3-none-any.whl", hash = "sha256:8cb9bbb7ef15e5eea776193528dd0e0e1299047146d0c78b6c696ae2dc62e81f"},
+    {file = "langchain_community-0.3.21.tar.gz", hash = "sha256:b87b9992cbeea7553ed93e3d39faf9893a8690318485f7dc861751c7878729f7"},
+]
+
+[package.dependencies]
+aiohttp = ">=3.8.3,<4.0.0"
+dataclasses-json = ">=0.5.7,<0.7"
+httpx-sse = ">=0.4.0,<1.0.0"
+langchain = ">=0.3.23,<1.0.0"
+langchain-core = ">=0.3.51,<1.0.0"
+langsmith = ">=0.1.125,<0.4"
+numpy = ">=1.26.2,<3"
+pydantic-settings = ">=2.4.0,<3.0.0"
+PyYAML = ">=5.3"
+requests = ">=2,<3"
+SQLAlchemy = ">=1.4,<3"
+tenacity = ">=8.1.0,<8.4.0 || >8.4.0,<10"
+
+[[package]]
 name = "langchain-core"
 version = "0.3.52"
 description = "Building applications with LLMs through composability"
@@ -2347,6 +2391,23 @@ pydantic = [
 PyYAML = ">=5.3"
 tenacity = ">=8.1.0,<8.4.0 || >8.4.0,<10.0.0"
 typing-extensions = ">=4.7"
+
+[[package]]
+name = "langchain-openai"
+version = "0.3.13"
+description = "An integration package connecting OpenAI and LangChain"
+optional = false
+python-versions = "<4.0,>=3.9"
+groups = ["main"]
+files = [
+    {file = "langchain_openai-0.3.13-py3-none-any.whl", hash = "sha256:2ca3f1865df32d03c3bd85c77f11f0ffd81b157b4e363291741c65c81463606a"},
+    {file = "langchain_openai-0.3.13.tar.gz", hash = "sha256:75038efbf686f4b5fe2b6bdb75c43790d563ecd61984fd1d51d6d51c53609d64"},
+]
+
+[package.dependencies]
+langchain-core = ">=0.3.52,<1.0.0"
+openai = ">=1.68.2,<2.0.0"
+tiktoken = ">=0.7,<1"
 
 [[package]]
 name = "langchain-text-splitters"
@@ -2633,6 +2694,34 @@ rich = ["rich (>=13.9.4)"]
 ws = ["websockets (>=15.0.1)"]
 
 [[package]]
+name = "mcp-use"
+version = "1.1.5"
+description = "MCP Library for LLMs"
+optional = false
+python-versions = ">=3.11"
+groups = ["main"]
+files = [
+    {file = "mcp_use-1.1.5-py3-none-any.whl", hash = "sha256:73f2265070d58acaa6bb8ccbe339713b5454c6789608a5e2932d2a2f40e9c8e1"},
+    {file = "mcp_use-1.1.5.tar.gz", hash = "sha256:05c9625dd2b11fad66a69e8fcdc6be2d50d2d483e01fa7c35c6f8c19b8d76715"},
+]
+
+[package.dependencies]
+aiohttp = ">=3.9.0"
+jsonschema-pydantic = ">=0.1.0"
+langchain = ">=0.1.0"
+langchain-community = ">=0.0.10"
+mcp = "*"
+pydantic = ">=2.0.0"
+python-dotenv = ">=1.0.0"
+typing-extensions = ">=4.8.0"
+websockets = ">=12.0"
+
+[package.extras]
+anthropic = ["anthropic (>=0.15.0)"]
+dev = ["black (>=23.9.0)", "isort (>=5.12.0)", "mypy (>=1.5.0)", "pytest (>=7.4.0)", "pytest-asyncio (>=0.21.0)", "pytest-cov (>=4.1.0)", "ruff (>=0.1.0)"]
+openai = ["openai (>=1.10.0)"]
+
+[[package]]
 name = "mdurl"
 version = "0.1.2"
 description = "Markdown URL utilities"
@@ -2917,14 +3006,14 @@ files = [
 
 [[package]]
 name = "openai"
-version = "1.74.0"
+version = "1.75.0"
 description = "The official Python library for the openai API"
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "openai-1.74.0-py3-none-any.whl", hash = "sha256:aff3e0f9fb209836382ec112778667027f4fd6ae38bdb2334bc9e173598b092a"},
-    {file = "openai-1.74.0.tar.gz", hash = "sha256:592c25b8747a7cad33a841958f5eb859a785caea9ee22b9e4f4a2ec062236526"},
+    {file = "openai-1.75.0-py3-none-any.whl", hash = "sha256:fe6f932d2ded3b429ff67cc9ad118c71327db32eb9d32dd723de3acfca337125"},
+    {file = "openai-1.75.0.tar.gz", hash = "sha256:fb3ea907efbdb1bcfd0c44507ad9c961afd7dce3147292b54505ecfd17be8fd1"},
 ]
 
 [package.dependencies]
@@ -3555,33 +3644,33 @@ timezone = ["tzdata ; python_version >= \"3.9\" and platform_system == \"Windows
 
 [[package]]
 name = "pydantic-ai"
-version = "0.1.0"
+version = "0.1.1"
 description = "Agent Framework / shim to use Pydantic with LLMs"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "pydantic_ai-0.1.0-py3-none-any.whl", hash = "sha256:efcbe942987d1a0772274e8e396f60bad7205a7433dc7066bbf179c2f7cec2fe"},
-    {file = "pydantic_ai-0.1.0.tar.gz", hash = "sha256:3259c4b9c108349c07ea5e56953061ff5d83cf49496e8fa49cad75a47928f0ca"},
+    {file = "pydantic_ai-0.1.1-py3-none-any.whl", hash = "sha256:40c80bbe55059a14892c63f3227fe31705581cc6b503b02b2c94d44acb12bb2f"},
+    {file = "pydantic_ai-0.1.1.tar.gz", hash = "sha256:d9ec7f10c3d40d8b49fba01bdfa95e19dadd2995f9e68b03c32a8f9be28cf082"},
 ]
 
 [package.dependencies]
-pydantic-ai-slim = {version = "0.1.0", extras = ["anthropic", "bedrock", "cli", "cohere", "evals", "groq", "mcp", "mistral", "openai", "vertexai"]}
+pydantic-ai-slim = {version = "0.1.1", extras = ["anthropic", "bedrock", "cli", "cohere", "evals", "groq", "mcp", "mistral", "openai", "vertexai"]}
 
 [package.extras]
-examples = ["pydantic-ai-examples (==0.1.0)"]
+examples = ["pydantic-ai-examples (==0.1.1)"]
 logfire = ["logfire (>=3.11.0)"]
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "0.1.0"
+version = "0.1.1"
 description = "Agent Framework / shim to use Pydantic with LLMs, slim package"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "pydantic_ai_slim-0.1.0-py3-none-any.whl", hash = "sha256:c732e6998b2ef819be48aac3e9e5b544b912b962f0c9d5f7932be7eb90554f99"},
-    {file = "pydantic_ai_slim-0.1.0.tar.gz", hash = "sha256:edfe1e5a19ccf3e738afefedd1f5cdb3a1ed9fa3a8176bf4e0fd00bb798be493"},
+    {file = "pydantic_ai_slim-0.1.1-py3-none-any.whl", hash = "sha256:66857e95a702d6d458cefa155389103a13ab625c4b99b841fcf9ec47c73dc33d"},
+    {file = "pydantic_ai_slim-0.1.1.tar.gz", hash = "sha256:2f4159398cea1182563df7683bf2458377bf93e8d3c0cec2b74e8f6b606c2689"},
 ]
 
 [package.dependencies]
@@ -3600,8 +3689,8 @@ openai = {version = ">=1.74.0", optional = true, markers = "extra == \"openai\""
 opentelemetry-api = ">=1.28.0"
 prompt-toolkit = {version = ">=3", optional = true, markers = "extra == \"cli\""}
 pydantic = ">=2.10"
-pydantic-evals = {version = "0.1.0", optional = true, markers = "extra == \"evals\""}
-pydantic-graph = "0.1.0"
+pydantic-evals = {version = "0.1.1", optional = true, markers = "extra == \"evals\""}
+pydantic-graph = "0.1.1"
 requests = {version = ">=2.32.3", optional = true, markers = "extra == \"vertexai\""}
 rich = {version = ">=13", optional = true, markers = "extra == \"cli\""}
 typing-inspection = ">=0.4.0"
@@ -3612,7 +3701,7 @@ bedrock = ["boto3 (>=1.35.74)"]
 cli = ["argcomplete (>=3.5.0)", "prompt-toolkit (>=3)", "rich (>=13)"]
 cohere = ["cohere (>=5.13.11) ; platform_system != \"Emscripten\""]
 duckduckgo = ["duckduckgo-search (>=7.0.0)"]
-evals = ["pydantic-evals (==0.1.0)"]
+evals = ["pydantic-evals (==0.1.1)"]
 groq = ["groq (>=0.15.0)"]
 logfire = ["logfire (>=3.11.0)"]
 mcp = ["mcp (>=1.4.1) ; python_version >= \"3.10\""]
@@ -3736,21 +3825,21 @@ typing-extensions = ">=4.6.0,<4.7.0 || >4.7.0"
 
 [[package]]
 name = "pydantic-evals"
-version = "0.1.0"
+version = "0.1.1"
 description = "Framework for evaluating stochastic code execution, especially code making use of LLMs"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "pydantic_evals-0.1.0-py3-none-any.whl", hash = "sha256:eaaba630d88d33328985fa58cca5bdcfc31f39695ec92dbc98f1effa779ad1e6"},
-    {file = "pydantic_evals-0.1.0.tar.gz", hash = "sha256:80512650a1089830c061a2064157e05c53db5cf4122c8f24066eef8b1d21a321"},
+    {file = "pydantic_evals-0.1.1-py3-none-any.whl", hash = "sha256:9bf07ba49f6bb5abb943b6dc45d59015b44048685bf5c1a204026046a480035c"},
+    {file = "pydantic_evals-0.1.1.tar.gz", hash = "sha256:c07562bcfcba4c313974fa2253b7c802c893913ab2335f407c4abab197ad11cd"},
 ]
 
 [package.dependencies]
 anyio = ">=0"
 logfire-api = ">=1.2.0"
 pydantic = ">=2.10"
-pydantic-ai-slim = "0.1.0"
+pydantic-ai-slim = "0.1.1"
 pyyaml = ">=6.0.2"
 rich = ">=13.9.4"
 
@@ -3759,14 +3848,14 @@ logfire = ["logfire (>=2.3)"]
 
 [[package]]
 name = "pydantic-graph"
-version = "0.1.0"
+version = "0.1.1"
 description = "Graph and state machine library"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "pydantic_graph-0.1.0-py3-none-any.whl", hash = "sha256:b0792da4bc0aafac2af223e622bfd9d66b39cf13ffe036056c162b5eb64930a8"},
-    {file = "pydantic_graph-0.1.0.tar.gz", hash = "sha256:0e709dfa2ee6e2b1c992fbee01e0ff03670143b355aad72116dec6f48308142c"},
+    {file = "pydantic_graph-0.1.1-py3-none-any.whl", hash = "sha256:5be49790985b1fc6e41cdbe88a921cb8f1ca55c00b153b191a5b4c7ba6d4ceb4"},
+    {file = "pydantic_graph-0.1.1.tar.gz", hash = "sha256:4008969d58631a25f598230fa61d19fcdc064a8799309a1a333a891362e21f0c"},
 ]
 
 [package.dependencies]
@@ -4350,14 +4439,14 @@ test = ["hypothesis (>=6.22.0,<6.108.7)", "pytest (>=7.0.0)", "pytest-xdist (>=2
 
 [[package]]
 name = "rsa"
-version = "4.9"
+version = "4.9.1"
 description = "Pure-Python RSA implementation"
 optional = false
-python-versions = ">=3.6,<4"
+python-versions = "<4,>=3.6"
 groups = ["main"]
 files = [
-    {file = "rsa-4.9-py3-none-any.whl", hash = "sha256:90260d9058e514786967344d0ef75fa8727eed8a7d2e43ce9f4bcf1b536174f7"},
-    {file = "rsa-4.9.tar.gz", hash = "sha256:e38464a49c6c85d7f1351b0126661487a7e0a14a50f1675ec50eb34d4f20ef21"},
+    {file = "rsa-4.9.1-py3-none-any.whl", hash = "sha256:68635866661c6836b8d39430f97a996acbd61bfa49406748ea243539fe239762"},
+    {file = "rsa-4.9.1.tar.gz", hash = "sha256:e7bdbfdb5497da4c07dfd35530e1a902659db6ff241e39d9953cad06ebd0ae75"},
 ]
 
 [package.dependencies]
@@ -4438,21 +4527,21 @@ websockets = ">=9.0,<=15.0"
 
 [[package]]
 name = "solana-agent"
-version = "27.3.2"
+version = "27.3.5"
 description = "Agentic IQ"
 optional = false
 python-versions = "<4.0,>=3.12"
 groups = ["main"]
 files = [
-    {file = "solana_agent-27.3.2-py3-none-any.whl", hash = "sha256:5507cd612cdeccc028775959e368613961a60b7682f7788ebc79f6c8709d3aa2"},
-    {file = "solana_agent-27.3.2.tar.gz", hash = "sha256:c18053402c28a8bda040cae576220c4c9465542dfad73f7fb1e888be0145b50b"},
+    {file = "solana_agent-27.3.5-py3-none-any.whl", hash = "sha256:9fd700a9675d3d3eb2c825ffa802171ebc52fdc51780bb862f1495ddb8a5879b"},
+    {file = "solana_agent-27.3.5.tar.gz", hash = "sha256:630a22c3497fbc091d3f75b5205d033497625a519d7badbb960c5d29290c3fb6"},
 ]
 
 [package.dependencies]
 instructor = ">=1.7.9,<2.0.0"
 llama-index-core = ">=0.12.30,<0.13.0"
 llama-index-embeddings-openai = ">=0.3.1,<0.4.0"
-openai = ">=1.74.0,<2.0.0"
+openai = ">=1.75.0,<2.0.0"
 pinecone = ">=6.0.2,<7.0.0"
 pydantic = ">=2"
 pymongo = ">=4.12.0,<5.0.0"
@@ -5437,4 +5526,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "81fb736723ef1a11d082365be0f6465209c9800b18eb30bf7dad2debf02ff12c"
+content-hash = "5d9e677c7e45667c3027522a4747473396b7164899ca77c5cd89544ca5747dbf"

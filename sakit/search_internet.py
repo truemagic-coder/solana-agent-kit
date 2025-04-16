@@ -32,33 +32,49 @@ class SearchInternetTool(AutoTool):
         """Configure with all possible API key locations."""
         super().configure(config)
         
-        # First check for tool-specific configuration (preferred location)
+        model_set_from_config = False
+
+        # Check tool-specific configuration first
         if "tools" in config and isinstance(config["tools"], dict):
             if "search_internet" in config["tools"] and isinstance(config["tools"]["search_internet"], dict):
+                tool_config = config["tools"]["search_internet"]
+
                 # Check for API key in tool config
-                if "api_key" in config["tools"]["search_internet"]:
-                    self._api_key = config["tools"]["search_internet"]["api_key"]
+                if "api_key" in tool_config:
+                    self._api_key = tool_config["api_key"]
                     print(f"Using API key from tools.search_internet.api_key: {self._api_key[:4]}...")
-                
+
                 # Check for provider setting in tool config
-                if "provider" in config["tools"]["search_internet"]:
-                    self._provider = config["tools"]["search_internet"]["provider"]
+                if "provider" in tool_config:
+                    self._provider = tool_config["provider"] # Overwrite default if specified
                     print(f"Using provider from tools.search_internet.provider: {self._provider}")
 
                 # Check for citations setting in tool config
-                if "citations" in config["tools"]["search_internet"]:
-                    self._citations = bool(config["tools"]["search_internet"]["citations"])
+                if "citations" in tool_config:
+                    self._citations = bool(tool_config["citations"])
                     print(f"Citations setting: {self._citations}")
 
                 # Check for model setting in tool config
-                if "model" in config["tools"]["search_internet"]:
-                    self._model = config["tools"]["search_internet"]["model"]
+                if "model" in tool_config:
+                    self._model = tool_config["model"]
+                    model_set_from_config = True
                     print(f"Using model from tools.search_internet.model: {self._model}")
-                else:
-                    if self._provider == "perplexity":
-                        self._model = "sonar"
-                    elif self._provider == "openai":
-                        self._model = "gpt-4o-mini-search-preview"
+
+        # Set default model *only if* it wasn't set via config
+        # This ensures self._provider exists (from __init__ or config override) before being accessed
+        if not model_set_from_config:
+            if self._provider == "perplexity":
+                # Using a known Perplexity online model as default
+                self._model = "sonar-medium-online"
+                print(f"Using default model for provider '{self._provider}': {self._model}")
+            elif self._provider == "openai":
+                # Use the specific model name from the original code
+                self._model = "gpt-4o-mini-search-preview"
+                print(f"Using default model for provider '{self._provider}': {self._model}")
+            else:
+                # Handle unknown provider case if necessary
+                print(f"Warning: Unknown provider '{self._provider}', cannot set default model.")
+                self._model = "" # Fallback or raise error
 
     async def execute(self, query: str) -> Dict[str, Any]:
         """Execute the search."""

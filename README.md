@@ -11,7 +11,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 
 * Solana - Interact with the Solana blockchain ecosystem using AgentiPy
 * Internet Search - Search the internet in real-time using Perplexity or OpenAI
-* MCP - Interface with any MCP server via its URL
+* MCP - Interface with any MCP server via its SSE URL - Zapier is supported
 
 ## 📦 Installation
 
@@ -105,25 +105,24 @@ config = {
 * The sonar reasoning models will output their reasoning in the text or audio for Solana Agent which is bad so they should not be used.
 
 
-### MCP
-This plugin enables Solana Agent to interact with multiple MCP servers via URLs.
+### MCP.
+
+[Zapier](https://zapier.com) MCP has been tested, works, and is supported.
+
+Other MCP servers may work but are not supported.
 
 ```python
     config = {
         "tools": {
             "mcp": {
-                "server_urls": [
-                    "http://mcp-server1.com/mcp",
-                    "http://mcp-server2.com/mcp",
-                    "http://mcp-server3.com/mcp"
-                ]
+                "urls": ["my-zapier-mcp-url"],
             }
         },
         "agents": [
             {
-                "name": "research_specialist",
-                "instructions": "You are an expert researcher who synthesizes complex information clearly.",
-                "specialization": "Research and knowledge synthesis",
+                "name": "zapier_expert",
+                "instructions": "You are an expert in using Zapier integrations using MCP. You always use the mcp tool to perform Zapier AI like actions.",
+                "specialization": "Zapier service integration expert",
                 "tools": ["mcp"],  # Enable the tool for this agent
             }
         ]
