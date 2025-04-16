@@ -107,7 +107,7 @@ config = {
 
 ### MCP
 
-[Zapier](https://zapier.com) MCP has been tested, works, and is supported.
+[Zapier](https://zapier.com/mcp) MCP has been tested, works, and is supported.
 
 Zapier integrates over 7,000+ apps with 30,000+ actions that your Solana Agent can utilize.
 
