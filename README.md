@@ -105,28 +105,28 @@ config = {
 * The sonar reasoning models will output their reasoning in the text or audio for Solana Agent which is bad so they should not be used.
 
 
-### MCP.
+### MCP
 
 [Zapier](https://zapier.com) MCP has been tested, works, and is supported.
 
 Other MCP servers may work but are not supported.
 
 ```python
-    config = {
-        "tools": {
-            "mcp": {
-                "urls": ["my-zapier-mcp-url"],
-            }
-        },
-        "agents": [
-            {
-                "name": "zapier_expert",
-                "instructions": "You are an expert in using Zapier integrations using MCP. You always use the mcp tool to perform Zapier AI like actions.",
-                "specialization": "Zapier service integration expert",
-                "tools": ["mcp"],  # Enable the tool for this agent
-            }
-        ]
-    }
+config = {
+    "tools": {
+        "mcp": {
+            "urls": ["my-zapier-mcp-url"],
+        }
+    },
+    "agents": [
+        {
+            "name": "zapier_expert",
+            "instructions": "You are an expert in using Zapier integrations using MCP. You always use the mcp tool to perform Zapier AI like actions.",
+            "specialization": "Zapier service integration expert",
+            "tools": ["mcp"],  # Enable the tool for this agent
+        }
+    ]
+}
 ```
 
 ## 🧩 Plugin Development
