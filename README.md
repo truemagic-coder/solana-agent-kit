@@ -56,7 +56,7 @@ config = {
             "solutiofi_api_key": "YOUR_SOLUTIOFI_API_KEY"          # Optional: Solutio Finance API key.
         },
     },
-    "ai_agents": [
+    "agents": [
         {
             "name": "solana_expert",
             "instructions": """
