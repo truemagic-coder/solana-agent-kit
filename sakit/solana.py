@@ -1,10 +1,11 @@
-import traceback # Keep traceback for exception printing
+import logging
 from typing import Dict, Any, List, Optional, Union
-from agentipy import SolanaAgentKit # type: ignore # types: ignore[import]
+from agentipy import SolanaAgentKit  # type: ignore # types: ignore[import]
 from solana_agent import AutoTool, ToolRegistry
-from solders.pubkey import Pubkey # type: ignore # types: ignore[import]
+from solders.pubkey import Pubkey  # type: ignore # types: ignore[import]
 
-# Removed format_type_hint function
+logger = logging.getLogger(__name__)
+
 
 class SolanaAgentKitTool(AutoTool):
     """
@@ -27,78 +28,207 @@ class SolanaAgentKitTool(AutoTool):
         # --- Static List of Actions ---
         # Manually generated or pasted from previous inspection
         available_actions = [
-            'approve_multisig_proposal', 'burn_and_close_accounts', 'burn_tokens',
-            'buy_token', 'buy_using_moonshot', 'buy_with_raydium',
-            'calculate_pump_curve_price', 'cancel_all_orders', 'cancel_listing',
-            'cancel_open_order', 'cancel_open_orders', 'check_if_drift_account_exists',
-            'check_transaction_status', 'close_accounts', 'close_perp_trade_long',
-            'close_perp_trade_short', 'close_position', 'create_3land_collection',
-            'create_3land_nft', 'create_clmm', 'create_debridge_transaction',
-            'create_drift_user_account', 'create_drift_vault', 'create_gibwork_task',
-            'create_liquidity_pool', 'create_manifest_market', 'create_meteora_dlmm_pool',
-            'create_multisig_proposal', 'create_openbook_market', 'create_squads_multisig',
-            'create_tiplink', 'create_webhook', 'cybers_create_coin', 'delete_webhook',
-            'deploy_collection', 'deploy_token', 'deposit_into_drift_vault',
-            'deposit_strategy', 'deposit_to_drift_user_account',
-            'deposit_to_multisig_treasury', 'derive_drift_vault_address',
-            'drift_swap_spot_token', 'drift_user_account_info', 'edit_webhook',
-            'execute_borrow_lend', 'execute_debridge_transaction',
-            'execute_multisig_proposal', 'execute_order', 'fetch_all_domains',
-            'fetch_domain_records', 'fetch_domains_csv', 'fetch_leaderboard',
-            'fetch_most_viewed_tokens', 'fetch_new_tokens', 'fetch_positions',
-            'fetch_price', 'fetch_recently_verified_tokens', 'fetch_token_detailed_report',
-            'fetch_token_flux_lp_lockers', 'fetch_token_lp_lockers',
-            'fetch_token_report_summary', 'fetch_token_votes', 'fetch_trending_tokens',
-            'flash_close_trade', 'flash_open_trade', 'fluxbeam_create_pool',
-            'get_account_balances', 'get_account_deposits', 'get_account_settings',
-            'get_active_listings', 'get_address_name', 'get_all_domains_for_owner',
-            'get_all_domains_tlds', 'get_all_topics', 'get_all_webhooks',
-            'get_available_drift_markets', 'get_balance', 'get_balances',
-            'get_borrow_history', 'get_borrow_lend_positions', 'get_borrow_position_history',
-            'get_bundle_statuses', 'get_collateral_info', 'get_depth',
-            'get_drift_entry_quote_of_perp_trade', 'get_drift_lend_borrow_apy',
-            'get_drift_perp_market_funding_rate', 'get_drift_vault_info',
-            'get_elfa_ai_api_key_status', 'get_favourite_domain', 'get_fill_history',
-            'get_funding_interval_rates', 'get_funding_payments',
-            'get_inference_by_topic_id', 'get_inflight_bundle_statuses',
-            'get_interest_history', 'get_klines', 'get_latest_pools', 'get_market',
-            'get_markets', 'get_mark_price', 'get_metaplex_asset',
-            'get_metaplex_assets_by_authority', 'get_metaplex_assets_by_creator',
-            'get_mintlists', 'get_nft_events', 'get_nft_fingerprint', 'get_nft_metadata',
-            'get_open_interest', 'get_open_orders', 'get_open_positions',
-            'get_order_history', 'get_owned_all_domains', 'get_owned_domains_for_tld',
-            'get_parsed_transaction_history', 'get_parsed_transactions', 'get_pnl_history',
-            'get_position_values', 'get_price_prediction', 'get_pump_curve_state',
-            'get_random_tip_account', 'get_raw_transactions', 'get_recent_trades',
-            'get_registration_transaction', 'get_settlement_history', 'get_smart_mentions',
-            'get_smart_twitter_account_stats', 'get_status', 'get_supported_assets',
-            'get_system_time', 'get_ticker_information', 'get_tickers', 'get_tip_accounts',
-            'get_token_data_by_address', 'get_token_data_by_ticker', 'get_token_info',
-            'get_token_price_data', 'get_top_gainers', 'get_top_mentions_by_ticker',
-            'get_tps', 'get_trending_pools', 'get_trending_tokens',
-            'get_trending_tokens_using_elfa_ai', 'get_users_open_orders', 'get_webhook',
-            'launch_pump_fun_token', 'lend_assets', 'list_nft_for_sale', 'list_tools',
-            'lookup_domain', 'lulo_lend', 'lulo_withdraw', 'merge_tokens',
-            'mint_metaplex_core_nft', 'multiple_burn_and_close_accounts',
-            'open_centered_position', 'open_perp_trade_long', 'open_perp_trade_short',
-            'open_single_sided_position', 'parse_key_value_string', 'ping_elfa_ai_api',
-            'place_batch_orders', 'place_limit_order', 'pyth_fetch_price',
-            'reject_multisig_proposal', 'request_faucet_funds',
-            'request_unstake_from_drift_insurance_fund', 'request_withdrawal',
-            'request_withdrawal_from_drift_vault', 'resolve_all_domains',
-            'resolve_name_to_address', 'restake', 'rock_paper_scissors',
-            'search_mentions_by_keywords', 'sell_token', 'sell_using_moonshot',
-            'sell_with_raydium', 'send_bundle', 'send_compressed_airdrop', 'send_ping',
-            'send_txn', 'simulate_switchboard_feed', 'spread_token', 'stake',
-            'stake_to_drift_insurance_fund', 'stork_fetch_price', 'trade',
-            'trade_using_delegated_drift_vault', 'trade_using_drift_perp_account',
-            'transfer', 'transfer_from_multisig_treasury',
-            'unstake_from_drift_insurance_fund', 'update_account_settings',
-            'update_drift_vault', 'update_drift_vault_delegate', 'withdraw_all',
-            'withdraw_from_drift_user_account', 'withdraw_from_drift_vault',
-            'withdraw_strategy'
+            "approve_multisig_proposal",
+            "burn_and_close_accounts",
+            "burn_tokens",
+            "buy_token",
+            "buy_using_moonshot",
+            "buy_with_raydium",
+            "calculate_pump_curve_price",
+            "cancel_all_orders",
+            "cancel_listing",
+            "cancel_open_order",
+            "cancel_open_orders",
+            "check_if_drift_account_exists",
+            "check_transaction_status",
+            "close_accounts",
+            "close_perp_trade_long",
+            "close_perp_trade_short",
+            "close_position",
+            "create_3land_collection",
+            "create_3land_nft",
+            "create_clmm",
+            "create_debridge_transaction",
+            "create_drift_user_account",
+            "create_drift_vault",
+            "create_gibwork_task",
+            "create_liquidity_pool",
+            "create_manifest_market",
+            "create_meteora_dlmm_pool",
+            "create_multisig_proposal",
+            "create_openbook_market",
+            "create_squads_multisig",
+            "create_tiplink",
+            "create_webhook",
+            "cybers_create_coin",
+            "delete_webhook",
+            "deploy_collection",
+            "deploy_token",
+            "deposit_into_drift_vault",
+            "deposit_strategy",
+            "deposit_to_drift_user_account",
+            "deposit_to_multisig_treasury",
+            "derive_drift_vault_address",
+            "drift_swap_spot_token",
+            "drift_user_account_info",
+            "edit_webhook",
+            "execute_borrow_lend",
+            "execute_debridge_transaction",
+            "execute_multisig_proposal",
+            "execute_order",
+            "fetch_all_domains",
+            "fetch_domain_records",
+            "fetch_domains_csv",
+            "fetch_leaderboard",
+            "fetch_most_viewed_tokens",
+            "fetch_new_tokens",
+            "fetch_positions",
+            "fetch_price",
+            "fetch_recently_verified_tokens",
+            "fetch_token_detailed_report",
+            "fetch_token_flux_lp_lockers",
+            "fetch_token_lp_lockers",
+            "fetch_token_report_summary",
+            "fetch_token_votes",
+            "fetch_trending_tokens",
+            "flash_close_trade",
+            "flash_open_trade",
+            "fluxbeam_create_pool",
+            "get_account_balances",
+            "get_account_deposits",
+            "get_account_settings",
+            "get_active_listings",
+            "get_address_name",
+            "get_all_domains_for_owner",
+            "get_all_domains_tlds",
+            "get_all_topics",
+            "get_all_webhooks",
+            "get_available_drift_markets",
+            "get_balance",
+            "get_balances",
+            "get_borrow_history",
+            "get_borrow_lend_positions",
+            "get_borrow_position_history",
+            "get_bundle_statuses",
+            "get_collateral_info",
+            "get_depth",
+            "get_drift_entry_quote_of_perp_trade",
+            "get_drift_lend_borrow_apy",
+            "get_drift_perp_market_funding_rate",
+            "get_drift_vault_info",
+            "get_elfa_ai_api_key_status",
+            "get_favourite_domain",
+            "get_fill_history",
+            "get_funding_interval_rates",
+            "get_funding_payments",
+            "get_inference_by_topic_id",
+            "get_inflight_bundle_statuses",
+            "get_interest_history",
+            "get_klines",
+            "get_latest_pools",
+            "get_market",
+            "get_markets",
+            "get_mark_price",
+            "get_metaplex_asset",
+            "get_metaplex_assets_by_authority",
+            "get_metaplex_assets_by_creator",
+            "get_mintlists",
+            "get_nft_events",
+            "get_nft_fingerprint",
+            "get_nft_metadata",
+            "get_open_interest",
+            "get_open_orders",
+            "get_open_positions",
+            "get_order_history",
+            "get_owned_all_domains",
+            "get_owned_domains_for_tld",
+            "get_parsed_transaction_history",
+            "get_parsed_transactions",
+            "get_pnl_history",
+            "get_position_values",
+            "get_price_prediction",
+            "get_pump_curve_state",
+            "get_random_tip_account",
+            "get_raw_transactions",
+            "get_recent_trades",
+            "get_registration_transaction",
+            "get_settlement_history",
+            "get_smart_mentions",
+            "get_smart_twitter_account_stats",
+            "get_status",
+            "get_supported_assets",
+            "get_system_time",
+            "get_ticker_information",
+            "get_tickers",
+            "get_tip_accounts",
+            "get_token_data_by_address",
+            "get_token_data_by_ticker",
+            "get_token_info",
+            "get_token_price_data",
+            "get_top_gainers",
+            "get_top_mentions_by_ticker",
+            "get_tps",
+            "get_trending_pools",
+            "get_trending_tokens",
+            "get_trending_tokens_using_elfa_ai",
+            "get_users_open_orders",
+            "get_webhook",
+            "launch_pump_fun_token",
+            "lend_assets",
+            "list_nft_for_sale",
+            "list_tools",
+            "lookup_domain",
+            "lulo_lend",
+            "lulo_withdraw",
+            "merge_tokens",
+            "mint_metaplex_core_nft",
+            "multiple_burn_and_close_accounts",
+            "open_centered_position",
+            "open_perp_trade_long",
+            "open_perp_trade_short",
+            "open_single_sided_position",
+            "parse_key_value_string",
+            "ping_elfa_ai_api",
+            "place_batch_orders",
+            "place_limit_order",
+            "pyth_fetch_price",
+            "reject_multisig_proposal",
+            "request_faucet_funds",
+            "request_unstake_from_drift_insurance_fund",
+            "request_withdrawal",
+            "request_withdrawal_from_drift_vault",
+            "resolve_all_domains",
+            "resolve_name_to_address",
+            "restake",
+            "rock_paper_scissors",
+            "search_mentions_by_keywords",
+            "sell_token",
+            "sell_using_moonshot",
+            "sell_with_raydium",
+            "send_bundle",
+            "send_compressed_airdrop",
+            "send_ping",
+            "send_txn",
+            "simulate_switchboard_feed",
+            "spread_token",
+            "stake",
+            "stake_to_drift_insurance_fund",
+            "stork_fetch_price",
+            "trade",
+            "trade_using_delegated_drift_vault",
+            "trade_using_drift_perp_account",
+            "transfer",
+            "transfer_from_multisig_treasury",
+            "unstake_from_drift_insurance_fund",
+            "update_account_settings",
+            "update_drift_vault",
+            "update_drift_vault_delegate",
+            "withdraw_all",
+            "withdraw_from_drift_user_account",
+            "withdraw_from_drift_vault",
+            "withdraw_strategy",
         ]
-        available_actions.sort() # Keep it sorted
+        available_actions.sort()  # Keep it sorted
 
         # --- Static Description with Full List ---
         args_description = """
@@ -323,43 +453,59 @@ Common Examples (Illustrative):
                 "action": {
                     "type": "string",
                     "description": "The specific SolanaAgentKit method to call.",
-                    "enum": available_actions, # Use the static list
+                    "enum": available_actions,  # Use the static list
                 },
                 # Define args as a generic object, relying *heavily* on the static description
                 "args": {
                     "type": "object",
-                    "description": args_description, # Use the static description
+                    "description": args_description,  # Use the static description
                     "additionalProperties": True,
-                }
+                },
             },
             "required": ["action"],
             # Examples remain the same, matching the flat structure handled by execute(**kwargs)
             "examples": [
-                 {
+                {
                     "summary": "Get agent's SOL balance",
-                    "value": {"action": "get_balance"}
+                    "value": {"action": "get_balance"},
                 },
                 {
                     "summary": "Get agent's USDC balance",
-                    "value": {"action": "get_balance", "token_address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}
+                    "value": {
+                        "action": "get_balance",
+                        "token_address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                    },
                 },
                 {
                     "summary": "Transfer 0.5 SOL",
-                    "value": {"action": "transfer", "to": "RecipientPublicKeyString", "amount": 0.5}
+                    "value": {
+                        "action": "transfer",
+                        "to": "RecipientPublicKeyString",
+                        "amount": 0.5,
+                    },
                 },
-                 {
+                {
                     "summary": "Transfer 10 USDC",
-                    "value": {"action": "transfer", "to": "RecipientPublicKeyString", "amount": 10.0, "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}
+                    "value": {
+                        "action": "transfer",
+                        "to": "RecipientPublicKeyString",
+                        "amount": 10.0,
+                        "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                    },
                 },
                 {
                     "summary": "Fetch price for SOL",
-                    "value": {"action": "fetch_price", "token_id": "SOL"}
+                    "value": {"action": "fetch_price", "token_id": "SOL"},
                 },
                 {
                     "summary": "Swap 0.1 SOL for USDC",
-                    "value": {"action": "trade", "input_amount": 0.1, "output_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}
-                }
-            ]
+                    "value": {
+                        "action": "trade",
+                        "input_amount": 0.1,
+                        "output_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                    },
+                },
+            ],
         }
 
     # --- Keep configure method as is ---
@@ -367,35 +513,44 @@ Common Examples (Illustrative):
         """Configure the tool and initialize SolanaAgentKit."""
         super().configure(config)
         kit_config = {}
-        
+
         if "tools" in config and "solana" in config["tools"]:
             kit_config = config["tools"].get("solana", {})
-            
+
             try:
                 self._kit = SolanaAgentKit(**kit_config)
-                print(f"SolanaAgentKit initialized successfully for wallet: {self._kit.wallet_address}")
+                logger.info(
+                    f"SolanaAgentKit initialized successfully for wallet: {self._kit.wallet_address}"
+                )
             except Exception as e:
-                print(f"ERROR: Failed to initialize SolanaAgentKit: {e}")
-                print("Ensure configuration contains necessary keys like 'private_key', 'rpc_url', etc.")
+                logger.error(f"ERROR: Failed to initialize SolanaAgentKit: {e}")
+                logger.error(
+                    "Ensure configuration contains necessary keys like 'private_key', 'rpc_url', etc."
+                )
                 self._kit = None
 
-
-    # --- Keep execute method with **kwargs and type casting as is ---
     async def execute(self, **kwargs) -> Dict[str, Any]:
         """
         Execute the specified SolanaAgentKit method with type conversion.
         Accepts 'action' and other parameters via kwargs, reconstructing 'args'.
         """
-        print(f"DEBUG: Received kwargs in execute: {kwargs}")
+        logger.debug(
+            f"Received kwargs in execute: {kwargs}"
+        )  # Changed print to logger.debug
         if not self._kit:
-            return { "status": "error", "message": "SolanaAgentKit is not initialized." }
-        if 'action' not in kwargs:
-            return { "status": "error", "message": "Missing 'action' parameter." }
-        action = kwargs.pop('action')
+            return {"status": "error", "message": "SolanaAgentKit is not initialized."}
+        if "action" not in kwargs:
+            return {"status": "error", "message": "Missing 'action' parameter."}
+        action = kwargs.pop("action")
         args = kwargs
-        print(f"DEBUG: Reconstructed action='{action}', args={args}")
+        logger.debug(
+            f"Reconstructed action='{action}', args={args}"
+        )  # Changed print to logger.debug
         if not isinstance(args, dict):
-             return { "status": "error", "message": f"Internal Error: Args not a dict. Got {type(args)}" }
+            return {
+                "status": "error",
+                "message": f"Internal Error: Args not a dict. Got {type(args)}",
+            }
 
         processed_args = {}
         method_to_call = None
@@ -403,14 +558,19 @@ Common Examples (Illustrative):
         try:
             method_to_call = getattr(self._kit, action, None)
             if not method_to_call or not callable(method_to_call):
-                 # Check if action exists even if not in the static enum (shouldn't happen often now)
-                 if hasattr(SolanaAgentKit, action) and callable(getattr(SolanaAgentKit, action)):
-                     print(f"WARNING: Action '{action}' exists but was not in the static schema enum. Attempting execution.")
-                 else:
-                     return { "status": "error", "message": f"Invalid action '{action}'." }
+                # Check if action exists even if not in the static enum (shouldn't happen often now)
+                if hasattr(SolanaAgentKit, action) and callable(
+                    getattr(SolanaAgentKit, action)
+                ):
+                    logger.warning(  # Changed print to logger.warning
+                        f"Action '{action}' exists but was not in the static schema enum. Attempting execution."
+                    )
+                else:
+                    return {"status": "error", "message": f"Invalid action '{action}'."}
 
             # Need inspect here ONLY for the execute logic, not schema generation
             import inspect
+
             sig = inspect.signature(method_to_call)
             parameters = sig.parameters
 
@@ -421,17 +581,22 @@ Common Examples (Illustrative):
                     is_optional = False
 
                     # Handle Optional[T] and Union[T, None]
-                    if hasattr(expected_type, '__origin__') and (expected_type.__origin__ is Optional or expected_type.__origin__ is Union):
-                        inner_types = getattr(expected_type, '__args__', ())
-                        actual_inner_types = [t for t in inner_types if t is not type(None)]
-                        if type(None) in inner_types: 
+                    if hasattr(expected_type, "__origin__") and (
+                        expected_type.__origin__ is Optional
+                        or expected_type.__origin__ is Union
+                    ):
+                        inner_types = getattr(expected_type, "__args__", ())
+                        actual_inner_types = [
+                            t for t in inner_types if t is not type(None)
+                        ]
+                        if type(None) in inner_types:
                             is_optional = True
-                        if len(actual_inner_types) == 1: 
+                        if len(actual_inner_types) == 1:
                             expected_type = actual_inner_types[0]
-                        elif len(actual_inner_types) > 1: 
-                            expected_type = Any # Treat complex Union as Any
-                        else: 
-                            expected_type = Any # Only NoneType
+                        elif len(actual_inner_types) > 1:
+                            expected_type = Any  # Treat complex Union as Any
+                        else:
+                            expected_type = Any  # Only NoneType
 
                     if is_optional and arg_value is None:
                         processed_args[arg_name] = None
@@ -440,39 +605,55 @@ Common Examples (Illustrative):
                     # --- Type Casting Logic ---
                     try:
                         if expected_type == Pubkey:
-                            if isinstance(arg_value, str): 
+                            if isinstance(arg_value, str):
                                 processed_args[arg_name] = Pubkey.from_string(arg_value)
-                            elif isinstance(arg_value, Pubkey): 
+                            elif isinstance(arg_value, Pubkey):
                                 processed_args[arg_name] = arg_value
-                            else: 
-                                raise ValueError("Expected string for Pubkey conversion")
-                        elif expected_type is float: 
+                            else:
+                                raise ValueError(
+                                    "Expected string for Pubkey conversion"
+                                )
+                        elif expected_type is float:
                             processed_args[arg_name] = float(arg_value)
-                        elif expected_type is int: 
+                        elif expected_type is int:
                             processed_args[arg_name] = int(arg_value)
-                        elif expected_type is str: 
+                        elif expected_type is str:
                             processed_args[arg_name] = str(arg_value)
                         elif expected_type is bool:
                             if isinstance(arg_value, str):
-                                if arg_value.lower() in ['true', '1', 'yes', 'y']:
+                                if arg_value.lower() in ["true", "1", "yes", "y"]:
                                     processed_args[arg_name] = True
-                                elif arg_value.lower() in ['false', '0', 'no', 'n']: 
+                                elif arg_value.lower() in ["false", "0", "no", "n"]:
                                     processed_args[arg_name] = False
-                                else: 
-                                    raise ValueError(f"Cannot convert string '{arg_value}' to bool")
-                            else: 
+                                else:
+                                    raise ValueError(
+                                        f"Cannot convert string '{arg_value}' to bool"
+                                    )
+                            else:
                                 processed_args[arg_name] = bool(arg_value)
-                        elif hasattr(expected_type, '__origin__') and expected_type.__origin__ is list and isinstance(arg_value, list):
-                            inner_list_type = getattr(expected_type, '__args__', (Any,))[0]
-                            if inner_list_type is str: 
-                                processed_args[arg_name] = [str(item) for item in arg_value]
-                            elif inner_list_type is int: 
-                                processed_args[arg_name] = [int(item) for item in arg_value]
-                            elif inner_list_type is float: 
-                                processed_args[arg_name] = [float(item) for item in arg_value]
+                        elif (
+                            hasattr(expected_type, "__origin__")
+                            and expected_type.__origin__ is list
+                            and isinstance(arg_value, list)
+                        ):
+                            inner_list_type = getattr(
+                                expected_type, "__args__", (Any,)
+                            )[0]
+                            if inner_list_type is str:
+                                processed_args[arg_name] = [
+                                    str(item) for item in arg_value
+                                ]
+                            elif inner_list_type is int:
+                                processed_args[arg_name] = [
+                                    int(item) for item in arg_value
+                                ]
+                            elif inner_list_type is float:
+                                processed_args[arg_name] = [
+                                    float(item) for item in arg_value
+                                ]
                             # Add Pubkey list handling if needed
                             # elif inner_list_type == Pubkey: processed_args[arg_name] = [Pubkey.from_string(item) if isinstance(item, str) else item for item in arg_value]
-                            else: 
+                            else:
                                 processed_args[arg_name] = arg_value
                         # Handle specific complex types used in signatures
                         # Add BondingCurveState, PumpfunTokenOptions if they need specific casting from dict/str
@@ -480,12 +661,16 @@ Common Examples (Illustrative):
                         #     processed_args[arg_name] = BondingCurveState(**arg_value) # Example if it takes kwargs
                         else:
                             processed_args[arg_name] = arg_value
-                            print(f"DEBUG: Passing arg '{arg_name}' as is (type: {type(arg_value)}, expected: {expected_type})")
+                            logger.debug(  # Changed print to logger.debug
+                                f"Passing arg '{arg_name}' as is (type: {type(arg_value)}, expected: {expected_type})"
+                            )
 
                     except (ValueError, TypeError) as cast_err:
                         # Need format_type_hint back just for this error message, or use simple str()
                         # param_annotation_str = format_type_hint(param.annotation) # Option 1
-                        param_annotation_str = str(param.annotation) # Option 2 (simpler)
+                        param_annotation_str = str(
+                            param.annotation
+                        )  # Option 2 (simpler)
                         return {
                             "status": "error",
                             "message": f"Failed to convert argument '{arg_name}' with value '{arg_value}' to expected type {param_annotation_str}. Error: {cast_err}",
@@ -493,73 +678,112 @@ Common Examples (Illustrative):
                     # --- End Type Casting ---
 
                 else:
-                    print(f"WARNING: Unexpected argument '{arg_name}' provided for action '{action}'. Ignoring.")
+                    logger.warning(  # Changed print to logger.warning
+                        f"Unexpected argument '{arg_name}' provided for action '{action}'. Ignoring."
+                    )
 
-
-            print(f"DEBUG: Executing {action} with processed args: {processed_args}")
+            logger.debug(
+                f"Executing {action} with processed args: {processed_args}"
+            )  # Changed print to logger.debug
             result = await method_to_call(**processed_args)
 
             # Convert result
             if isinstance(result, dict):
-                 final_result = {k: str(v) if isinstance(v, Pubkey) else v for k, v in result.items()}
+                final_result = {
+                    k: str(v) if isinstance(v, Pubkey) else v for k, v in result.items()
+                }
             elif isinstance(result, Pubkey):
-                 final_result = str(result)
+                final_result = str(result)
             elif isinstance(result, list):
-                 final_result = [str(item) if isinstance(item, Pubkey) else item for item in result]
+                final_result = [
+                    str(item) if isinstance(item, Pubkey) else item for item in result
+                ]
             else:
-                 final_result = result
+                final_result = result
 
-            return { "status": "success", "action_called": action, "result": final_result }
+            return {
+                "status": "success",
+                "action_called": action,
+                "result": final_result,
+            }
 
         except TypeError as e:
-            print(f"ERROR: Type Error executing '{action}' with {processed_args}: {e}")
+            logger.error(
+                f"Type Error executing '{action}' with {processed_args}: {e}"
+            )  # Changed print to logger.error
             sig_repr = "N/A"
             if method_to_call:
                 try:
                     # Need inspect here ONLY for the error message
                     import inspect
+
                     sig_repr = inspect.signature(method_to_call)
-                except Exception: 
+                except Exception:
                     pass
-            return { "status": "error", "message": f"Type mismatch for '{action}'. Expected: {sig_repr}. Error: {e}"}
+            return {
+                "status": "error",
+                "message": f"Type mismatch for '{action}'. Expected: {sig_repr}. Error: {e}",
+            }
         except Exception as e:
-            print(f"ERROR: Unexpected Error executing '{action}': {e}")
-            print(traceback.format_exc())
+            # Use logger.exception to include traceback automatically
+            logger.exception(
+                f"Unexpected Error executing '{action}': {e}"
+            )  # Changed print to logger.exception and removed traceback.format_exc()
             return {"status": "error", "message": f"Unexpected Error: {e}"}
 
 
 # --- Keep Plugin class and get_plugin function as is ---
 class SolanaAgentKitPlugin:
     """Plugin for integrating SolanaAgentKit (agentipy) with Solana Agent."""
+
     def __init__(self):
         self.name = "solana"
         self.config = None
         self.tool_registry = None
         self._tool = None
-        print(f"Created SolanaAgentKitPlugin object with name: {self.name}")
+        logger.info(
+            f"Created SolanaAgentKitPlugin object with name: {self.name}"
+        )  # Changed print to logger.info
+
     @property
-    def description(self): return "Plugin providing access to Solana blockchain functions via Agentipy's SolanaAgentKit."
+    def description(self):
+        return "Plugin providing access to Solana blockchain functions via Agentipy's SolanaAgentKit."
+
     def initialize(self, tool_registry: ToolRegistry) -> None:
         self.tool_registry = tool_registry
-        print(f"Initializing {self.name} plugin")
+        logger.info(f"Initializing {self.name} plugin")  # Changed print to logger.info
         self._tool = SolanaAgentKitTool(registry=tool_registry)
         all_tools = tool_registry.list_all_tools()
-        print(f"All registered tools after {self.name} init: {all_tools}")
+        logger.info(
+            f"All registered tools after {self.name} init: {all_tools}"
+        )  # Changed print to logger.info
         registered_tool = tool_registry.get_tool(self.name)
-        print(f"{self.name} registration verification: {'Success' if registered_tool else 'Failed'}")
+        logger.info(  # Changed print to logger.info
+            f"{self.name} registration verification: {'Success' if registered_tool else 'Failed'}"
+        )
+
     def configure(self, config: Dict[str, Any]) -> None:
         self.config = config
-        print(f"Configuring {self.name} plugin")
+        logger.info(f"Configuring {self.name} plugin")  # Changed print to logger.info
         if self._tool:
             self._tool.configure(self.config)
-            print(f"{self.name} tool configured.")
-        else: 
-            print(f"Warning: {self.name} tool instance not found during configuration.")
+            logger.info(f"{self.name} tool configured.")  # Changed print to logger.info
+        else:
+            logger.warning(
+                f"Warning: {self.name} tool instance not found during configuration."
+            )  # Changed print to logger.warning
+
     def get_tools(self) -> List[AutoTool]:
         if self._tool:
-            print(f"Returning tool: {self._tool.name}")
+            logger.debug(
+                f"Returning tool: {self._tool.name}"
+            )  # Changed print to logger.debug
             return [self._tool]
-        print(f"Warning: No tool instance found for {self.name} in get_tools.")
+        logger.warning(
+            f"Warning: No tool instance found for {self.name} in get_tools."
+        )  # Changed print to logger.warning
         return []
 
-def get_plugin(): return SolanaAgentKitPlugin()
+
+def get_plugin():
+    return SolanaAgentKitPlugin()
