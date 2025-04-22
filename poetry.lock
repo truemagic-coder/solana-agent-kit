@@ -622,18 +622,18 @@ sumtypes = ">=0.1a5,<0.2"
 
 [[package]]
 name = "boto3"
-version = "1.37.37"
+version = "1.37.38"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "boto3-1.37.37-py3-none-any.whl", hash = "sha256:d125cb11e22817f7a2581bade4bf7b75247b401888890239ceb5d3e902ccaf38"},
-    {file = "boto3-1.37.37.tar.gz", hash = "sha256:752d31105a45e3e01c8c68471db14ae439990b75a35e72b591ca528e2575b28f"},
+    {file = "boto3-1.37.38-py3-none-any.whl", hash = "sha256:b6d42803607148804dff82389757827a24ce9271f0583748853934c86310999f"},
+    {file = "boto3-1.37.38.tar.gz", hash = "sha256:88c02910933ab7777597d1ca7c62375f52822e0aa1a8e0c51b2598a547af42b2"},
 ]
 
 [package.dependencies]
-botocore = ">=1.37.37,<1.38.0"
+botocore = ">=1.37.38,<1.38.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.11.0,<0.12.0"
 
@@ -642,14 +642,14 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.37.37"
+version = "1.37.38"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "botocore-1.37.37-py3-none-any.whl", hash = "sha256:eb730ff978f47c02f0c8ed07bccdc0db6d8fa098ed32ac31bee1da0e9be480d1"},
-    {file = "botocore-1.37.37.tar.gz", hash = "sha256:3eadde6fed95c4cb469cc39d1c3558528b7fa76d23e7e16d4bddc77250431a64"},
+    {file = "botocore-1.37.38-py3-none-any.whl", hash = "sha256:23b4097780e156a4dcaadfc1ed156ce25cb95b6087d010c4bb7f7f5d9bc9d219"},
+    {file = "botocore-1.37.38.tar.gz", hash = "sha256:c3ea386177171f2259b284db6afc971c959ec103fa2115911c4368bea7cbbc5d"},
 ]
 
 [package.dependencies]
@@ -1406,14 +1406,14 @@ tools = ["hypothesis (>=6.22.0,<6.108.7)"]
 
 [[package]]
 name = "eth-account"
-version = "0.13.6"
+version = "0.13.7"
 description = "eth-account: Sign Ethereum transactions and messages with local private keys"
 optional = false
 python-versions = "<4,>=3.8"
 groups = ["main"]
 files = [
-    {file = "eth_account-0.13.6-py3-none-any.whl", hash = "sha256:27b8c86e134ab10adec5022b55c8005f9fbdccba8b99bd318e45aa56863e1416"},
-    {file = "eth_account-0.13.6.tar.gz", hash = "sha256:e496cc4c50fe4e22972f720fda4c13e126e5636d0274163888eb27f08530ac61"},
+    {file = "eth_account-0.13.7-py3-none-any.whl", hash = "sha256:39727de8c94d004ff61d10da7587509c04d2dc7eac71e04830135300bdfc6d24"},
+    {file = "eth_account-0.13.7.tar.gz", hash = "sha256:5853ecbcbb22e65411176f121f5f24b8afeeaf13492359d254b16d8b18c77a46"},
 ]
 
 [package.dependencies]
@@ -2465,14 +2465,14 @@ tenacity = ">=8.1.0,<8.4.0 || >8.4.0,<10"
 
 [[package]]
 name = "langchain-core"
-version = "0.3.54"
+version = "0.3.55"
 description = "Building applications with LLMs through composability"
 optional = false
 python-versions = "<4.0,>=3.9"
 groups = ["main"]
 files = [
-    {file = "langchain_core-0.3.54-py3-none-any.whl", hash = "sha256:cd42155d9089e2fd4695ee02a4b2bc6daf55b9d4e1a37639647cf2455ed4fa04"},
-    {file = "langchain_core-0.3.54.tar.gz", hash = "sha256:55ce38939038e19b1271f36f512335462d7f64057b531598b3651d2b403e1b42"},
+    {file = "langchain_core-0.3.55-py3-none-any.whl", hash = "sha256:b3cb36bf37755a616158a79866657c6697b43a2f7c69dd723ce425f1c76c1baa"},
+    {file = "langchain_core-0.3.55.tar.gz", hash = "sha256:0f2b3e311621116a83510c70b0ac9d959030a0a457a69483535cff18501fedc9"},
 ]
 
 [package.dependencies]
@@ -2521,14 +2521,14 @@ langchain-core = ">=0.3.51,<1.0.0"
 
 [[package]]
 name = "langsmith"
-version = "0.3.32"
+version = "0.3.33"
 description = "Client library to connect to the LangSmith LLM Tracing and Evaluation Platform."
 optional = false
 python-versions = "<4.0,>=3.9"
 groups = ["main"]
 files = [
-    {file = "langsmith-0.3.32-py3-none-any.whl", hash = "sha256:d79af299038cd13db6d53f99fdc6a7171b731702536b7635f2da132555a6bebc"},
-    {file = "langsmith-0.3.32.tar.gz", hash = "sha256:3d7b1149e9fbe0f388303bc94d8deeeb822acc89cdea34f24151ea1316eb487d"},
+    {file = "langsmith-0.3.33-py3-none-any.whl", hash = "sha256:6fa453942014945e1de7e283880ed3e8031b5d84e0dc75b87d101ecedb62371b"},
+    {file = "langsmith-0.3.33.tar.gz", hash = "sha256:0f439e945528c6d14140137b918cc048aea04c6a987525926dbfda2560002924"},
 ]
 
 [package.dependencies]
@@ -2551,14 +2551,14 @@ pytest = ["pytest (>=7.0.0)", "rich (>=13.9.4,<14.0.0)"]
 
 [[package]]
 name = "llama-index-core"
-version = "0.12.31"
+version = "0.12.32"
 description = "Interface between LLMs and your data"
 optional = false
 python-versions = "<4.0,>=3.9"
 groups = ["main"]
 files = [
-    {file = "llama_index_core-0.12.31-py3-none-any.whl", hash = "sha256:ac1482d1fd111611394c3f86dc0cad5e925f96f5db76eb1f7c2120dd133e8770"},
-    {file = "llama_index_core-0.12.31.tar.gz", hash = "sha256:2ad2b6000277ca2c45ea0fa358ffefb4350cffb6630e3498f9501352e7529526"},
+    {file = "llama_index_core-0.12.32-py3-none-any.whl", hash = "sha256:4cad0be8c31cc8a0250d68205b3c193e5f97f3a33b3ecc2d81df365aa23d120e"},
+    {file = "llama_index_core-0.12.32.tar.gz", hash = "sha256:7fae277ae88e0fd9507ee06b6ddb96b72ad2f57e4695047dd5e6d68014a0b6b9"},
 ]
 
 [package.dependencies]
@@ -4961,14 +4961,14 @@ websockets = ">=9.0,<=15.0"
 
 [[package]]
 name = "solana-agent"
-version = "28.2.0"
+version = "28.2.1"
 description = "AI Agents for Solana"
 optional = false
 python-versions = "<4.0,>=3.12"
 groups = ["main"]
 files = [
-    {file = "solana_agent-28.2.0-py3-none-any.whl", hash = "sha256:08963c38ca8451ed236cd99110a21a3ae39774b8fd03499322c8bc7e7a846559"},
-    {file = "solana_agent-28.2.0.tar.gz", hash = "sha256:86dc4791bf694ebc87fdf88f1f54e1578ced9c1e64443ceb3258600b4a455805"},
+    {file = "solana_agent-28.2.1-py3-none-any.whl", hash = "sha256:cd9e0ae8090d1e4185dc2fdac1c9c0416a0ddfa342dd31eea2f271f22e8bcbb0"},
+    {file = "solana_agent-28.2.1.tar.gz", hash = "sha256:b44d57528ce525940b9b4d508ef16309385c4d190377508ba03f04bca1e9ce6a"},
 ]
 
 [package.dependencies]
@@ -5887,14 +5887,14 @@ propcache = ">=0.2.1"
 
 [[package]]
 name = "zep-cloud"
-version = "2.10.1"
+version = "2.10.2"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.9.0"
 groups = ["main"]
 files = [
-    {file = "zep_cloud-2.10.1-py3-none-any.whl", hash = "sha256:22961354566dd1fc38ed62c9d30e3a88a713120fac37568ff371989c8702eb15"},
-    {file = "zep_cloud-2.10.1.tar.gz", hash = "sha256:72a4fab6c741c44b66f0331f3a956b4fa19517fc8d1bbdd6f63902c62ab68245"},
+    {file = "zep_cloud-2.10.2-py3-none-any.whl", hash = "sha256:45ff0e23541d44feca17d582c7c4b8399aa7df67836325a1933aaad849dde2d1"},
+    {file = "zep_cloud-2.10.2.tar.gz", hash = "sha256:418f59fe01ae0600f5368f3a6da3ac4f70e3a8c937df0e86c04b8b15febaf409"},
 ]
 
 [package.dependencies]

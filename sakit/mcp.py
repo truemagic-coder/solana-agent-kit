@@ -8,7 +8,6 @@ from solana_agent import AutoTool, ToolRegistry
 try:
     from mcp_use import MCPAgent, MCPClient  # type: ignore
     from langchain_openai import ChatOpenAI  # type: ignore
-    from langchain_core.language_models import BaseChatModel  # type: ignore
 
     MCP_USE_AVAILABLE = True
 except ImportError:
@@ -142,7 +141,8 @@ class MCPTool(AutoTool):
                 llm=self._llm,
                 client=client,
                 max_steps=10,
-                verbose=True,  # Keep mcp-use verbose logging enabled
+                verbose=True,
+                use_server_manager=True,
             )
 
             logger.debug(f"MCPTool: Running mcp-use agent with query: '{query}'")
@@ -181,18 +181,6 @@ class MCPTool(AutoTool):
                 "status": "error",
                 "message": f"MCP agent failed: {type(e).__name__}: {e}",
             }
-        finally:
-            # Ensure cleanup
-            if client:
-                try:
-                    logger.debug("MCPTool: Closing mcp-use client sessions...")
-                    await client.close_all_sessions()
-                    logger.debug("MCPTool: mcp-use client sessions closed.")
-                except Exception as close_e:
-                    # Log closing error as a warning
-                    logger.warning(
-                        f"MCPTool: Error closing mcp-use client sessions: {close_e}"
-                    )
 
 
 # --- Plugin Class ---
