@@ -6,11 +6,12 @@ from solana_agent import AutoTool, ToolRegistry
 
 # mcp-use and LangChain imports
 try:
-    from mcp_use import MCPAgent, MCPClient  # type: ignore
-    from langchain_openai import ChatOpenAI  # type: ignore
+    from langchain_openai import ChatOpenAI
+    from mcp_use import MCPAgent, MCPClient
 
     MCP_USE_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    logging.warning(f"mcp-use or langchain-openai library had errors: {e}")
     MCP_USE_AVAILABLE = False
     # Define dummy types if mcp-use is not installed to avoid runtime errors on load
     BaseChatModel = type("BaseChatModel", (object,), {})
