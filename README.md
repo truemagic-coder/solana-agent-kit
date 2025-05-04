@@ -15,7 +15,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Solana - Interact with the Solana blockchain ecosystem using AgentiPy
 * Internet Search - Search the internet in real-time using Perplexity or OpenAI
 * MCP - Interface with any MCP server via its SSE URL - Zapier is supported
-* Image Generation - Generate images with OpenAI `gpt-image-1` with uploading to S3 compatible storage
+* Image Generation - Generate images with OpenAI's `gpt-image-1` or Grok's `grok-2-image` with uploading to S3 compatible storage
 
 ## 📦 Installation
 
@@ -137,7 +137,7 @@ config = {
 
 ### Image Generation
 
-This plugin allows the agent to generate images using OpenAI's `gpt-image-1` model and upload them to S3-compatible storage. It returns the public URL of the uploaded image.
+This plugin allows the agent to generate images using OpenAI's `gpt-image-1` model or Grok's `grok-2-image` and upload them to S3-compatible storage. It returns the public URL of the uploaded image.
 
 This has been tested using [Cloudflare R2](https://developers.cloudflare.com/r2/).
 
