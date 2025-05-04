@@ -262,7 +262,7 @@ class MCPPlugin:
 
             if openai_api_key:
                 # Instantiate ChatOpenAI - choose a model suitable for tool use
-                llm_model = "gpt-4.1-nano"
+                llm_model = "gpt-4.1"
                 self._llm = ChatOpenAI(
                     model=llm_model, api_key=openai_api_key, temperature=0
                 )

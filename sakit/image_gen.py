@@ -44,12 +44,14 @@ class ImageGenTool(AutoTool):
     def __init__(self, registry: Optional[ToolRegistry] = None):
         """Initialize with auto-registration."""
         self._openai_model: str = "gpt-image-1"  # Default model define FIRST
+        self._grok_model: str = "grok-2-image"  # Default model for Grok provider
         super().__init__(
             name="image_gen",
             description="Generates an image based on a text prompt using OpenAI DALL-E and uploads it to configured S3 storage, returning the public URL.",
             registry=registry,
         )
         self._openai_api_key: Optional[str] = None
+        self._openai_base_url: Optional[str] = None  # Optional, depends on provider
         self._s3_endpoint_url: Optional[str] = None
         self._s3_access_key_id: Optional[str] = None
         self._s3_secret_access_key: Optional[str] = None
@@ -76,20 +78,7 @@ class ImageGenTool(AutoTool):
         """Configure OpenAI API key and S3 credentials."""
         super().configure(config)
 
-        # 1. Configure OpenAI API Key
-        if (
-            "openai" in config
-            and isinstance(config["openai"], dict)
-            and "api_key" in config["openai"]
-        ):
-            self._openai_api_key = config["openai"]["api_key"]
-            logger.info("ImageGenTool: Found OpenAI API key in config.")
-        else:
-            logger.warning(
-                "ImageGenTool: OpenAI API key not found in config['openai']['api_key']."
-            )
-
-        # 2. Configure S3 details from tool-specific config
+        # 21 Configure S3 details from tool-specific config
         if (
             "tools" in config
             and isinstance(config["tools"], dict)
@@ -97,6 +86,9 @@ class ImageGenTool(AutoTool):
         ):
             tool_config = config["tools"]["image_gen"]
             if isinstance(tool_config, dict):
+                self._openai_api_key = tool_config.get("api_key")
+                if tool_config.get("provider") == "grok":
+                    self._openai_base_url = "https://api.x.ai/v1"
                 self._s3_endpoint_url = tool_config.get("s3_endpoint_url")
                 self._s3_access_key_id = tool_config.get("s3_access_key_id")
                 self._s3_secret_access_key = tool_config.get("s3_secret_access_key")
@@ -229,21 +221,36 @@ class ImageGenTool(AutoTool):
             )
             return {"status": "error", "message": "ImageGenTool not configured."}
 
-        effective_model = self._openai_model
-        logger.info(
-            f"Generating image with prompt: '{prompt[:50]}...' using model {effective_model}"
-        )
-
         try:
-            # 1. Generate image using OpenAI
-            client = AsyncOpenAI(api_key=self._openai_api_key)
-            response = await client.images.generate(
-                model=effective_model,
-                prompt=prompt,
-                n=1,  # Generate one image
-                size="1024x1024",  # Common size, make configurable if needed
-                output_format="jpeg",
+            if self._openai_base_url:
+                client = AsyncOpenAI(
+                    api_key=self._openai_api_key,
+                    base_url=self._openai_base_url,
+                )
+                effective_model = self._grok_model
+                response = await client.images.generate(
+                    model=effective_model,
+                    prompt=prompt,
+                    n=1,  # Generate one image
+                    response_format="b64_json",
+                )
+                extension = "jpg"
+            else:
+                client = AsyncOpenAI(api_key=self._openai_api_key)
+                effective_model = self._openai_model
+                response = await client.images.generate(
+                    model=effective_model,
+                    prompt=prompt,
+                    n=1,  # Generate one image
+                    size="1024x1024",  # Common size, make configurable if needed
+                    output_format="jpeg",
+                )
+                extension = "jpeg"
+            logger.info(
+                f"Generating image with prompt: '{prompt[:50]}...' using model {effective_model}"
             )
+
+            # 1. Generate image using OpenAI
 
             image_base64 = response.data[0].b64_json
             if not image_base64:
@@ -259,7 +266,7 @@ class ImageGenTool(AutoTool):
             # 2. Prepare filename and upload to S3 (in thread)
             unique_id = uuid.uuid4()
             safe_prefix = "image"
-            object_key = f"{safe_prefix}_{unique_id}.jpeg"
+            object_key = f"{safe_prefix}_{unique_id}.{extension}"
 
             logger.debug(f"Uploading image to S3 object key: {object_key}")
 
