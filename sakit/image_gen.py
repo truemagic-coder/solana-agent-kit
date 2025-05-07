@@ -45,6 +45,9 @@ class ImageGenTool(AutoTool):
         """Initialize with auto-registration."""
         self._openai_model: str = "gpt-image-1"  # Default model define FIRST
         self._grok_model: str = "grok-2-image"  # Default model for Grok provider
+        self._gemini_model: str = (
+            "imagen-3.0-generate-002"  # Default model for Gemini provider
+        )
         super().__init__(
             name="image_gen",
             description="Generates an image based on a text prompt using OpenAI DALL-E and uploads it to configured S3 storage, returning the public URL.",
@@ -58,6 +61,7 @@ class ImageGenTool(AutoTool):
         self._s3_bucket_name: Optional[str] = None
         self._s3_region_name: Optional[str] = None  # Optional, depends on provider
         self._s3_public_url_base: Optional[str] = None  # Optional base for public URLs
+        self._provider = "openai"  # Default provider
 
         logger.debug("ImageGenTool initialized.")
 
@@ -89,6 +93,12 @@ class ImageGenTool(AutoTool):
                 self._openai_api_key = tool_config.get("api_key")
                 if tool_config.get("provider") == "grok":
                     self._openai_base_url = "https://api.x.ai/v1"
+                    self._provider = "grok"
+                if tool_config.get("provider") == "gemini":
+                    self._openai_base_url = (
+                        "https://generativelanguage.googleapis.com/v1beta/openai/"
+                    )
+                    self._provider = "gemini"
                 self._s3_endpoint_url = tool_config.get("s3_endpoint_url")
                 self._s3_access_key_id = tool_config.get("s3_access_key_id")
                 self._s3_secret_access_key = tool_config.get("s3_secret_access_key")
@@ -222,7 +232,7 @@ class ImageGenTool(AutoTool):
             return {"status": "error", "message": "ImageGenTool not configured."}
 
         try:
-            if self._openai_base_url:
+            if self._provider == "grok":
                 client = AsyncOpenAI(
                     api_key=self._openai_api_key,
                     base_url=self._openai_base_url,
@@ -235,6 +245,19 @@ class ImageGenTool(AutoTool):
                     response_format="b64_json",
                 )
                 extension = "jpg"
+            elif self._provider == "gemini":
+                client = AsyncOpenAI(
+                    api_key=self._openai_api_key,
+                    base_url=self._openai_base_url,
+                )
+                effective_model = self._gemini_model
+                response = await client.images.generate(
+                    model=effective_model,
+                    prompt=prompt,
+                    n=1,  # Generate one image
+                    response_format="b64_json",
+                )
+                extension = "png"
             else:
                 client = AsyncOpenAI(api_key=self._openai_api_key)
                 effective_model = self._openai_model
