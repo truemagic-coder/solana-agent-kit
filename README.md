@@ -16,6 +16,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Internet Search - Search the internet in real-time using Perplexity or OpenAI
 * MCP - Interface with any MCP server via its SSE URL - Zapier is supported
 * Image Generation - Generate images with OpenAI, Grok, or Gemini with uploading to S3 compatible storage
+* Nemo Agent - Generate Python projects with Nemo Agent with uploading to S3 compatible storage
 
 ## 📦 Installation
 
@@ -145,7 +146,7 @@ This has been tested using [Cloudflare R2](https://developers.cloudflare.com/r2/
 config = {
     "tools": {
         "image_gen": {
-            "provider": "grok",                                          # Required: either "openai", "grok", or "gemini"
+            "provider": "openai",                                        # Required: either "openai", "grok", or "gemini"
             "api_key": "your-api-key",                                   # Required: your OpenAI or Grok or Gemini API key
             "s3_endpoint_url": "https://your-s3-endpoint.com",           # Required: e.g., https://nyc3.digitaloceanspaces.com
             "s3_access_key_id": "YOUR_S3_ACCESS_KEY",                    # Required: Your S3 access key ID
@@ -172,6 +173,37 @@ config = {
 * Grok - `grok-2-image`
 * Gemini - `imagen-3.0-generate-002`
 
+
+### Nemo Agent
+
+This plugin allows the agent to generate python programs using [Nemo Agent](https://nemo-agent.com) and uploads the files in a ZIP file to s3-compatible storage. It returns the public URL of the zip file.
+
+This has been tested using [Cloudflare R2](https://developers.cloudflare.com/r2/).
+
+```python
+config = {
+    "tools": {
+        "nemo_agent": {
+            "provider": "openai",                                        # Required: either "openai" or "gemini"
+            "api_key": "your-api-key",                                   # Required: your OpenAI or Gemini API key
+            "s3_endpoint_url": "https://your-s3-endpoint.com",           # Required: e.g., https://nyc3.digitaloceanspaces.com
+            "s3_access_key_id": "YOUR_S3_ACCESS_KEY",                    # Required: Your S3 access key ID
+            "s3_secret_access_key": "YOUR_S3_SECRET_KEY",                # Required: Your S3 secret access key
+            "s3_bucket_name": "your-bucket-name",                        # Required: The name of your S3 bucket
+            "s3_region_name": "your-region",                             # Optional: e.g., "nyc3", needed by some providers
+            "s3_public_url_base": "https://your-cdn-or-bucket-url.com/", # Optional: Custom base URL for public links (include trailing slash). If omitted, a standard URL is constructed.
+        }
+    },
+    "agents": [
+        {
+            "name": "python_dev",
+            "instructions": "You are an expert Python Developer. You always use your nemo_agent tool to generate python code.",
+            "specialization": "Python Developer",
+            "tools": ["nemo_agent"],  # Enable the tool for this agent
+        }
+    ]
+}
+```
 
 ## 🧩 Plugin Development
 Want to add your own plugins to Solana Agent Kit? Follow these guidelines:
