@@ -13,7 +13,7 @@ A collection of powerful plugins to extend the capabilities of Solana Agent.
 Solana Agent Kit provides a growing library of plugins that enhance your Solana Agent with new capabilities:
 
 * Solana - Interact with the Solana blockchain ecosystem using AgentiPy
-* Internet Search - Search the internet in real-time using Perplexity or OpenAI
+* Internet Search - Search the internet in real-time using Perplexity, Grok, or OpenAI
 * MCP - Interface with any MCP server via its SSE URL - Zapier is supported
 * Image Generation - Generate images with OpenAI, Grok, or Gemini with uploading to S3 compatible storage
 * Nemo Agent - Generate Python projects with Nemo Agent with uploading to S3 compatible storage
@@ -81,10 +81,10 @@ Please ensure you include a prompt to instruct the agent to use the tool - other
 config = {    
     "tools": {
         "search_internet": {
-            "api_key": "your-api-key", # Required - either a Perplexity or OpenAI API key
-            "provider": "perplexity", # Optional, defaults to perplexity - can also be openai (lowercase)
-            "citations": True, # Optional, defaults to True - only applies for Perplexity
-            "model": "sonar"  # Optional, defaults to "sonar" for Perplexity and "gpt-4o-mini-search-preview" for OpenAI
+            "api_key": "your-api-key", # Required - either a Perplexity, Grok, or OpenAI API key
+            "provider": "openai", # Optional, defaults to openai - can be "openai', "perplexity", or "grok" - grok also searches X
+            "citations": True, # Optional, defaults to True - only applies for Perplexity and Grok
+            "model": "gpt-4o-mini-search-preview"  # Optional, defaults to "sonar" for Perplexity or "gpt-4o-mini-search-preview" for OpenAI or "grok-3-mini-fast" for Grok
         }
     },
     "agents": [
@@ -105,6 +105,12 @@ config = {
 **Available Search Models for OpenAI**
 * gpt-4o-mini-search-preview
 * gpt-4o-search-preview
+
+**Available Search Models for Grok**
+* grok-3
+* grok-3-fast
+* grok-3-mini
+* grok-3-mini-fast
 
 **Notes**
 * The sonar reasoning models will output their reasoning in the text or audio for Solana Agent which is bad so they should not be used.

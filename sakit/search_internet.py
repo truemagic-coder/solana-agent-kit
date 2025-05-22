@@ -81,14 +81,17 @@ class SearchInternetTool(AutoTool):
         # This ensures self._provider exists (from __init__ or config override) before being accessed
         if not model_set_from_config:
             if self._provider == "perplexity":
-                # Using a known Perplexity online model as default
-                self._model = "sonar-medium-online"
+                self._model = "sonar"
                 logger.info(
                     f"Using default model for provider '{self._provider}': {self._model}"
                 )
             elif self._provider == "openai":
-                # Use the specific model name from the original code
                 self._model = "gpt-4o-mini-search-preview"
+                logger.info(
+                    f"Using default model for provider '{self._provider}': {self._model}"
+                )
+            elif self._provider == "grok":
+                self._model = "grok-3-mini-fast"
                 logger.info(
                     f"Using default model for provider '{self._provider}': {self._model}"
                 )
@@ -112,9 +115,9 @@ class SearchInternetTool(AutoTool):
 
                 # Choose appropriate prompt based on citations setting
                 system_content = (
-                    "You search the internet for current information. Include detailed information with citations like [1], [2], etc."
+                    "You search the Internet for current information. Include detailed information with citations like [1], [2], etc."
                     if self._citations
-                    else "You search the internet for current information. Provide a comprehensive answer without citations or source references."
+                    else "You search the Internet for current information. Provide a comprehensive answer without citations or source references."
                 )
 
                 payload = {
@@ -184,6 +187,94 @@ class SearchInternetTool(AutoTool):
                     else:
                         logger.error(
                             f"Perplexity API Error: {response.status_code} - {response.text}"
+                        )
+                        return {
+                            "status": "error",
+                            "message": f"Failed to search: {response.status_code}",
+                            "details": response.text,
+                        }
+            elif self._provider == "grok":
+                url = "https://api.x.ai/v1/chat/completions"
+
+                # Choose appropriate prompt based on citations setting
+                system_content = (
+                    "You search the Internet for current information. Include detailed information with citations like [1], [2], etc."
+                    if self._citations
+                    else "You search the Internet and X for current information. Provide a comprehensive answer without citations or source references."
+                )
+
+                payload = {
+                    "model": self._model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": system_content,
+                        },
+                        {"role": "user", "content": query},
+                    ],
+                    "search_parameters": {"mode": "on"},
+                }
+                if self._citations:
+                    payload["search_parameters"]["return_citations"] = True
+
+                headers = {
+                    "Authorization": f"Bearer {self._api_key}",
+                    "Content-Type": "application/json",
+                }
+
+                # Use httpx for async requests
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    logger.debug(
+                        f"Sending request to Grok: {url} with model {self._model}"
+                    )
+                    response = await client.post(url, json=payload, headers=headers)
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        print(data)  # Debugging line to check the response
+                        content = data["choices"][0]["message"]["content"]
+                        logger.debug("Grok request successful.")
+
+                        # Only process citations if setting is enabled
+                        if self._citations:
+                            # Remove the existing Sources section if present
+                            if "Sources:" in content:
+                                content = content.split("Sources:")[0].strip()
+
+                            # Get citations if available
+                            links = []
+                            if "citations" in data:
+                                citations = data["citations"]
+                                for i, citation in enumerate(citations, 1):
+                                    url = (
+                                        citation
+                                        if isinstance(citation, str)
+                                        else (
+                                            citation["url"] if "url" in citation else ""
+                                        )
+                                    )
+                                    if url:
+                                        links.append(f"[{i}] {url}")
+
+                            # Format the final content with properly numbered sources
+                            if links:
+                                formatted_content = (
+                                    content + "\n\n**Sources:**\n" + "\n".join(links)
+                                )
+                            else:
+                                formatted_content = content
+                        else:
+                            # No citation processing needed
+                            formatted_content = content
+
+                        return {
+                            "status": "success",
+                            "result": formatted_content,
+                            "model_used": self._model,
+                        }
+                    else:
+                        logger.error(
+                            f"Grok API Error: {response.status_code} - {response.text}"
                         )
                         return {
                             "status": "error",
