@@ -112,10 +112,6 @@ config = {
 * grok-3-mini
 * grok-3-mini-fast
 
-**Notes**
-* The sonar reasoning models will output their reasoning in the text or audio for Solana Agent which is bad so they should not be used.
-
-
 ### MCP
 
 [Zapier](https://zapier.com/mcp) MCP has been tested, works, and is supported.
