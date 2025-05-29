@@ -12,6 +12,8 @@ A collection of powerful plugins to extend the capabilities of Solana Agent.
 ## 🚀 Features
 Solana Agent Kit provides a growing library of plugins that enhance your Solana Agent with new capabilities:
 
+* Solana Transfer - Transfer SOL or SPL tokens between the agent's wallet and the destination wallet
+* Solana Swap - Swap Solana tokens on Jupiter
 * Internet Search - Search the internet in real-time using Perplexity, Grok, or OpenAI
 * MCP - Interface with any MCP web server - Zapier is supported
 * Image Generation - Generate images with OpenAI, Grok, or Gemini with uploading to S3 compatible storage
