@@ -12,9 +12,8 @@ A collection of powerful plugins to extend the capabilities of Solana Agent.
 ## 🚀 Features
 Solana Agent Kit provides a growing library of plugins that enhance your Solana Agent with new capabilities:
 
-* Solana - Interact with the Solana blockchain ecosystem using AgentiPy
 * Internet Search - Search the internet in real-time using Perplexity, Grok, or OpenAI
-* MCP - Interface with any MCP server via its SSE URL - Zapier is supported
+* MCP - Interface with any MCP web server - Zapier is supported
 * Image Generation - Generate images with OpenAI, Grok, or Gemini with uploading to S3 compatible storage
 * Nemo Agent - Generate Python projects with Nemo Agent with uploading to S3 compatible storage
 
@@ -26,49 +25,38 @@ pip install sakit
 
 ## 🔌 Plugins
 
-### Solana
-This plugin integrates the [agentipy](https://github.com/niceberginc/agentipy) package, providing your Solana Agent with direct access to Solana ecosystem.
+### Solana Transfer
+
+This plugin enables Solana Agent to transfer SOL and SPL tokens from the agent's wallet to the destination wallet.
+
+Don't use tickers - but mint addresses in your user queries.
 
 ```python
 config = {
     "tools": {
-        "solana": {
-            # Core Solana Settings
-            "private_key": "YOUR_SOLANA_WALLET_PRIVATE_KEY",       # Required (unless generate_wallet=True): Your wallet's private key (base58 encoded string).
-            "rpc_url": "https://api.mainnet-beta.solana.com",      # Optional: Defaults to Solana mainnet RPC.
-            "generate_wallet": False,                              # Optional: If True, ignores private_key and generates a new wallet. Defaults to False.
-
-            # Optional RPC/Service API Keys & URLs
-            "helius_api_key": "YOUR_HELIUS_API_KEY",               # Optional: Helius API key for enhanced data/RPC.
-            "helius_rpc_url": "YOUR_HELIUS_RPC_URL",               # Optional: Specific Helius RPC URL.
-            "quicknode_rpc_url": "YOUR_QUICKNODE_RPC_URL",         # Optional: QuickNode RPC URL.
-            "jito_block_engine_url": "YOUR_JITO_BLOCK_ENGINE_URL", # Optional: Jito block engine URL for bundles.
-            "jito_uuid": "YOUR_JITO_UUID",                         # Optional: Jito authentication UUID.
-
-            # Optional Integration API Keys
-            "openai_api_key": "YOUR_OPENAI_API_KEY",               # Optional: OpenAI API key (if needed by specific agentipy features).
-            "backpack_api_key": "YOUR_BACKPACK_API_KEY",           # Optional: Backpack Exchange API key.
-            "backpack_api_secret": "YOUR_BACKPACK_API_SECRET",     # Optional: Backpack Exchange API secret.
-            "stork_api_key": "YOUR_STORK_API_KEY",                 # Optional: Stork oracle API key.
-            "coingecko_api_key": "YOUR_COINGECKO_PRO_API_KEY",     # Optional: CoinGecko Pro API key.
-            "coingecko_demo_api_key": "YOUR_COINGECKO_DEMO_KEY",   # Optional: CoinGecko Demo API key.
-            "elfa_ai_api_key": "YOUR_ELFA_AI_API_KEY",             # Optional: Elfa AI API key.
-            "flexland_api_key": "YOUR_FLEXLAND_API_KEY",           # Optional: Flexlend API key.
-            "allora_api_key": "YOUR_ALLORA_API_KEY",               # Optional: Allora Network API key.
-            "solutiofi_api_key": "YOUR_SOLUTIOFI_API_KEY"          # Optional: Solutio Finance API key.
+        "solana_transfer": {
+            "rpc_url": "my-rpc-url", # Required - your RPC URL - Helius is recommended
+            "private_key": "my-private-key", # Required - base58 string - please use env vars to store the key as it is very confidential
         },
     },
-    "agents": [
-        {
-            "name": "solana_expert",
-            "instructions": """
-                You are an expert Solana blockchain assistant. 
-                You always use the Solana tool to perform actions on the Solana blockchain.
-            """,
-            "specialization": "Solana blockchain interaction",
-            "tools": ["solana"],  # Enable the tool for this agent
-        }
-    ]
+}
+```
+
+### Solana Swap
+
+This plugin enables Solana Agent to swap tokens using Jupiter.
+
+Don't use tickers - but mint addresses in your user queries.
+
+```python
+config = {
+    "tools": {
+        "solana_swap": {
+            "rpc_url": "my-rpc-url", # Required - your RPC URL - Helius is recommended
+            "private_key": "my-private-key", # Required - base58 string - please use env vars to store the key as it is very confidential
+            "jupiter_url": "my-custom-url" # Optional - if you are using a custom Jupiter service like Metis from QuickNode
+        },
+    },
 }
 ```
 
@@ -116,15 +104,20 @@ config = {
 
 [Zapier](https://zapier.com/mcp) MCP has been tested, works, and is supported.
 
-Zapier integrates over 7,000+ apps with 30,000+ actions that your Solana Agent can utilize.
+Zapier integrates over 7,000+ apps with 30,000+ actions that your AI Agent can utilize.
 
 Other MCP servers may work but are not supported.
 
+OpenAI is a requirement.
+
 ```python
 config = {
+    "openai": {
+        "api_key": "your-api-key",
+    },
     "tools": {
         "mcp": {
-            "urls": ["my-zapier-mcp-url"],
+            "url": "my-zapier-mcp-url",
         }
     },
     "agents": [

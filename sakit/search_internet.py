@@ -15,15 +15,16 @@ class SearchInternetTool(AutoTool):
 
     def __init__(self, registry=None):
         """Initialize with auto-registration."""
+        self._api_key = None
+        self._model = ""
+        self._citations = True
+        self._provider = "openai"
         super().__init__(
             name="search_internet",
             description="Search the internet for current information using Perplexity AI or OpenAI.",
             registry=registry,
         )
-        self._api_key = None
-        self._model = ""
-        self._citations = True
-        self._provider = "openai"
+
         logger.debug("SearchInternetTool initialized.")  # Use debug for init
 
     def get_schema(self) -> Dict[str, Any]:
