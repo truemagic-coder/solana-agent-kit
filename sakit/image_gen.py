@@ -135,10 +135,6 @@ class ImageGenTool(AutoTool):
                 logger.warning(
                     "ImageGenTool: config['tools']['image_gen'] is not a dictionary."
                 )
-        else:
-            logger.warning(
-                "ImageGenTool: S3 configuration section ('tools.image_gen') not found in config."
-            )
 
     def _is_configured(self) -> bool:
         """Check if all necessary configurations are set."""
