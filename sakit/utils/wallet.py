@@ -1,14 +1,15 @@
 from typing import Dict, List, Optional
+import httpx
 import nacl.signing
-from solana.rpc.api import Client as SolanaClient
+from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
-from solders.transaction import Transaction  # type: ignore
-from solders.instruction import Instruction  # type: ignore
-from solders.keypair import Keypair  # type: ignore
-from solders.pubkey import Pubkey  # type: ignore
-from solders.message import Message  # type: ignore
-from solders.signature import Signature  # type: ignore
+from solders.transaction import Transaction
+from solders.instruction import Instruction
+from solders.keypair import Keypair
+from solders.message import Message
+from solders.signature import Signature
+
 
 class SolanaTransaction:
     """Transaction parameters for Solana."""
@@ -16,7 +17,7 @@ class SolanaTransaction:
     def __init__(
         self,
         instructions: List[Instruction],
-        accounts_to_sign: Optional[List[Keypair]] = None
+        accounts_to_sign: Optional[List[Keypair]] = None,
     ):
         self.instructions = instructions
         self.accounts_to_sign = accounts_to_sign
@@ -25,13 +26,13 @@ class SolanaTransaction:
 class SolanaWalletClient:
     """Solana wallet implementation."""
 
-    def __init__(self, client: SolanaClient, keypair: Keypair):
-        self.client = client
+    def __init__(self, rpc_url: str, keypair: Keypair):
+        self.client = AsyncClient(rpc_url)
+        self.rpc_url = rpc_url
         self.keypair = keypair
 
     def sign_message(self, message: bytes) -> Signature:
-        signed = nacl.signing.SigningKey(
-            self.keypair.secret()).sign(message)
+        signed = nacl.signing.SigningKey(self.keypair.secret()).sign(message)
         return Signature.from_bytes(signed.signature)
 
     def send_transaction(self, transaction: SolanaTransaction) -> Dict[str, str]:
@@ -58,8 +59,38 @@ class SolanaWalletClient:
         )
         result = self.client.send_transaction(
             tx,
-            opts=TxOpts(skip_preflight=False, max_retries=10,
-                        preflight_commitment=Confirmed),
+            opts=TxOpts(
+                skip_preflight=False, max_retries=10, preflight_commitment=Confirmed
+            ),
         )
         self.client.confirm_transaction(result.value, commitment=Confirmed)
         return {"hash": str(result.value)}
+
+    async def get_priority_fee_estimate_helius(
+        self,
+        serialized_transaction: str,
+    ) -> int:
+        """
+        Get the priority fee estimate from Helius.
+
+        :param serialized_transaction: The base64-encoded serialized transaction.
+        :return: The estimated priority fee (int).
+        """
+        payload = {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "method": "getPriorityFeeEstimate",
+            "params": [
+                {
+                    "transaction": serialized_transaction,
+                    "options": {"recommended": True},
+                }
+            ],
+        }
+        async with httpx.AsyncClient() as client:
+            response = await client.post(self.rpc_url, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            if "error" in result:
+                raise RuntimeError(f"Fee estimation failed: {result['error']}")
+            return int(result["result"]["priorityFeeEstimate"])

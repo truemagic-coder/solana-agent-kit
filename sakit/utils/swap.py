@@ -12,6 +12,7 @@ from sakit.utils.wallet import SolanaWalletClient
 
 JUP_API = "https://quote-api.jup.ag/v6"
 
+
 class TradeManager:
     @staticmethod
     async def trade(
@@ -40,18 +41,24 @@ class TradeManager:
             Exception: If the swap fails.
         """
         try:
-            if input_mint is None or input_mint == "So11111111111111111111111111111111111111112":
+            if (
+                input_mint is None
+                or input_mint == "So11111111111111111111111111111111111111112"
+            ):
                 # Default to SOL
                 input_mint = "So11111111111111111111111111111111111111112"
                 adjusted_amount = int(input_amount * (10**9))  # SOL has 9 decimals
 
             else:
                 mint_pubkey = Pubkey.from_string(input_mint)
-                program_id = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+                program_id = Pubkey.from_string(
+                    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+                )
 
-                token = AsyncToken(wallet.client, mint_pubkey,
-                                    program_id, wallet.keypair)
-            
+                token = AsyncToken(
+                    wallet.client, mint_pubkey, program_id, wallet.keypair
+                )
+
                 mint_info = await token.get_mint_info()
                 adjusted_amount = int(input_amount * (10**mint_info.decimals))
 
@@ -94,17 +101,19 @@ class TradeManager:
 
             signature = wallet.sign_message(to_bytes_versioned(transaction.message))
             signed_transaction = VersionedTransaction.populate(
-                transaction.message, [signature])
+                transaction.message, [signature]
+            )
 
             tx_resp = await wallet.client.send_transaction(
                 signed_transaction,
-                opts=TxOpts(preflight_commitment=Confirmed,
-                            skip_preflight=False, max_retries=3),
+                opts=TxOpts(
+                    preflight_commitment=Confirmed, skip_preflight=False, max_retries=3
+                ),
             )
             tx_id = tx_resp.value
 
             return str(tx_id)
 
         except Exception as e:
-            logging.error(f"Swap failed: {str(e)}")
+            logging.exception(f"Swap failed: {str(e)}")
             raise Exception(f"Swap failed: {str(e)}")
