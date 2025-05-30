@@ -67,13 +67,13 @@ class SolanaWalletClient:
         return {"hash": str(result.value)}
 
     async def get_priority_fee_estimate_helius(
-        self, serialized_transaction: str, priority_level: str = "Medium"
+        self,
+        serialized_transaction: str,
     ) -> int:
         """
         Get the priority fee estimate from Helius.
 
         :param serialized_transaction: The base64-encoded serialized transaction.
-        :param priority_level: Priority level ("Low", "Medium", "High"). Default is "Medium".
         :return: The estimated priority fee (int).
         """
         payload = {
@@ -83,7 +83,7 @@ class SolanaWalletClient:
             "params": [
                 {
                     "transaction": serialized_transaction,
-                    "options": {"priorityLevel": priority_level, "recommended": True},
+                    "options": {"recommended": True},
                 }
             ],
         }
@@ -93,4 +93,4 @@ class SolanaWalletClient:
             result = response.json()
             if "error" in result:
                 raise RuntimeError(f"Fee estimation failed: {result['error']}")
-            return result["result"]["priorityFeeEstimate"]
+            return int(result["result"]["priorityFeeEstimate"])

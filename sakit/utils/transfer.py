@@ -66,7 +66,7 @@ class TokenTransferManager:
                     )
                 ).value.units_consumed
 
-                compute_budget_ix = set_compute_unit_limit(int(cu_units * 1.1))
+                compute_budget_ix = set_compute_unit_limit(int(cu_units + 100_000))
 
                 new_msg = Message(
                     instructions=[ix, compute_budget_ix],
@@ -82,9 +82,9 @@ class TokenTransferManager:
                 if provider == "helius":
                     encoded_transaction = based58.b58encode(
                         bytes(new_transaction), based58.Alphabet.DEFAULT
-                    )
+                    ).decode("utf-8")
 
-                    priority_fee = wallet.get_priority_fee_estimate_helius(
+                    priority_fee = await wallet.get_priority_fee_estimate_helius(
                         encoded_transaction
                     )
 
@@ -130,5 +130,5 @@ class TokenTransferManager:
                 return sig.value
 
         except Exception as e:
-            logging.error(f"Transfer failed: {str(e)}")
+            logging.exception(f"Transfer failed: {str(e)}")
             raise RuntimeError(f"Transfer failed: {str(e)}")
