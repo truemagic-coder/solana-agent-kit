@@ -1,8 +1,6 @@
-import logging
 from typing import Dict, Any, List, Optional
 from solana_agent import AutoTool, ToolRegistry
-from solana.rpc.async_api import AsyncClient
-from solders.keypair import Keypair  # type: ignore
+from solders.keypair import Keypair
 from sakit.utils.wallet import SolanaWalletClient
 from sakit.utils.swap import TradeManager
 
@@ -37,20 +35,33 @@ class SolanaTradeTool(AutoTool):
         self._jupiter_url = tool_cfg.get("jupiter_url", "https://quote-api.jup.ag/v6")
         self._private_key = tool_cfg.get("private_key")
 
-    async def execute(self, output_mint: str, input_amount: float, input_mint: Optional[str] = None, slippage_bps: int = 300) -> Dict[str, Any]:
+    async def execute(
+        self,
+        output_mint: str,
+        input_amount: float,
+        input_mint: Optional[str] = None,
+        slippage_bps: int = 300,
+    ) -> Dict[str, Any]:
         if not self._rpc_url or not self._jupiter_url:
             return {"status": "error", "message": "RPC or Jupiter URL not configured."}
         if not self._private_key:
             return {"status": "error", "message": "Private key not configured."}
         keypair = Keypair.from_base58_string(self._private_key)
-        client = AsyncClient(self._rpc_url)
-        wallet = SolanaWalletClient(client, keypair)
+        wallet = SolanaWalletClient(self._rpc_url, keypair)
         try:
             # You may need to adapt TradeManager to accept jupiter_url as a parameter
-            sig = await TradeManager.trade(wallet, output_mint, input_amount, input_mint, slippage_bps, jupiter_url=self._jupiter_url)
+            sig = await TradeManager.trade(
+                wallet,
+                output_mint,
+                input_amount,
+                input_mint,
+                slippage_bps,
+                jupiter_url=self._jupiter_url,
+            )
             return {"status": "success", "signature": sig}
         except Exception as e:
             return {"status": "error", "message": str(e)}
+
 
 class SolanaTradePlugin:
     def __init__(self):
@@ -74,6 +85,7 @@ class SolanaTradePlugin:
 
     def get_tools(self) -> List[AutoTool]:
         return [self._tool] if self._tool else []
+
 
 def get_plugin():
     return SolanaTradePlugin()

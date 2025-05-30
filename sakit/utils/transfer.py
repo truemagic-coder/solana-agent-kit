@@ -1,17 +1,26 @@
 import logging
+import based58
 from solana.rpc.commitment import Confirmed
-from solders.transaction import Transaction  # type: ignore
-from solders.pubkey import Pubkey  # type: ignore
-from solders.message import Message  # type: ignore
+from solders.transaction import Transaction
+from solders.pubkey import Pubkey
+from solders.message import Message
+from solders.compute_budget import set_compute_unit_limit
 from solders.system_program import TransferParams, transfer
 from spl.token.async_client import AsyncToken
 from sakit.utils.wallet import SolanaWalletClient
 
 LAMPORTS_PER_SOL = 10**9
 
+
 class TokenTransferManager:
     @staticmethod
-    async def transfer(wallet: SolanaWalletClient, to: str, amount: float, mint: str = None) -> str:
+    async def transfer(
+        wallet: SolanaWalletClient,
+        to: str,
+        amount: float,
+        mint: str = None,
+        provider: str = None,
+    ) -> str:
         """
         Transfer SOL or SPL tokens to a recipient.
 
@@ -19,6 +28,7 @@ class TokenTransferManager:
         :param to: Recipient's public key
         :param amount: Amount to transfer
         :param mint: Optional mint address for SPL tokens
+        :param provider: Provider for the transaction, default is None
         :return: transaction signature
         """
         try:
@@ -50,17 +60,55 @@ class TokenTransferManager:
                     recent_blockhash=recent_blockhash,
                 )
 
-                signature = await wallet.client.send_transaction(transaction)
+                cu_units = (
+                    await wallet.client.simulate_transaction(
+                        transaction, commitment=Confirmed
+                    )
+                ).value.units_consumed
+
+                compute_budget_ix = set_compute_unit_limit(int(cu_units * 1.1))
+
+                new_msg = Message(
+                    instructions=[ix, compute_budget_ix],
+                    payer=wallet_pubkey,
+                )
+
+                new_transaction = Transaction(
+                    from_keypairs=[wallet.keypair],
+                    message=new_msg,
+                    recent_blockhash=recent_blockhash,
+                )
+
+                if provider == "helius":
+                    encoded_transaction = based58.b58encode(
+                        bytes(new_transaction), based58.Alphabet.DEFAULT
+                    )
+
+                    priority_fee = wallet.get_priority_fee_estimate_helius(
+                        encoded_transaction
+                    )
+
+                    new_transaction.message.instructions.insert(
+                        0,
+                        set_compute_unit_limit(priority_fee),
+                    )
+
+                signature = await wallet.client.send_transaction(new_transaction)
                 return signature.value
 
             else:
                 mint_pubkey = Pubkey.from_string(mint)
-                program_id = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+                program_id = Pubkey.from_string(
+                    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+                )
 
-                token = AsyncToken(wallet.client, mint_pubkey,
-                                    program_id, wallet.keypair)
+                token = AsyncToken(
+                    wallet.client, mint_pubkey, program_id, wallet.keypair
+                )
 
-                from_ata = (await token.get_accounts_by_owner(wallet_pubkey)).value[0].pubkey
+                from_ata = (
+                    (await token.get_accounts_by_owner(wallet_pubkey)).value[0].pubkey
+                )
                 to_ata = (await token.get_accounts_by_owner(to_pubkey)).value[0].pubkey
 
                 mint_info = await token.get_mint_info()
