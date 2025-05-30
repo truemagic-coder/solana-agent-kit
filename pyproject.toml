@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "11.0.1"
+version = "11.1.0"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -38,3 +38,6 @@ image_gen = "sakit.image_gen:get_plugin"
 nemo_agent = "sakit.nemo_agent:get_plugin"
 solana_transfer = "sakit.solana_transfer:get_plugin"
 solana_swap = "sakit.solana_swap:get_plugin"
+solana_balance = "sakit.solana_balance:get_plugin"
+solana_price = "sakit.solana_price:get_plugin"
+rugcheck = "sakit.rugcheck:get_plugin"
