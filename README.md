@@ -14,6 +14,9 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 
 * Solana Transfer - Transfer SOL or SPL tokens between the agent's wallet and the destination wallet
 * Solana Swap - Swap Solana tokens on Jupiter in the agent's wallet
+* Solana Balance - Get the token balances of a wallet
+* Solana Price - Get the price of a token
+* Rugcheck - Check if a token is a rug
 * Internet Search - Search the internet in real-time using Perplexity, Grok, or OpenAI
 * MCP - Interface with any MCP web server - Zapier is supported
 * Image Generation - Generate images with OpenAI, Grok, or Gemini with uploading to S3 compatible storage
@@ -61,6 +64,40 @@ config = {
     },
 }
 ```
+
+### Solana Balance
+
+This plugin enables Solana Agent to get the token balances of a wallet.
+
+```python
+config = {
+    "tools": {
+        "solana_balance": {
+            "api_key": "my-alphavybe-api-key", # Required - your AlphaVybe API key - the free plan allows this call
+        },
+    },
+}
+```
+
+### Solana Price
+
+This plugin enables Solana Agent to get the price in USD of a token.
+
+```python
+config = {
+    "tools": {
+        "solana_price": {
+            "api_key": "my-birdeye-api-key", # Required - your Birdeye API key - the free plan allows this call
+        },
+    },
+}
+```
+
+### Rugcheck
+
+This plugin enables Solana Agent to check if a token is a rug. 
+
+No config is needed.
 
 ### Internet Search
 This plugin enables Solana Agent to search the internet for up-to-date information using Perplexity or OpenAI.
