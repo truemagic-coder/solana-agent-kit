@@ -20,12 +20,21 @@ class SolanaTradeTool(AutoTool):
         return {
             "type": "object",
             "properties": {
-                "output_mint": {"type": "string"},
-                "input_amount": {"type": "number"},
-                "input_mint": {"type": "string"},
-                "slippage_bps": {"type": "integer"},
+                "output_mint": {
+                    "type": "string",
+                    "description": "The mint address of the token to receive.",
+                },
+                "input_amount": {
+                    "type": "number",
+                    "description": "The amount of the input token to swap.",
+                },
+                "input_mint": {
+                    "type": "string",
+                    "description": "The mint address of the token to swap from. If not provided, defaults to SOL.",
+                },
             },
-            "required": ["output_mint", "input_amount"],
+            "required": ["output_mint", "input_amount", "input_mint"],
+            "additionalProperties": False,
         }
 
     def configure(self, config: Dict[str, Any]) -> None:

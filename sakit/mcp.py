@@ -8,6 +8,7 @@ import urllib
 try:
     from fastmcp import Client
     from fastmcp.client.transports import StreamableHttpTransport
+
     FASTMCP_AVAILABLE = True
 except ImportError as e:
     FASTMCP_AVAILABLE = False
@@ -15,12 +16,14 @@ except ImportError as e:
 
 try:
     from openai import AsyncOpenAI
+
     OPENAI_AVAILABLE = True
 except ImportError as e:
     OPENAI_AVAILABLE = False
     logging.warning(f"openai library not found: {e}")
 
 logger = logging.getLogger(__name__)
+
 
 class MCPTool(AutoTool):
     """
@@ -49,6 +52,7 @@ class MCPTool(AutoTool):
                 }
             },
             "required": ["query"],
+            "additionalProperties": False,
         }
 
     def configure(self, config: Dict[str, Any]) -> None:
@@ -59,7 +63,9 @@ class MCPTool(AutoTool):
             if self._server_url:
                 parsed = urllib.parse.urlparse(self._server_url)
                 root_domain = f"{parsed.scheme}://{parsed.hostname}"
-                logger.info(f"MCPTool: Configured with server root domain: {root_domain}")
+                logger.info(
+                    f"MCPTool: Configured with server root domain: {root_domain}"
+                )
             else:
                 logger.info("MCPTool: No MCP server URL provided.")
 
@@ -83,7 +89,10 @@ class MCPTool(AutoTool):
         async with client:
             tools = await client.list_tools()
             if not tools:
-                return {"status": "error", "message": "No tools available on MCP server."}
+                return {
+                    "status": "error",
+                    "message": "No tools available on MCP server.",
+                }
 
             # 2. Use LLM to select tool and generate parameters
             tool_descriptions = [
@@ -98,8 +107,8 @@ class MCPTool(AutoTool):
                 "You are an expert AI agent. "
                 "Given a user request and a list of available tools (with their parameters), "
                 "choose the best tool and generate a valid parameter dictionary for it. "
-                "Respond ONLY with a JSON object: {\"tool\": <tool_name>, \"parameters\": {<param_dict>}}. "
-                "If you cannot find a suitable tool, respond with {\"tool\": null, \"parameters\": {}}."
+                'Respond ONLY with a JSON object: {"tool": <tool_name>, "parameters": {<param_dict>}}. '
+                'If you cannot find a suitable tool, respond with {"tool": null, "parameters": {}}.'
             )
             user_prompt = (
                 f"User request: {query}\n\n"
@@ -123,19 +132,31 @@ class MCPTool(AutoTool):
                 llm_result = json.loads(response)
             except Exception as e:
                 logger.error(f"Failed to parse LLM response: {response}")
-                return {"status": "error", "message": f"LLM output parse error: {e}", "raw_llm_output": response}
+                return {
+                    "status": "error",
+                    "message": f"LLM output parse error: {e}",
+                    "raw_llm_output": response,
+                }
 
             tool_name = llm_result.get("tool")
             parameters = llm_result.get("parameters", {})
 
             if not tool_name:
-                return {"status": "error", "message": "No suitable tool found for the query.", "llm_output": response}
+                return {
+                    "status": "error",
+                    "message": "No suitable tool found for the query.",
+                    "llm_output": response,
+                }
 
             # 3. Call the selected tool
             try:
                 result = await client.call_tool(tool_name, parameters)
                 # fastmcp returns a list of content objects; we assume first is main
-                text_result = result[0].text if result and hasattr(result[0], "text") else str(result)
+                text_result = (
+                    result[0].text
+                    if result and hasattr(result[0], "text")
+                    else str(result)
+                )
                 # Try to parse as JSON, fallback to string
                 try:
                     parsed = json.loads(text_result)
@@ -149,7 +170,13 @@ class MCPTool(AutoTool):
                 }
             except Exception as e:
                 logger.exception(f"Error calling tool '{tool_name}': {e}")
-                return {"status": "error", "message": f"Tool call failed: {e}", "tool": tool_name, "parameters": parameters}
+                return {
+                    "status": "error",
+                    "message": f"Tool call failed: {e}",
+                    "tool": tool_name,
+                    "parameters": parameters,
+                }
+
 
 class MCPPlugin:
     """Plugin for integrating MCP capabilities via fastmcp."""
@@ -200,14 +227,25 @@ class MCPPlugin:
             return [self._tool]
         return []
 
+
 def get_plugin():
     if not FASTMCP_AVAILABLE:
-        logger.warning("MCPPlugin: Cannot create plugin instance, fastmcp library not available.")
+        logger.warning(
+            "MCPPlugin: Cannot create plugin instance, fastmcp library not available."
+        )
+
         class DummyPlugin:
             name = "mcp (disabled)"
             description = "MCP plugin disabled (fastmcp library not found)"
-            def initialize(self, *args, **kwargs): pass
-            def configure(self, *args, **kwargs): pass
-            def get_tools(self): return []
+
+            def initialize(self, *args, **kwargs):
+                pass
+
+            def configure(self, *args, **kwargs):
+                pass
+
+            def get_tools(self):
+                return []
+
         return DummyPlugin()
     return MCPPlugin()

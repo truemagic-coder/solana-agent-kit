@@ -76,6 +76,7 @@ class ImageGenTool(AutoTool):
                 },
             },
             "required": ["prompt"],
+            "additionalProperties": False,
         }
 
     def configure(self, config: Dict[str, Any]) -> None:

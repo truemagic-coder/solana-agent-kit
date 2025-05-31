@@ -41,6 +41,7 @@ class BirdeyePriceCheckerTool(AutoTool):
                 }
             },
             "required": ["address"],
+            "additionalProperties": False,
         }
 
     def configure(self, config: Dict[str, Any]) -> None:

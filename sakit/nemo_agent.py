@@ -89,16 +89,9 @@ class NemoAgentTool(AutoTool):
                     "description": "Whether NemoAgent should run tests. Defaults to True.",
                     "default": True,
                 },
-                "output_zip_name": {
-                    "type": "string",
-                    "description": "Optional: Filename for the local project zip (e.g., 'my_project.zip'). If S3 upload is enabled, this name (or a unique ID) will be used for the S3 object key.",
-                },
-                "s3_object_name": {
-                    "type": "string",
-                    "description": "Optional: Specific object name/key for S3 upload (e.g., 'my_special_project.zip'). Overrides default naming if S3 upload is active.",
-                },
             },
-            "required": ["task"],
+            "required": ["task", "run_tests"],
+            "additionalProperties": False,
         }
 
     def configure(self, config: Dict[str, Any]) -> None:

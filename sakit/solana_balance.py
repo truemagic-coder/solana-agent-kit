@@ -64,6 +64,7 @@ class AlphaVybeBalanceCheckerTool(AutoTool):
                 }
             },
             "required": ["wallet_address"],
+            "additionalProperties": False,
         }
 
     def configure(self, config: Dict[str, Any]) -> None:

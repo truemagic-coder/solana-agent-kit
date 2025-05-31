@@ -34,6 +34,7 @@ class SearchInternetTool(AutoTool):
                 "query": {"type": "string", "description": "Search query text"},
             },
             "required": ["query"],
+            "additionalProperties": False,
         }
 
     def configure(self, config: Dict[str, Any]) -> None:

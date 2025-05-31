@@ -21,14 +21,21 @@ class SolanaTransferTool(AutoTool):
         return {
             "type": "object",
             "properties": {
-                "to_address": {"type": "string"},
-                "amount": {"type": "number"},
+                "to_address": {
+                    "type": "string",
+                    "description": "recipient wallet address",
+                },
+                "amount": {
+                    "type": "number",
+                    "description": "amount to transfer (in SOL or token units)",
+                },
                 "mint": {
                     "type": "string",
-                    "description": "Optional SPL token mint address",
+                    "description": "token mint address",
                 },
             },
-            "required": ["to_address", "amount"],
+            "required": ["to_address", "amount", "mint"],
+            "additionalProperties": False,
         }
 
     def configure(self, config: Dict[str, Any]) -> None:

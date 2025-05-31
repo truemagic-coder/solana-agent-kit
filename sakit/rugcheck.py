@@ -59,6 +59,7 @@ class RugCheckTool(AutoTool):
                 }
             },
             "required": ["mint"],
+            "additionalProperties": False,
         }
 
     def configure(self, config: Dict[str, Any]) -> None:
