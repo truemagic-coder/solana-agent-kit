@@ -12,7 +12,7 @@ A collection of powerful plugins to extend the capabilities of Solana Agent.
 ## 🚀 Features
 Solana Agent Kit provides a growing library of plugins that enhance your Solana Agent with new capabilities:
 
-* Solana Transfer - Transfer SOL, SPL, or Token2022 tokens between the agent's wallet and the destination wallet
+* Solana Transfer - Transfer Solana tokens between the agent's wallet and the destination wallet
 * Solana Swap - Swap Solana tokens on Jupiter in the agent's wallet
 * Solana Balance - Get the token balances of a wallet
 * Solana Price - Get the price of a token
