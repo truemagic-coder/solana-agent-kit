@@ -7,9 +7,15 @@ from solders.message import Message
 from solders.compute_budget import set_compute_unit_limit
 from solders.system_program import TransferParams, transfer
 from spl.token.async_client import AsyncToken
+from spl.token.instructions import (
+    transfer_checked as spl_transfer,
+    TransferCheckedParams as SPLTransferParams,
+)
 from sakit.utils.wallet import SolanaWalletClient
 
 LAMPORTS_PER_SOL = 10**9
+SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 
 
 class TokenTransferManager:
@@ -22,7 +28,7 @@ class TokenTransferManager:
         provider: str = None,
     ) -> str:
         """
-        Transfer SOL or SPL tokens to a recipient.
+        Transfer SOL, SPL, or Token2022 tokens to a recipient.
 
         :param wallet: An instance of SolanaWalletClient
         :param to: Recipient's public key
@@ -98,9 +104,16 @@ class TokenTransferManager:
 
             else:
                 mint_pubkey = Pubkey.from_string(mint)
-                program_id = Pubkey.from_string(
-                    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-                )
+                resp = await wallet.client.get_account_info(mint_pubkey)
+                owner = str(resp.value.owner)
+                if owner == SPL_TOKEN_PROGRAM_ID:
+                    program_id = Pubkey.from_string(SPL_TOKEN_PROGRAM_ID)
+                elif owner == TOKEN_2022_PROGRAM_ID:
+                    program_id = Pubkey.from_string(TOKEN_2022_PROGRAM_ID)
+                else:
+                    raise ValueError(
+                        f"Unsupported token program: {owner}. Supported programs are SPL Token and Token 2022."
+                    )
 
                 token = AsyncToken(
                     wallet.client, mint_pubkey, program_id, wallet.keypair
@@ -114,20 +127,67 @@ class TokenTransferManager:
                 mint_info = await token.get_mint_info()
                 adjusted_amount = int(amount * (10**mint_info.decimals))
 
+                ix = spl_transfer(
+                    SPLTransferParams(
+                        program_id=program_id,
+                        source=from_ata,
+                        mint=mint_pubkey,
+                        dest=to_ata,
+                        owner=wallet_pubkey,
+                        amount=adjusted_amount,
+                        decimals=mint_info.decimals,
+                    )
+                )
+
                 blockhash_response = await wallet.client.get_latest_blockhash()
                 recent_blockhash = blockhash_response.value.blockhash
 
-                sig = await token.transfer_checked(
-                    from_ata,
-                    to_ata,
-                    wallet.keypair.pubkey(),
-                    adjusted_amount,
-                    mint_info.decimals,
-                    None,
-                    None,
-                    recent_blockhash,
+                msg = Message(
+                    instructions=[ix],
+                    payer=wallet_pubkey,
                 )
-                return sig.value
+
+                transaction = Transaction(
+                    from_keypairs=[wallet.keypair],
+                    message=msg,
+                    recent_blockhash=recent_blockhash,
+                )
+
+                cu_units = (
+                    await wallet.client.simulate_transaction(
+                        transaction, commitment=Confirmed
+                    )
+                ).value.units_consumed
+
+                compute_budget_ix = set_compute_unit_limit(int(cu_units + 100_000))
+
+                new_msg = Message(
+                    instructions=[ix, compute_budget_ix],
+                    payer=wallet_pubkey,
+                )
+
+                new_transaction = Transaction(
+                    from_keypairs=[wallet.keypair],
+                    message=new_msg,
+                    recent_blockhash=recent_blockhash,
+                )
+
+                if provider == "helius":
+                    encoded_transaction = based58.b58encode(
+                        bytes(new_transaction), based58.Alphabet.DEFAULT
+                    ).decode("utf-8")
+
+                    priority_fee = await wallet.get_priority_fee_estimate_helius(
+                        encoded_transaction
+                    )
+
+                    new_transaction.message.instructions.insert(
+                        0,
+                        set_compute_unit_limit(priority_fee),
+                    )
+
+                signature = await wallet.client.send_transaction(new_transaction)
+                return signature.value
 
         except Exception as e:
             logging.exception(f"Transfer failed: {str(e)}")
