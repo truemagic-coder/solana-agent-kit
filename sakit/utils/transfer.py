@@ -26,16 +26,16 @@ class TokenTransferManager:
         amount: float,
         mint: str = None,
         provider: str = None,
-    ) -> str:
+    ) -> Transaction:
         """
         Transfer SOL, SPL, or Token2022 tokens to a recipient.
 
         :param wallet: An instance of SolanaWalletClient
         :param to: Recipient's public key
         :param amount: Amount to transfer
-        :param mint: Optional mint address for SPL tokens
+        :param mint: Optional mint address for SPL or Token2022 token
         :param provider: Provider for the transaction, default is None
-        :return: transaction signature
+        :return: Transaction object ready for submission
         """
         try:
             # Convert to PublicKey objects
@@ -99,8 +99,7 @@ class TokenTransferManager:
                         set_compute_unit_limit(priority_fee),
                     )
 
-                signature = await wallet.client.send_transaction(new_transaction)
-                return signature.value
+                return new_transaction
 
             else:
                 mint_pubkey = Pubkey.from_string(mint)
@@ -185,9 +184,7 @@ class TokenTransferManager:
                         0,
                         set_compute_unit_limit(priority_fee),
                     )
-
-                signature = await wallet.client.send_transaction(new_transaction)
-                return signature.value
+                return new_transaction
 
         except Exception as e:
             logging.exception(f"Transfer failed: {str(e)}")

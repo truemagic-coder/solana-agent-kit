@@ -2,15 +2,15 @@ import logging
 import base64
 import httpx
 
-from solana.rpc.commitment import Confirmed
 from solders.pubkey import Pubkey  # type: ignore
 from solders.transaction import VersionedTransaction  # type: ignore
 from solders.message import to_bytes_versioned
-from solana.rpc.types import TxOpts
 from spl.token.async_client import AsyncToken
 from sakit.utils.wallet import SolanaWalletClient
 
 JUP_API = "https://quote-api.jup.ag/v6"
+SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 
 
 class TradeManager:
@@ -22,7 +22,7 @@ class TradeManager:
         input_mint: str = None,
         slippage_bps: int = 300,
         jupiter_url: str = JUP_API,
-    ) -> str:
+    ) -> VersionedTransaction:
         """
         Swap tokens using Jupiter Exchange.
 
@@ -35,7 +35,7 @@ class TradeManager:
             jupiter_url (str): Jupiter API base URL.
 
         Returns:
-            str: Transaction signature.
+            VersionedTransaction: Signed transaction ready for submission.
 
         Raises:
             Exception: If the swap fails.
@@ -51,9 +51,16 @@ class TradeManager:
 
             else:
                 mint_pubkey = Pubkey.from_string(input_mint)
-                program_id = Pubkey.from_string(
-                    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-                )
+                resp = await wallet.client.get_account_info(mint_pubkey)
+                owner = str(resp.value.owner)
+                if owner == SPL_TOKEN_PROGRAM_ID:
+                    program_id = Pubkey.from_string(SPL_TOKEN_PROGRAM_ID)
+                elif owner == TOKEN_2022_PROGRAM_ID:
+                    program_id = Pubkey.from_string(TOKEN_2022_PROGRAM_ID)
+                else:
+                    raise ValueError(
+                        f"Unsupported token program: {owner}. Supported programs are SPL Token and Token 2022."
+                    )
 
                 token = AsyncToken(
                     wallet.client, mint_pubkey, program_id, wallet.keypair
@@ -104,15 +111,7 @@ class TradeManager:
                 transaction.message, [signature]
             )
 
-            tx_resp = await wallet.client.send_transaction(
-                signed_transaction,
-                opts=TxOpts(
-                    preflight_commitment=Confirmed, skip_preflight=False, max_retries=3
-                ),
-            )
-            tx_id = tx_resp.value
-
-            return str(tx_id)
+            return signed_transaction
 
         except Exception as e:
             logging.exception(f"Swap failed: {str(e)}")

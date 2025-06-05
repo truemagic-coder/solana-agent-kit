@@ -1,6 +1,8 @@
 from typing import Dict, Any, List, Optional
 from solana_agent import AutoTool, ToolRegistry
 from solders.keypair import Keypair
+from solana.rpc.commitment import Confirmed
+from solana.rpc.types import TxOpts
 from sakit.utils.wallet import SolanaWalletClient
 from sakit.utils.swap import TradeManager
 
@@ -58,8 +60,7 @@ class SolanaTradeTool(AutoTool):
         keypair = Keypair.from_base58_string(self._private_key)
         wallet = SolanaWalletClient(self._rpc_url, keypair)
         try:
-            # You may need to adapt TradeManager to accept jupiter_url as a parameter
-            sig = await TradeManager.trade(
+            transaction = await TradeManager.trade(
                 wallet,
                 output_mint,
                 input_amount,
@@ -67,6 +68,15 @@ class SolanaTradeTool(AutoTool):
                 slippage_bps,
                 jupiter_url=self._jupiter_url,
             )
+            tx_resp = await wallet.client.send_transaction(
+                transaction,
+                opts=TxOpts(
+                    preflight_commitment=Confirmed, skip_preflight=False, max_retries=3
+                ),
+            )
+            tx_id = tx_resp.value
+            sig = str(tx_id)
+
             return {"status": "success", "signature": sig}
         except Exception as e:
             return {"status": "error", "message": str(e)}

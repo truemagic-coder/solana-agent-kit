@@ -60,9 +60,11 @@ class SolanaTransferTool(AutoTool):
         if "helius" in self._rpc_url:
             provider = "helius"
         try:
-            sig = await TokenTransferManager.transfer(
+            transaction = await TokenTransferManager.transfer(
                 wallet, to_address, amount, mint, provider
             )
+            signature = await wallet.client.send_transaction(transaction)
+            sig = signature.value
             return {"status": "success", "result": sig}
         except Exception as e:
             return {"status": "error", "message": str(e)}
