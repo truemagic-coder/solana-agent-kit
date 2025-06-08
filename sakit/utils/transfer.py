@@ -43,15 +43,13 @@ class TokenTransferManager:
         try:
             # Convert to PublicKey objects
             to_pubkey = Pubkey.from_string(to)
-            wallet_pubkey = wallet.pubkey
-            wallet_keypair = wallet.keypair
 
             if mint == "So11111111111111111111111111111111111111112":
                 # Default to SOL transfer
                 # Transfer native SOL
                 ix = transfer(
                     TransferParams(
-                        from_pubkey=wallet_pubkey,
+                        from_pubkey=wallet.pubkey,
                         to_pubkey=to_pubkey,
                         lamports=int(amount * LAMPORTS_PER_SOL),
                     )
@@ -62,17 +60,19 @@ class TokenTransferManager:
                         commitment=Finalized,
                     )
                     recent_blockhash = blockhash_response.value.blockhash
-                    msg = Message.new_with_blockhash(
+                    msg = Message(
                         instructions=[ix],
-                        payer=wallet_pubkey,
-                        blockhash=recent_blockhash,
+                        payer=wallet.fee_payer.pubkey(),
                     )
-                    sig = NullSigner(wallet_pubkey).sign_message(
+                    null_signer = NullSigner(wallet.pubkey).sign_message(
+                        to_bytes_versioned(msg)
+                    )
+                    fee_payer_signer = wallet.fee_payer.sign_message(
                         to_bytes_versioned(msg)
                     )
                     transaction = VersionedTransaction.populate(
                         message=msg,
-                        signatures=[sig],
+                        signatures=[null_signer, fee_payer_signer],
                     )
                     return transaction
 
@@ -83,11 +83,11 @@ class TokenTransferManager:
 
                 msg = Message(
                     instructions=[ix],
-                    payer=wallet_pubkey,
+                    payer=wallet.fee_payer.pubkey(),
                 )
 
                 transaction = Transaction(
-                    from_keypairs=[wallet_keypair],
+                    from_keypairs=[wallet.keypair],
                     message=msg,
                     recent_blockhash=recent_blockhash,
                 )
@@ -102,7 +102,7 @@ class TokenTransferManager:
 
                 new_msg = Message(
                     instructions=[ix, compute_budget_ix],
-                    payer=wallet_pubkey,
+                    payer=wallet.fee_payer.pubkey(),
                 )
 
                 blockhash_response = await wallet.client.get_latest_blockhash(
@@ -111,7 +111,7 @@ class TokenTransferManager:
                 recent_blockhash = blockhash_response.value.blockhash
 
                 new_transaction = Transaction(
-                    from_keypairs=[wallet_keypair],
+                    from_keypairs=[wallet.keypair],
                     message=new_msg,
                     recent_blockhash=recent_blockhash,
                 )
@@ -150,7 +150,7 @@ class TokenTransferManager:
                 )
 
                 from_ata = (
-                    (await token.get_accounts_by_owner(wallet_pubkey)).value[0].pubkey
+                    (await token.get_accounts_by_owner(wallet.pubkey)).value[0].pubkey
                 )
                 to_ata = (await token.get_accounts_by_owner(to_pubkey)).value[0].pubkey
 
@@ -163,7 +163,7 @@ class TokenTransferManager:
                         source=from_ata,
                         mint=mint_pubkey,
                         dest=to_ata,
-                        owner=wallet_pubkey,
+                        owner=wallet.pubkey,
                         amount=adjusted_amount,
                         decimals=mint_info.decimals,
                     )
@@ -176,10 +176,10 @@ class TokenTransferManager:
                     recent_blockhash = blockhash_response.value.blockhash
                     msg = Message.new_with_blockhash(
                         instructions=[ix],
-                        payer=wallet_pubkey,
+                        payer=wallet.pubkey,
                         blockhash=recent_blockhash,
                     )
-                    sig = NullSigner(wallet_pubkey).sign_message(
+                    sig = NullSigner(wallet.pubkey).sign_message(
                         to_bytes_versioned(msg)
                     )
                     transaction = VersionedTransaction.populate(
@@ -195,11 +195,11 @@ class TokenTransferManager:
 
                 msg = Message(
                     instructions=[ix],
-                    payer=wallet_pubkey,
+                    payer=wallet.fee_payer.pubkey(),
                 )
 
                 transaction = Transaction(
-                    from_keypairs=[wallet_keypair],
+                    from_keypairs=[wallet.keypair, wallet.fee_payer],
                     message=msg,
                     recent_blockhash=recent_blockhash,
                 )
@@ -214,7 +214,7 @@ class TokenTransferManager:
 
                 new_msg = Message(
                     instructions=[ix, compute_budget_ix],
-                    payer=wallet_pubkey,
+                    payer=wallet.fee_payer.pubkey,
                 )
 
                 blockhash_response = await wallet.client.get_latest_blockhash(
@@ -223,7 +223,7 @@ class TokenTransferManager:
                 recent_blockhash = blockhash_response.value.blockhash
 
                 new_transaction = Transaction(
-                    from_keypairs=[wallet_keypair],
+                    from_keypairs=[wallet.keypair, wallet.fee_payer],
                     message=new_msg,
                     recent_blockhash=recent_blockhash,
                 )
