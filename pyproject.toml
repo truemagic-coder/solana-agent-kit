@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "12.1.0"
+version = "12.2.0"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -44,3 +44,4 @@ rugcheck = "sakit.rugcheck:get_plugin"
 privy_swap = "sakit.privy_swap:get_plugin"
 privy_transfer = "sakit.privy_transfer:get_plugin"
 privy_balance = "sakit.privy_balance:get_plugin"
+privy_wallet_address = "sakit.privy_wallet_address:get_plugin"
