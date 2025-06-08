@@ -1,10 +1,12 @@
 import logging
 import base64
+from typing import Optional
 import httpx
 
-from solders.pubkey import Pubkey  # type: ignore
-from solders.transaction import VersionedTransaction  # type: ignore
+from solders.pubkey import Pubkey
+from solders.transaction import VersionedTransaction
 from solders.message import to_bytes_versioned
+from solders.null_signer import NullSigner
 from spl.token.async_client import AsyncToken
 from sakit.utils.wallet import SolanaWalletClient
 
@@ -21,7 +23,8 @@ class TradeManager:
         input_amount: float,
         input_mint: str = None,
         slippage_bps: int = 300,
-        jupiter_url: str = JUP_API,
+        jupiter_url: Optional[str] = None,
+        no_signer: bool = False,
     ) -> VersionedTransaction:
         """
         Swap tokens using Jupiter Exchange.
@@ -33,6 +36,7 @@ class TradeManager:
             input_mint (str): Source token mint address (default: SOL).
             slippage_bps (int): Slippage tolerance in basis points (default: 300 = 3%).
             jupiter_url (str): Jupiter API base URL.
+            no_signer (bool): If True, does not sign the transaction with the wallet's keypair.
 
         Returns:
             VersionedTransaction: Signed transaction ready for submission.
@@ -63,11 +67,14 @@ class TradeManager:
                     )
 
                 token = AsyncToken(
-                    wallet.client, mint_pubkey, program_id, wallet.keypair
+                    wallet.client, mint_pubkey, program_id, wallet.fee_payer
                 )
 
                 mint_info = await token.get_mint_info()
                 adjusted_amount = int(input_amount * (10**mint_info.decimals))
+
+            if jupiter_url is None:
+                jupiter_url = JUP_API
 
             quote_url = (
                 f"{jupiter_url}/quote?"
@@ -91,7 +98,7 @@ class TradeManager:
                     f"{jupiter_url}/swap",
                     json={
                         "quoteResponse": quote_data,
-                        "userPublicKey": str(wallet.keypair.pubkey()),
+                        "userPublicKey": str(wallet.pubkey),
                         "wrapAndUnwrapSol": True,
                         "dynamicComputeUnitLimit": True,
                         "prioritizationFeeLamports": "auto",
@@ -105,6 +112,15 @@ class TradeManager:
 
             swap_transaction_buf = base64.b64decode(swap_data["swapTransaction"])
             transaction = VersionedTransaction.from_bytes(swap_transaction_buf)
+
+            if no_signer:
+                signature = NullSigner(wallet.pubkey).sign_message(
+                    to_bytes_versioned(transaction.message)
+                )
+                signed_transaction = VersionedTransaction.populate(
+                    transaction.message, [signature]
+                )
+                return signed_transaction
 
             signature = wallet.sign_message(to_bytes_versioned(transaction.message))
             signed_transaction = VersionedTransaction.populate(

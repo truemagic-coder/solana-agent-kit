@@ -1,11 +1,12 @@
 import logging
 import based58
-from solana.rpc.commitment import Confirmed
-from solders.transaction import Transaction
+from solana.rpc.commitment import Confirmed, Finalized
+from solders.transaction import Transaction, VersionedTransaction
 from solders.pubkey import Pubkey
-from solders.message import Message
+from solders.message import Message, to_bytes_versioned
 from solders.compute_budget import set_compute_unit_limit
 from solders.system_program import TransferParams, transfer
+from solders.null_signer import NullSigner
 from spl.token.async_client import AsyncToken
 from spl.token.instructions import (
     transfer_checked as spl_transfer,
@@ -24,8 +25,9 @@ class TokenTransferManager:
         wallet: SolanaWalletClient,
         to: str,
         amount: float,
-        mint: str = None,
+        mint: str,
         provider: str = None,
+        no_signer: bool = False,
     ) -> Transaction:
         """
         Transfer SOL, SPL, or Token2022 tokens to a recipient.
@@ -35,14 +37,17 @@ class TokenTransferManager:
         :param amount: Amount to transfer
         :param mint: Optional mint address for SPL or Token2022 token
         :param provider: Provider for the transaction, default is None
+        :param no_signer: If True, doesn't sign the transaction with the wallet's keypair
         :return: Transaction object ready for submission
         """
         try:
             # Convert to PublicKey objects
             to_pubkey = Pubkey.from_string(to)
-            wallet_pubkey = wallet.keypair.pubkey()
+            wallet_pubkey = wallet.pubkey
+            wallet_keypair = wallet.keypair
 
-            if mint is None:
+            if mint == "So11111111111111111111111111111111111111112":
+                # Default to SOL transfer
                 # Transfer native SOL
                 ix = transfer(
                     TransferParams(
@@ -52,7 +57,28 @@ class TokenTransferManager:
                     )
                 )
 
-                blockhash_response = await wallet.client.get_latest_blockhash()
+                if no_signer:
+                    blockhash_response = await wallet.client.get_latest_blockhash(
+                        commitment=Finalized,
+                    )
+                    recent_blockhash = blockhash_response.value.blockhash
+                    msg = Message.new_with_blockhash(
+                        instructions=[ix],
+                        payer=wallet_pubkey,
+                        blockhash=recent_blockhash,
+                    )
+                    sig = NullSigner(wallet_pubkey).sign_message(
+                        to_bytes_versioned(msg)
+                    )
+                    transaction = VersionedTransaction.populate(
+                        message=msg,
+                        signatures=[sig],
+                    )
+                    return transaction
+
+                blockhash_response = await wallet.client.get_latest_blockhash(
+                    commitment=Finalized,
+                )
                 recent_blockhash = blockhash_response.value.blockhash
 
                 msg = Message(
@@ -61,7 +87,7 @@ class TokenTransferManager:
                 )
 
                 transaction = Transaction(
-                    from_keypairs=[wallet.keypair],
+                    from_keypairs=[wallet_keypair],
                     message=msg,
                     recent_blockhash=recent_blockhash,
                 )
@@ -79,8 +105,13 @@ class TokenTransferManager:
                     payer=wallet_pubkey,
                 )
 
+                blockhash_response = await wallet.client.get_latest_blockhash(
+                    commitment=Finalized,
+                )
+                recent_blockhash = blockhash_response.value.blockhash
+
                 new_transaction = Transaction(
-                    from_keypairs=[wallet.keypair],
+                    from_keypairs=[wallet_keypair],
                     message=new_msg,
                     recent_blockhash=recent_blockhash,
                 )
@@ -115,7 +146,7 @@ class TokenTransferManager:
                     )
 
                 token = AsyncToken(
-                    wallet.client, mint_pubkey, program_id, wallet.keypair
+                    wallet.client, mint_pubkey, program_id, wallet.fee_payer
                 )
 
                 from_ata = (
@@ -138,7 +169,28 @@ class TokenTransferManager:
                     )
                 )
 
-                blockhash_response = await wallet.client.get_latest_blockhash()
+                if no_signer:
+                    blockhash_response = await wallet.client.get_latest_blockhash(
+                        commitment=Finalized,
+                    )
+                    recent_blockhash = blockhash_response.value.blockhash
+                    msg = Message.new_with_blockhash(
+                        instructions=[ix],
+                        payer=wallet_pubkey,
+                        blockhash=recent_blockhash,
+                    )
+                    sig = NullSigner(wallet_pubkey).sign_message(
+                        to_bytes_versioned(msg)
+                    )
+                    transaction = VersionedTransaction.populate(
+                        message=msg,
+                        signatures=[sig],
+                    )
+                    return transaction
+
+                blockhash_response = await wallet.client.get_latest_blockhash(
+                    commitment=Finalized,
+                )
                 recent_blockhash = blockhash_response.value.blockhash
 
                 msg = Message(
@@ -147,7 +199,7 @@ class TokenTransferManager:
                 )
 
                 transaction = Transaction(
-                    from_keypairs=[wallet.keypair],
+                    from_keypairs=[wallet_keypair],
                     message=msg,
                     recent_blockhash=recent_blockhash,
                 )
@@ -165,8 +217,13 @@ class TokenTransferManager:
                     payer=wallet_pubkey,
                 )
 
+                blockhash_response = await wallet.client.get_latest_blockhash(
+                    commitment=Finalized,
+                )
+                recent_blockhash = blockhash_response.value.blockhash
+
                 new_transaction = Transaction(
-                    from_keypairs=[wallet.keypair],
+                    from_keypairs=[wallet_keypair],
                     message=new_msg,
                     recent_blockhash=recent_blockhash,
                 )

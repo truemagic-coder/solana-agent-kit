@@ -9,6 +9,7 @@ from solders.instruction import Instruction
 from solders.keypair import Keypair
 from solders.message import Message
 from solders.signature import Signature
+from solders.pubkey import Pubkey
 
 
 class SolanaTransaction:
@@ -26,10 +27,22 @@ class SolanaTransaction:
 class SolanaWalletClient:
     """Solana wallet implementation."""
 
-    def __init__(self, rpc_url: str, keypair: Keypair):
+    def __init__(
+        self,
+        rpc_url: str,
+        keypair: Optional[Keypair] = None,
+        pubkey: Optional[str] = None,
+        fee_payer: Optional[Keypair] = None,
+    ):
         self.client = AsyncClient(rpc_url)
         self.rpc_url = rpc_url
         self.keypair = keypair
+        self.pubkey = pubkey
+        if pubkey:
+            self.pubkey = Pubkey.from_string(pubkey)
+        elif keypair:
+            self.pubkey = keypair.pubkey()
+        self.fee_payer = fee_payer
 
     def sign_message(self, message: bytes) -> Signature:
         signed = nacl.signing.SigningKey(self.keypair.secret()).sign(message)
