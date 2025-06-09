@@ -16,6 +16,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Solana Swap - Swap Solana tokens on Jupiter in the agent's wallet
 * Solana Balance - Get the token balances of a wallet
 * Solana Price - Get the price of a token
+* Solana SNS Lookup - Get the Solana address for a SNS domain
 * Rugcheck - Check if a token is a rug
 * Internet Search - Search the internet in real-time using Perplexity, Grok, or OpenAI
 * MCP - Interface with any MCP web server - Zapier is supported
@@ -92,6 +93,21 @@ config = {
     },
 }
 ```
+
+### Solana SNS Lookup
+
+This plugin enables Solana Agent to get the Solana address of an SNS domain.
+
+```python
+config = {
+    "tools": {
+        "sns_lookup": {
+            "quicknode_url": "my-quicknode-rpc-url", # Required - your QuickNode RPC URL with the SNS addon enabled
+        },
+    },
+}
+```
+
 
 ### Rugcheck
 
