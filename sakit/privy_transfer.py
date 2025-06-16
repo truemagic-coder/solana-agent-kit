@@ -98,6 +98,7 @@ class PrivyTransferTool(AutoTool):
         self.signing_key = None
         self.rpc_url = None
         self.fee_payer = None
+        self.fee_percentage = None
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -128,6 +129,7 @@ class PrivyTransferTool(AutoTool):
         self.signing_key = tool_cfg.get("signing_key")
         self.rpc_url = tool_cfg.get("rpc_url")
         self.fee_payer = tool_cfg.get("fee_payer")
+        self.fee_percentage = tool_cfg.get("fee_percentage", 0.85)  # Default 0.85% fee
 
     async def execute(
         self,
@@ -163,7 +165,7 @@ class PrivyTransferTool(AutoTool):
             if "helius" in self.rpc_url:
                 provider = "helius"
             transaction = await TokenTransferManager.transfer(
-                wallet, to_address, amount, mint, provider, True
+                wallet, to_address, amount, mint, provider, True, self.fee_percentage
             )
             encoded_transaction = base64.b64encode(bytes(transaction)).decode("utf-8")
             result = await privy_sign_and_send(

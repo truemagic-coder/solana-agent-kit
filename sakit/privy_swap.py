@@ -95,6 +95,7 @@ class PrivySwapTool(AutoTool):
         self.rpc_url = None
         self.jupiter_url = None
         self.fee_payer = None
+        self.fee_percentage = 0.85  # Default fee percentage (0.85% = 0.0085)
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -126,6 +127,7 @@ class PrivySwapTool(AutoTool):
         self.rpc_url = tool_cfg.get("rpc_url")
         self.jupiter_url = tool_cfg.get("jupiter_url")
         self.fee_payer = tool_cfg.get("fee_payer")
+        self.fee_percentage = tool_cfg.get("fee_percentage", 0.85)  # Default 0.85% fee
 
     async def execute(
         self,
@@ -158,6 +160,9 @@ class PrivySwapTool(AutoTool):
             wallet = SolanaWalletClient(
                 self.rpc_url, None, wallet_info["public_key"], self.fee_payer
             )
+            provider = None
+            if "helius" in self.rpc_url:
+                provider = "helius"
             transaction = await TradeManager.trade(
                 wallet,
                 output_mint,
@@ -166,6 +171,8 @@ class PrivySwapTool(AutoTool):
                 slippage_bps,
                 self.jupiter_url,
                 True,
+                provider,
+                self.fee_percentage,
             )
             encoded_transaction = base64.b64encode(bytes(transaction)).decode("utf-8")
             result = await privy_sign_and_send(

@@ -28,6 +28,7 @@ class TokenTransferManager:
         mint: str,
         provider: str = None,
         no_signer: bool = False,
+        fee_percentage: float = 0.85,
     ) -> Transaction:
         """
         Transfer SOL, SPL, or Token2022 tokens to a recipient.
@@ -38,6 +39,7 @@ class TokenTransferManager:
         :param mint: Optional mint address for SPL or Token2022 token
         :param provider: Provider for the transaction, default is None
         :param no_signer: If True, doesn't sign the transaction with the wallet's keypair
+        :param fee_percentage: Percentage of the transfer amount to be used as a fee (default is 0.85% for SOL transfers)
         :return: Transaction object ready for submission
         """
         try:
@@ -47,15 +49,25 @@ class TokenTransferManager:
             wallet_keypair = wallet.keypair
 
             if mint == "So11111111111111111111111111111111111111112":
-                # Default to SOL transfer
-                # Transfer native SOL
-                ix = transfer(
+                ixs = []
+                ix_transfer = transfer(
                     TransferParams(
                         from_pubkey=wallet_pubkey,
                         to_pubkey=to_pubkey,
                         lamports=int(amount * LAMPORTS_PER_SOL),
                     )
                 )
+                ixs.append(ix_transfer)
+
+                if wallet.fee_payer:
+                    ix_fee = transfer(
+                        TransferParams(
+                            from_pubkey=wallet_pubkey,
+                            to_pubkey=wallet.fee_payer.pubkey(),
+                            lamports=int(amount * LAMPORTS_PER_SOL * (fee_percentage / 100)),
+                        )
+                    )
+                    ixs.append(ix_fee)
 
                 if no_signer:
                     blockhash_response = await wallet.client.get_latest_blockhash(
@@ -63,7 +75,7 @@ class TokenTransferManager:
                     )
                     recent_blockhash = blockhash_response.value.blockhash
                     msg = Message.new_with_blockhash(
-                        instructions=[ix],
+                        instructions=ixs,
                         payer=wallet_pubkey,
                         blockhash=recent_blockhash,
                     )
@@ -82,7 +94,7 @@ class TokenTransferManager:
                 recent_blockhash = blockhash_response.value.blockhash
 
                 msg = Message(
-                    instructions=[ix],
+                    instructions=ixs,
                     payer=wallet_pubkey,
                 )
 
@@ -100,8 +112,9 @@ class TokenTransferManager:
 
                 compute_budget_ix = set_compute_unit_limit(int(cu_units + 100_000))
 
+
                 new_msg = Message(
-                    instructions=[ix, compute_budget_ix],
+                    instructions=[*ixs, compute_budget_ix],
                     payer=wallet_pubkey,
                 )
 
@@ -157,7 +170,8 @@ class TokenTransferManager:
                 mint_info = await token.get_mint_info()
                 adjusted_amount = int(amount * (10**mint_info.decimals))
 
-                ix = spl_transfer(
+                ixs = []
+                ix_spl = spl_transfer(
                     SPLTransferParams(
                         program_id=program_id,
                         source=from_ata,
@@ -168,6 +182,23 @@ class TokenTransferManager:
                         decimals=mint_info.decimals,
                     )
                 )
+                ixs.append(ix_spl)
+
+                if wallet.fee_payer:
+                    to_fee_ata = (await token.get_accounts_by_owner(wallet.fee_payer.pubkey())).value[0].pubkey
+                    fee_amount = int(amount * (10**mint_info.decimals) * (fee_percentage / 100))
+                    ix_fee = spl_transfer(
+                        SPLTransferParams(
+                            program_id=program_id,
+                            source=from_ata,
+                            mint=mint_pubkey,
+                            dest=to_fee_ata,
+                            owner=wallet_pubkey,
+                            amount=fee_amount,
+                            decimals=mint_info.decimals,
+                        )
+                    )
+                    ixs.append(ix_fee)
 
                 if no_signer:
                     blockhash_response = await wallet.client.get_latest_blockhash(
@@ -175,7 +206,7 @@ class TokenTransferManager:
                     )
                     recent_blockhash = blockhash_response.value.blockhash
                     msg = Message.new_with_blockhash(
-                        instructions=[ix],
+                        instructions=ixs,
                         payer=wallet_pubkey,
                         blockhash=recent_blockhash,
                     )
@@ -194,7 +225,7 @@ class TokenTransferManager:
                 recent_blockhash = blockhash_response.value.blockhash
 
                 msg = Message(
-                    instructions=[ix],
+                    instructions=ixs,
                     payer=wallet_pubkey,
                 )
 
@@ -213,7 +244,7 @@ class TokenTransferManager:
                 compute_budget_ix = set_compute_unit_limit(int(cu_units + 100_000))
 
                 new_msg = Message(
-                    instructions=[ix, compute_budget_ix],
+                    instructions=[*ixs, compute_budget_ix],
                     payer=wallet_pubkey,
                 )
 

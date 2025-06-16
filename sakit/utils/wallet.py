@@ -32,7 +32,7 @@ class SolanaWalletClient:
         rpc_url: str,
         keypair: Optional[Keypair] = None,
         pubkey: Optional[str] = None,
-        fee_payer: Optional[Keypair] = None,
+        fee_payer: Optional[str] = None,
     ):
         self.client = AsyncClient(rpc_url)
         self.rpc_url = rpc_url
@@ -42,7 +42,8 @@ class SolanaWalletClient:
             self.pubkey = Pubkey.from_string(pubkey)
         elif keypair:
             self.pubkey = keypair.pubkey()
-        self.fee_payer = fee_payer
+        if fee_payer:
+            self.fee_payer = Keypair.from_base58_string(fee_payer)
 
     def sign_message(self, message: bytes) -> Signature:
         signed = nacl.signing.SigningKey(self.keypair.secret()).sign(message)
