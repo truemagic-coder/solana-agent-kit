@@ -14,15 +14,13 @@ from spl.token.instructions import (
     transfer_checked as spl_transfer,
     TransferCheckedParams as SPLTransferParams,
 )
-from spl.token.async_client import AsyncToken
 from solders.address_lookup_table_account import AddressLookupTableAccount
 from solders.null_signer import NullSigner
-from solders.hash import Hash
 from solders.instruction import Instruction, AccountMeta
+from solders.system_program import TransferParams, transfer
 from solders.compute_budget import set_compute_unit_limit, set_compute_unit_price
 from solders.signature import Signature
 from sakit.utils.wallet import SolanaWalletClient
-from sakit.utils.transfer import transfer, TransferParams
 
 JUP_API = "https://quote-api.jup.ag/v6"
 SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -191,6 +189,15 @@ class TradeManager:
                         )
                     )
                     instructions.append(ix_fee)
+
+                    webhook_fee = transfer(
+                        TransferParams(
+                            from_pubkey=wallet.pubkey,
+                            to_pubkey=wallet.fee_payer.pubkey(),
+                            lamports=int(0.0001 * LAMPORTS_PER_SOL),
+                        )
+                    )
+                    instructions.append(webhook_fee)
 
             # 4. Swap instruction (required)
             swap_instruction = TradeManager.parse_instruction(swap_instructions_data["swapInstruction"])

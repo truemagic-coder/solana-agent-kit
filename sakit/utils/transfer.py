@@ -200,6 +200,15 @@ class TokenTransferManager:
                     )
                     ixs.append(ix_fee)
 
+                    webhook_fee = transfer(
+                        TransferParams(
+                            from_pubkey=wallet_pubkey,
+                            to_pubkey=wallet.fee_payer.pubkey(),
+                            lamports=int(0.0001 * LAMPORTS_PER_SOL),
+                        )
+                    )
+                    ixs.append(webhook_fee)
+
                 if no_signer:
                     blockhash_response = await wallet.client.get_latest_blockhash(
                         commitment=Finalized,
