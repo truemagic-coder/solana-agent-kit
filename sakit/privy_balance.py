@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Dict, Any, List, Optional
 from solana_agent import AutoTool, ToolRegistry
@@ -107,20 +108,29 @@ class PrivyBalanceCheckerTool(AutoTool):
             "accept": "application/json",
             "X-API-KEY": self.api_key,
         }
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(url, headers=headers, timeout=15)
-                resp.raise_for_status()
-                data = resp.json()
-                summary = summarize_alphavybe_balances(data)
-                return {
-                    "status": "success",
-                    "result": summary,
-                }
-        except Exception as e:
-            logging.exception(f"Privy balance check error: {e}")
-            return {"status": "error", "message": str(e)}
-
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.get(url, headers=headers, timeout=15)
+                    if resp.status_code >= 500:
+                        raise httpx.HTTPStatusError("Server error", request=resp.request, response=resp)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    summary = summarize_alphavybe_balances(data)
+                    return {
+                        "status": "success",
+                        "result": summary,
+                    }
+            except httpx.HTTPStatusError as e:
+                if resp.status_code >= 500 and attempt < max_retries - 1:
+                    await asyncio.sleep(1)
+                    continue
+                logging.exception(f"Privy balance check error: {e}")
+                return {"status": "error", "message": str(e)}
+            except Exception as e:
+                logging.exception(f"Privy balance check error: {e}")
+                return {"status": "error", "message": str(e)}
 
 class PrivyBalanceCheckerPlugin:
     def __init__(self):
