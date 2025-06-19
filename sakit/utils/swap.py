@@ -152,6 +152,7 @@ class TradeManager:
                             lamports=int(input_amount * LAMPORTS_PER_SOL * (fee_percentage / 100)),
                         )
                     )
+                    instructions.append(ix_fee)
                 else:
                     mint_pubkey = Pubkey.from_string(input_mint)
                     resp = await wallet.client.get_account_info(mint_pubkey)
