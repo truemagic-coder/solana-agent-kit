@@ -7,6 +7,7 @@ from solders.message import Message, to_bytes_versioned
 from solders.compute_budget import set_compute_unit_limit
 from solders.system_program import TransferParams, transfer
 from solders.null_signer import NullSigner
+from solders.instruction import Instruction
 from spl.token.async_client import AsyncToken
 from spl.token.instructions import (
     transfer_checked as spl_transfer,
@@ -17,7 +18,15 @@ from sakit.utils.wallet import SolanaWalletClient
 LAMPORTS_PER_SOL = 10**9
 SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+MEMO_PROGRAM_ID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
 
+
+def make_memo_instruction(memo: str) -> Instruction:
+    return Instruction(
+        program_id=Pubkey.from_string(MEMO_PROGRAM_ID),
+        accounts=[],
+        data=memo.encode("utf-8"),
+    )
 
 class TokenTransferManager:
     @staticmethod
@@ -29,6 +38,7 @@ class TokenTransferManager:
         provider: str = None,
         no_signer: bool = False,
         fee_percentage: float = 0.85,
+        memo: str = "",
     ) -> Transaction:
         """
         Transfer SOL, SPL, or Token2022 tokens to a recipient.
@@ -40,6 +50,7 @@ class TokenTransferManager:
         :param provider: Provider for the transaction, default is None
         :param no_signer: If True, doesn't sign the transaction with the wallet's keypair
         :param fee_percentage: Percentage of the transfer amount to be used as a fee (default is 0.85% for SOL transfers)
+        :param memo: Optional memo for the transaction
         :return: Transaction object ready for submission
         """
         try:
@@ -58,6 +69,10 @@ class TokenTransferManager:
                     )
                 )
                 ixs.append(ix_transfer)
+
+                if memo:
+                    ix_memo = make_memo_instruction(memo)
+                    ixs.append(ix_memo)
 
                 if wallet.fee_payer:
                     ix_fee = transfer(
@@ -208,6 +223,10 @@ class TokenTransferManager:
                         )
                     )
                     ixs.append(webhook_fee)
+
+                if memo:
+                    ix_memo = make_memo_instruction(memo)
+                    ixs.append(ix_memo)
 
                 if no_signer:
                     blockhash_response = await wallet.client.get_latest_blockhash(

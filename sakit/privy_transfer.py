@@ -117,8 +117,13 @@ class PrivyTransferTool(AutoTool):
                     "type": "string",
                     "description": "Token mint address",
                 },
+                "memo": {
+                    "type": "string",
+                    "description": "Optional memo for the transaction",
+                    "default": "",
+                },
             },
-            "required": ["user_id", "to_address", "amount", "mint"],
+            "required": ["user_id", "to_address", "amount", "mint", "memo"],
             "additionalProperties": False,
         }
 
@@ -137,6 +142,7 @@ class PrivyTransferTool(AutoTool):
         to_address: str,
         amount: float,
         mint: str,
+        memo: str = "",
     ) -> Dict[str, Any]:
         if not all(
             [
@@ -165,7 +171,7 @@ class PrivyTransferTool(AutoTool):
             if "helius" in self.rpc_url:
                 provider = "helius"
             transaction = await TokenTransferManager.transfer(
-                wallet, to_address, amount, mint, provider, True, self.fee_percentage
+                wallet, to_address, amount, mint, provider, True, self.fee_percentage, memo
             )
             encoded_transaction = base64.b64encode(bytes(transaction)).decode("utf-8")
             result = await privy_sign_and_send(
