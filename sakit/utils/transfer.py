@@ -12,6 +12,7 @@ from spl.token.async_client import AsyncToken
 from spl.token.instructions import (
     transfer_checked as spl_transfer,
     TransferCheckedParams as SPLTransferParams,
+    create_associated_token_account,
 )
 from sakit.utils.wallet import SolanaWalletClient
 
@@ -177,15 +178,25 @@ class TokenTransferManager:
                     wallet.client, mint_pubkey, program_id, wallet.fee_payer
                 )
 
+                ixs = []
+
                 from_ata = (
                     (await token.get_accounts_by_owner(wallet_pubkey)).value[0].pubkey
                 )
-                to_ata = (await token.get_accounts_by_owner(to_pubkey)).value[0].pubkey
+                try:
+                    to_ata = (await token.get_accounts_by_owner(to_pubkey)).value[0].pubkey
+                except Exception:
+                    create_ata_ix = create_associated_token_account(
+                        payer=wallet.keypair.pubkey(),
+                        owner=to_pubkey,
+                        mint=mint_pubkey,
+                        token_program_id=program_id,
+                    )
+                    ixs.append(create_ata_ix)
 
                 mint_info = await token.get_mint_info()
                 adjusted_amount = int(amount * (10**mint_info.decimals))
 
-                ixs = []
                 ix_spl = spl_transfer(
                     SPLTransferParams(
                         program_id=program_id,
