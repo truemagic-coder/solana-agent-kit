@@ -185,9 +185,9 @@ class TokenTransferManager:
                     (await token.get_accounts_by_owner(wallet_pubkey)).value[0].pubkey
                 )
                 
-                to_ata = (await get_associated_token_address(
+                to_ata = get_associated_token_address(
                     to_pubkey, mint_pubkey, token_program_id=program_id
-                ))
+                )
 
                 # Check if the destination ATA exists
                 ata_accounts = await token.get_accounts_by_owner(to_pubkey)
