@@ -185,9 +185,9 @@ class TokenTransferManager:
                 )
                 try:
                     to_ata = (await token.get_accounts_by_owner(to_pubkey)).value[0].pubkey
-                except Exception:
+                except IndexError:
                     create_ata_ix = create_associated_token_account(
-                        payer=wallet.keypair.pubkey(),
+                        payer=wallet.fee_payer.pubkey(),
                         owner=to_pubkey,
                         mint=mint_pubkey,
                         token_program_id=program_id,
