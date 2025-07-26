@@ -194,7 +194,7 @@ class TokenTransferManager:
                 if not ata_accounts.value:
                     # ATA doesn't exist, create it
                     create_ata_ix = create_associated_token_account(
-                        payer=wallet.fee_payer.pubkey() if wallet.fee_payer else wallet_pubkey,
+                        payer=wallet_pubkey,
                         owner=to_pubkey,
                         mint=mint_pubkey,
                         token_program_id=program_id,
@@ -259,19 +259,10 @@ class TokenTransferManager:
                     sig = NullSigner(wallet_pubkey).sign_message(
                         to_bytes_versioned(msg)
                     )
-                    if wallet.fee_payer:
-                        sig_fee = NullSigner(wallet.fee_payer.pubkey()).sign_message(
-                            to_bytes_versioned(msg)
-                        )
-                        transaction = VersionedTransaction.populate(
-                            message=msg,
-                            signatures=[sig, sig_fee],
-                        )
-                    else:
-                        transaction = VersionedTransaction.populate(
-                            message=msg,
-                            signatures=[sig],
-                        )
+                    transaction = VersionedTransaction.populate(
+                        message=msg,
+                        signatures=[sig],
+                    )
                     return transaction
 
                 blockhash_response = await wallet.client.get_latest_blockhash(
