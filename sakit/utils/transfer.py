@@ -13,6 +13,7 @@ from spl.token.instructions import (
     transfer_checked as spl_transfer,
     TransferCheckedParams as SPLTransferParams,
     create_associated_token_account,
+    get_associated_token_address,
 )
 from sakit.utils.wallet import SolanaWalletClient
 
@@ -183,11 +184,17 @@ class TokenTransferManager:
                 from_ata = (
                     (await token.get_accounts_by_owner(wallet_pubkey)).value[0].pubkey
                 )
-                try:
-                    to_ata = (await token.get_accounts_by_owner(to_pubkey)).value[0].pubkey
-                except IndexError:
+                
+                to_ata = (await get_associated_token_address(
+                    to_pubkey, mint_pubkey, token_program_id=program_id
+                ))
+
+                # Check if the destination ATA exists
+                ata_accounts = await token.get_accounts_by_owner(to_pubkey)
+                if not ata_accounts.value:
+                    # ATA doesn't exist, create it
                     create_ata_ix = create_associated_token_account(
-                        payer=wallet.fee_payer.pubkey(),
+                        payer=wallet.fee_payer.pubkey() if wallet.fee_payer else wallet_pubkey,
                         owner=to_pubkey,
                         mint=mint_pubkey,
                         token_program_id=program_id,
