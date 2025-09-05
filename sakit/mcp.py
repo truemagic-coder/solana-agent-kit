@@ -148,20 +148,38 @@ class MCPTool(AutoTool):
                     "llm_output": response,
                 }
 
-            # 3. Call the selected tool
+                        # 3. Call the selected tool
             try:
                 result = await client.call_tool(tool_name, parameters)
-                # fastmcp returns a list of content objects; we assume first is main
-                text_result = (
-                    result[0].text
-                    if result and hasattr(result[0], "text")
-                    else str(result)
-                )
+
+                # Normalize fastmcp result shapes (list or CallToolResult with .content/.text)
+                def _to_text(res):
+                    try:
+                        if isinstance(res, list):
+                            item = res[0] if res else None
+                            return item.text if item and hasattr(item, "text") else str(res)
+                        if hasattr(res, "text"):
+                            return res.text
+                        if hasattr(res, "content"):
+                            content = getattr(res, "content")
+                            if isinstance(content, list) and content:
+                                item = content[0]
+                                return item.text if hasattr(item, "text") else str(item)
+                            return str(content)
+                        if hasattr(res, "to_dict"):
+                            return json.dumps(res.to_dict())
+                    except Exception:
+                        pass
+                    return str(res)
+
+                text_result = _to_text(result)
+
                 # Try to parse as JSON, fallback to string
                 try:
                     parsed = json.loads(text_result)
                 except Exception:
                     parsed = text_result
+
                 return {
                     "status": "success",
                     "tool": tool_name,
