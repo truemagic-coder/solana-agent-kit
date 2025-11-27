@@ -93,7 +93,7 @@ class SearchInternetTool(AutoTool):
                     f"Using default model for provider '{self._provider}': {self._model}"
                 )
             elif self._provider == "grok":
-                self._model = "grok-3-mini-fast"
+                self._model = "grok-4-1-fast-non-reasoning"
                 logger.info(
                     f"Using default model for provider '{self._provider}': {self._model}"
                 )
@@ -196,28 +196,34 @@ class SearchInternetTool(AutoTool):
                             "details": response.text,
                         }
             elif self._provider == "grok":
-                url = "https://api.x.ai/v1/chat/completions"
+                url = "https://api.x.ai/v1/responses"
 
-                # Choose appropriate prompt based on citations setting
-                system_content = (
-                    "You search the Internet for current information. Include detailed information with citations like [1], [2], etc."
-                    if self._citations
-                    else "You search the Internet and X for current information. Provide a comprehensive answer without citations or source references."
-                )
+                # Build the input messages
+                input_messages = [
+                    {
+                        "role": "user",
+                        "content": query,
+                    }
+                ]
+
+                # Build tools configuration with image and video understanding enabled
+                tools = [
+                    {
+                        "type": "web_search",
+                        "enable_image_understanding": True,
+                    },
+                    {
+                        "type": "x_search",
+                        "enable_image_understanding": True,
+                        "enable_video_understanding": True,
+                    },
+                ]
 
                 payload = {
                     "model": self._model,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": system_content,
-                        },
-                        {"role": "user", "content": query},
-                    ],
-                    "search_parameters": {"mode": "on"},
+                    "input": input_messages,
+                    "tools": tools,
                 }
-                if self._citations:
-                    payload["search_parameters"]["return_citations"] = True
 
                 headers = {
                     "Authorization": f"Bearer {self._api_key}",
@@ -225,17 +231,18 @@ class SearchInternetTool(AutoTool):
                 }
 
                 # Use httpx for async requests
-                async with httpx.AsyncClient(timeout=30.0) as client:
+                async with httpx.AsyncClient(timeout=60.0) as client:
                     logger.debug(
-                        f"Sending request to Grok: {url} with model {self._model}"
+                        f"Sending request to Grok Responses API: {url} with model {self._model}"
                     )
                     response = await client.post(url, json=payload, headers=headers)
 
                     if response.status_code == 200:
                         data = response.json()
-                        print(data)  # Debugging line to check the response
-                        content = data["choices"][0]["message"]["content"]
                         logger.debug("Grok request successful.")
+
+                        # Extract content from the response
+                        content = data.get("output", {}).get("content", "")
 
                         # Only process citations if setting is enabled
                         if self._citations:
@@ -252,7 +259,9 @@ class SearchInternetTool(AutoTool):
                                         citation
                                         if isinstance(citation, str)
                                         else (
-                                            citation["url"] if "url" in citation else ""
+                                            citation.get("url", "")
+                                            if isinstance(citation, dict)
+                                            else ""
                                         )
                                     )
                                     if url:

@@ -13,13 +13,16 @@ A collection of powerful plugins to extend the capabilities of Solana Agent.
 Solana Agent Kit provides a growing library of plugins that enhance your Solana Agent with new capabilities:
 
 * Solana Transfer - Transfer Solana tokens between the agent's wallet and the destination wallet
-* Solana Swap - Swap Solana tokens on Jupiter in the agent's wallet
-* Solana Balance - Get the token balances of a wallet
-* Solana Price - Get the price of a token
-* Solana SNS Lookup - Get the Solana address for a SNS domain
+* Solana Ultra - Swap Solana tokens using Jupiter Ultra API with automatic slippage, priority fees, and transaction landing
+* Jupiter Holdings - Get token holdings with USD values for any wallet
+* Jupiter Shield - Get security warnings and risk information for tokens
+* Jupiter Token Search - Search for tokens by symbol, name, or address
+* Privy Transfer - Transfer tokens using Privy delegated wallets with sponsored transactions
+* Privy Ultra - Swap tokens using Jupiter Ultra with Privy delegated wallets
+* Privy Wallet Address - Get the wallet address of a Privy delegated wallet
 * Rugcheck - Check if a token is a rug
 * Internet Search - Search the internet in real-time using Perplexity, Grok, or OpenAI
-* MCP - Interface with any MCP web server - Zapier is supported
+* MCP - Interface with MCP web servers
 * Image Generation - Generate images with OpenAI, Grok, or Gemini with uploading to S3 compatible storage
 * Nemo Agent - Generate Python projects with Nemo Agent with uploading to S3 compatible storage
 
@@ -48,61 +51,161 @@ config = {
 }
 ```
 
-### Solana Swap
+### Solana Ultra
 
-This plugin enables Solana Agent to swap tokens using Jupiter.
+This plugin enables Solana Agent to swap tokens using Jupiter Ultra API. Jupiter Ultra automatically handles slippage, priority fees, and transaction landing for reliable swaps.
 
 Don't use tickers - but mint addresses in your user queries.
 
 ```python
 config = {
     "tools": {
-        "solana_swap": {
+        "solana_ultra": {
             "rpc_url": "my-rpc-url", # Required - your RPC URL - Helius is recommended
             "private_key": "my-private-key", # Required - base58 string - please use env vars to store the key as it is very confidential
-            "jupiter_url": "my-custom-url" # Optional - if you are using a custom Jupiter service like Metis from QuickNode
+            "referral_account": "my-referral-account", # Optional - your Jupiter referral account public key for collecting fees
+            "referral_fee": 50, # Optional - fee in basis points (50-255 bps, e.g., 50 = 0.5%). Jupiter takes 20% of this fee.
         },
     },
 }
 ```
 
-### Solana Balance
+**Features:**
+- **Jupiter Ultra API**: Access to competitive pricing with automatic slippage protection
+- **Priority Fees**: Automatically calculated to ensure transaction landing
+- **Transaction Landing**: Jupiter handles retries and transaction confirmation
+- **Referral Fees**: Optionally collect integrator fees (50-255 bps) via your Jupiter referral account
 
-This plugin enables Solana Agent to get the token balances of a wallet.
+**Setting up Referral Account:**
+To collect fees, you need a Jupiter referral account. Create one at [referral.jup.ag](https://referral.jup.ag/). Jupiter takes 20% of the referral fee you set.
+
+### Jupiter Holdings
+
+This plugin enables Solana Agent to get token holdings with USD values for any wallet address using Jupiter Ultra API.
 
 ```python
 config = {
     "tools": {
-        "solana_balance": {
-            "api_key": "my-alphavybe-api-key", # Required - your AlphaVybe API key - the free plan allows this call
+        "jupiter_holdings": {}, # No configuration required
+    },
+    "agents": [
+        {
+            "name": "portfolio_analyst",
+            "instructions": "You are an expert in analyzing Solana portfolios. Use the jupiter_holdings tool to get wallet token balances.",
+            "specialization": "Portfolio analysis",
+            "tools": ["jupiter_holdings"],
+        }
+    ]
+}
+```
+
+**Returns:**
+- Token mint addresses, symbols, and names
+- Token balances and USD values
+- Total portfolio value in USD
+
+### Jupiter Shield
+
+This plugin enables Solana Agent to get security warnings and risk information for Solana tokens using Jupiter's Shield API.
+
+```python
+config = {
+    "tools": {
+        "jupiter_shield": {}, # No configuration required
+    },
+    "agents": [
+        {
+            "name": "security_analyst",
+            "instructions": "You are a security expert for Solana tokens. Use the jupiter_shield tool to check token security before trading.",
+            "specialization": "Token security analysis",
+            "tools": ["jupiter_shield"],
+        }
+    ]
+}
+```
+
+**Returns:**
+- Security warnings for each token
+- Risk flags and descriptions
+- Recommended caution levels
+
+### Jupiter Token Search
+
+This plugin enables Solana Agent to search for Solana tokens by symbol, name, or address using Jupiter's search API.
+
+```python
+config = {
+    "tools": {
+        "jupiter_token_search": {}, # No configuration required
+    },
+    "agents": [
+        {
+            "name": "token_researcher",
+            "instructions": "You are an expert in finding Solana tokens. Use the jupiter_token_search tool to search for tokens.",
+            "specialization": "Token research",
+            "tools": ["jupiter_token_search"],
+        }
+    ]
+}
+```
+
+**Returns:**
+- Token mint addresses
+- Token symbols and names
+- Token metadata (logo, decimals, etc.)
+
+
+### Privy Transfer
+
+This plugin enables Solana Agent to transfer SOL and SPL tokens using Privy delegated wallets. The fee_payer wallet pays for transaction fees, enabling gasless transfers for users.
+
+```python
+config = {
+    "tools": {
+        "privy_transfer": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "rpc_url": "my-rpc-url", # Required - your RPC URL - Helius is recommended
+            "fee_payer": "fee-payer-private-key", # Required - base58 private key for the fee payer wallet
         },
     },
 }
 ```
 
-### Solana Price
+### Privy Ultra
 
-This plugin enables Solana Agent to get the price in USD of a token.
+This plugin enables Solana Agent to swap tokens using Jupiter Ultra API with Privy delegated wallets. Jupiter Ultra automatically handles slippage, priority fees, and transaction landing.
 
 ```python
 config = {
     "tools": {
-        "solana_price": {
-            "api_key": "my-birdeye-api-key", # Required - your Birdeye API key - the free plan allows this call
+        "privy_ultra": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "referral_account": "my-referral-account", # Optional - your Jupiter referral account public key for collecting fees
+            "referral_fee": 50, # Optional - fee in basis points (50-255 bps, e.g., 50 = 0.5%). Jupiter takes 20% of this fee.
         },
     },
 }
 ```
 
-### Solana SNS Lookup
+**Features:**
+- **Jupiter Ultra API**: Access to competitive pricing with automatic slippage protection
+- **Privy Delegated Wallets**: Use Privy's embedded wallets with delegation for seamless user experience
+- **Referral Fees**: Optionally collect integrator fees (50-255 bps) via your Jupiter referral account
 
-This plugin enables Solana Agent to get the Solana address of an SNS domain.
+### Privy Wallet Address
+
+This plugin enables Solana Agent to get the wallet address of a Privy delegated wallet.
 
 ```python
 config = {
     "tools": {
-        "sns_lookup": {
-            "quicknode_url": "my-quicknode-rpc-url", # Required - your QuickNode RPC URL with the SNS addon enabled
+        "privy_wallet_address": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
         },
     },
 }
@@ -127,7 +230,7 @@ config = {
             "api_key": "your-api-key", # Required - either a Perplexity, Grok, or OpenAI API key
             "provider": "openai", # Optional, defaults to openai - can be "openai', "perplexity", or "grok" - grok also searches X
             "citations": True, # Optional, defaults to True - only applies for Perplexity and Grok
-            "model": "gpt-4o-mini-search-preview"  # Optional, defaults to "sonar" for Perplexity or "gpt-4o-mini-search-preview" for OpenAI or "grok-3-mini-fast" for Grok
+            "model": "gpt-4o-mini-search-preview"  # Optional, defaults to "sonar" for Perplexity or "gpt-4o-mini-search-preview" for OpenAI or "grok-4-1-fast-non-reasoning" for Grok
         }
     },
     "agents": [
@@ -150,29 +253,29 @@ config = {
 * gpt-4o-search-preview
 
 **Available Search Models for Grok**
-* grok-3
-* grok-3-fast
-* grok-3-mini
-* grok-3-mini-fast
+* grok-4-1-fast-non-reasoning
+* grok-4-fast
+* grok-4.1-fast
 
 ### MCP
 
-[Zapier](https://zapier.com/mcp) MCP has been tested, works, and is supported.
+The MCP plugin supports both OpenAI and Grok as LLM providers for tool selection, and can connect to multiple MCP servers simultaneously with custom headers for each server.
 
-Zapier integrates over 7,000+ apps with 30,000+ actions that your AI Agent can utilize.
-
-Other MCP servers may work but are not supported.
-
-OpenAI is a requirement.
-
+**Single Server Configuration (Simple):**
 ```python
 config = {
     "openai": {
-        "api_key": "your-api-key",
+        "api_key": "your-openai-api-key",  # Required if using OpenAI as LLM provider
     },
     "tools": {
         "mcp": {
-            "url": "my-zapier-mcp-url",
+            "url": "my-zapier-mcp-url",  # Required: Your MCP server URL
+            "headers": {  # Optional: Custom headers for authentication/authorization
+                "Authorization": "Bearer your-token",
+                "X-Custom-Header": "value"
+            },
+            "llm_provider": "openai",  # Optional: "openai" (default) or "grok"
+            "llm_model": "gpt-4.1-mini",  # Optional: defaults to "gpt-4.1-mini" for OpenAI or "grok-4-1-fast-non-reasoning" for Grok
         }
     },
     "agents": [
@@ -180,11 +283,55 @@ config = {
             "name": "zapier_expert",
             "instructions": "You are an expert in using Zapier integrations using MCP. You always use the mcp tool to perform Zapier AI like actions.",
             "specialization": "Zapier service integration expert",
-            "tools": ["mcp"],  # Enable the tool for this agent
+            "tools": ["mcp"],
         }
     ]
 }
 ```
+
+**Multiple Servers Configuration (Advanced):**
+```python
+config = {
+    "grok": {
+        "api_key": "your-grok-api-key",  # Required if using Grok as LLM provider
+    },
+    "tools": {
+        "mcp": {
+            "servers": [  # List of MCP servers to connect to
+                {
+                    "url": "https://zapier-mcp-server.com/api",
+                    "headers": {
+                        "Authorization": "Bearer zapier-token"
+                    }
+                },
+                {
+                    "url": "https://another-mcp-server.com/api",
+                    "headers": {
+                        "X-API-Key": "another-api-key"
+                    }
+                }
+            ],
+            "llm_provider": "grok",  # Use Grok for tool selection
+            "llm_model": "grok-4-1-fast-non-reasoning",  # Optional: override default model
+        }
+    },
+    "agents": [
+        {
+            "name": "mcp_expert",
+            "instructions": "You are an expert in using MCP integrations. You always use the mcp tool to perform actions across multiple services.",
+            "specialization": "Multi-service integration expert",
+            "tools": ["mcp"],
+        }
+    ]
+}
+```
+
+**Configuration Options:**
+- `llm_provider`: Choose "openai" or "grok" for tool selection (default: "openai")
+- `llm_model`: Override the default model for your chosen provider
+- `headers`: Add custom HTTP headers for authentication or other purposes
+- `servers`: Connect to multiple MCP servers simultaneously (tools from all servers are available)
+- `api_key`: Can be provided in the tool config or in the provider-specific config section
 
 ### Image Generation
 

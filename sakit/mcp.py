@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 class MCPTool(AutoTool):
     """
     Tool for interacting with MCP servers using fastmcp.
-    Uses an OpenAI-compatible LLM to select and call tools based on a natural language query.
+    Uses an OpenAI-compatible LLM (OpenAI or Grok) to select and call tools based on a natural language query.
+    Supports multiple MCP servers with custom headers for each.
     """
 
     def __init__(self, registry: Optional[ToolRegistry] = None):
@@ -37,9 +38,11 @@ class MCPTool(AutoTool):
             description="Executes tasks using connected MCP servers (e.g., Zapier actions) via fastmcp. Provide a natural language query describing the task.",
             registry=registry,
         )
-        self._server_url: Optional[str] = None
-        self._openai_api_key: Optional[str] = None
-        self._openai_base_url: Optional[str] = None
+        self._servers: List[Dict[str, Any]] = []  # List of server configs
+        self._llm_provider: str = "openai"  # "openai" or "grok"
+        self._llm_api_key: Optional[str] = None
+        self._llm_base_url: Optional[str] = None
+        self._llm_model: Optional[str] = None
         logger.info("MCPTool (fastmcp) initialized.")
 
     def get_schema(self) -> Dict[str, Any]:
@@ -57,43 +60,125 @@ class MCPTool(AutoTool):
 
     def configure(self, config: Dict[str, Any]) -> None:
         super().configure(config)
-        # Expect config['tools']['mcp']['url'] and config['openai']['api_key']
+
+        # Configure MCP servers - support both single server (legacy) and multiple servers
         if "tools" in config and "mcp" in config["tools"]:
-            self._server_url = config["tools"]["mcp"].get("url")
-            if self._server_url:
-                parsed = urllib.parse.urlparse(self._server_url)
+            mcp_config = config["tools"]["mcp"]
+
+            # Check for multiple servers configuration
+            if "servers" in mcp_config and isinstance(mcp_config["servers"], list):
+                self._servers = []
+                for server in mcp_config["servers"]:
+                    server_entry = {
+                        "url": server.get("url"),
+                        "headers": server.get("headers", {}),
+                    }
+                    if server_entry["url"]:
+                        self._servers.append(server_entry)
+                        parsed = urllib.parse.urlparse(server_entry["url"])
+                        root_domain = f"{parsed.scheme}://{parsed.hostname}"
+                        logger.info(f"MCPTool: Configured server: {root_domain}")
+            # Legacy single server configuration
+            elif "url" in mcp_config:
+                self._servers = [
+                    {
+                        "url": mcp_config.get("url"),
+                        "headers": mcp_config.get("headers", {}),
+                    }
+                ]
+                parsed = urllib.parse.urlparse(self._servers[0]["url"])
                 root_domain = f"{parsed.scheme}://{parsed.hostname}"
                 logger.info(
                     f"MCPTool: Configured with server root domain: {root_domain}"
                 )
-            else:
-                logger.info("MCPTool: No MCP server URL provided.")
 
-        if "openai" in config and isinstance(config["openai"], dict):
-            self._openai_api_key = config["openai"].get("api_key")
+            # Get LLM provider configuration
+            self._llm_provider = mcp_config.get("llm_provider", "openai")
+            self._llm_model = mcp_config.get("llm_model")
+
+            if not self._servers:
+                logger.info("MCPTool: No MCP server URLs provided.")
+
+        # Configure LLM settings based on provider
+        if self._llm_provider == "grok":
+            # For Grok, check grok config or tools.mcp config
+            if "grok" in config and isinstance(config["grok"], dict):
+                self._llm_api_key = config["grok"].get("api_key")
+            elif "tools" in config and "mcp" in config["tools"]:
+                self._llm_api_key = config["tools"]["mcp"].get("api_key")
+
+            self._llm_base_url = "https://api.x.ai/v1"
+            if not self._llm_model:
+                self._llm_model = "grok-4-1-fast-non-reasoning"
+            logger.info(f"MCPTool: Using Grok with model {self._llm_model}")
         else:
-            self._openai_api_key = None
+            # For OpenAI
+            if "openai" in config and isinstance(config["openai"], dict):
+                self._llm_api_key = config["openai"].get("api_key")
+            elif "tools" in config and "mcp" in config["tools"]:
+                self._llm_api_key = config["tools"]["mcp"].get("api_key")
+
+            if not self._llm_model:
+                self._llm_model = "gpt-4.1-mini"
+            logger.info(f"MCPTool: Using OpenAI with model {self._llm_model}")
 
     async def execute(self, query: str) -> Dict[str, Any]:
         if not FASTMCP_AVAILABLE:
             return {"status": "error", "message": "fastmcp library is not installed."}
         if not OPENAI_AVAILABLE:
             return {"status": "error", "message": "openai library is not installed."}
-        if not self._openai_api_key:
-            return {"status": "error", "message": "No OpenAI API key configured."}
+        if not self._llm_api_key:
+            return {
+                "status": "error",
+                "message": f"No API key configured for {self._llm_provider}.",
+            }
+        if not self._servers:
+            return {"status": "error", "message": "No MCP servers configured."}
 
-        # 1. Connect to MCP server
-        transport = StreamableHttpTransport(self._server_url)
-        client = Client(transport=transport)
+        # Collect all tools from all servers
+        all_tools = []
+        server_clients = []
 
-        async with client:
-            tools = await client.list_tools()
-            if not tools:
-                return {
-                    "status": "error",
-                    "message": "No tools available on MCP server.",
-                }
+        for server_config in self._servers:
+            try:
+                # Create transport with custom headers if provided
+                transport = StreamableHttpTransport(
+                    server_config["url"], headers=server_config.get("headers", {})
+                )
+                client = Client(transport=transport)
+                await client.__aenter__()
 
+                tools = await client.list_tools()
+                if tools:
+                    all_tools.extend(tools)
+                    server_clients.append(
+                        {
+                            "client": client,
+                            "url": server_config["url"],
+                            "tools": [t.name for t in tools],
+                        }
+                    )
+                    logger.info(
+                        f"Connected to MCP server: {server_config['url']} ({len(tools)} tools)"
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Failed to connect to MCP server {server_config['url']}: {e}"
+                )
+
+        if not all_tools:
+            # Clean up any opened clients
+            for sc in server_clients:
+                try:
+                    await sc["client"].__aexit__(None, None, None)
+                except Exception as e:
+                    logger.error(f"Error closing MCP client during cleanup: {e}")
+            return {
+                "status": "error",
+                "message": "No tools available on any MCP server.",
+            }
+
+        try:
             # 2. Use LLM to select tool and generate parameters
             tool_descriptions = [
                 {
@@ -101,7 +186,7 @@ class MCPTool(AutoTool):
                     "description": t.description,
                     "params": t.inputSchema,
                 }
-                for t in tools
+                for t in all_tools
             ]
             system_prompt = (
                 "You are an expert AI agent. "
@@ -115,11 +200,15 @@ class MCPTool(AutoTool):
                 f"Available tools:\n{json.dumps(tool_descriptions, indent=2)}"
             )
 
-            openai_client = AsyncOpenAI(
-                api_key=self._openai_api_key,
-            )
+            # Create OpenAI client with appropriate base URL for provider
+            client_kwargs = {"api_key": self._llm_api_key}
+            if self._llm_base_url:
+                client_kwargs["base_url"] = self._llm_base_url
+
+            openai_client = AsyncOpenAI(**client_kwargs)
+
             completion = await openai_client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model=self._llm_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -148,9 +237,22 @@ class MCPTool(AutoTool):
                     "llm_output": response,
                 }
 
-            # 3. Call the selected tool
+            # 3. Find which server has this tool and call it
+            target_client = None
+            for sc in server_clients:
+                if tool_name in sc["tools"]:
+                    target_client = sc["client"]
+                    break
+
+            if not target_client:
+                return {
+                    "status": "error",
+                    "message": f"Tool '{tool_name}' not found on any server.",
+                    "tool": tool_name,
+                }
+
             try:
-                result = await client.call_tool(tool_name, parameters)
+                result = await target_client.call_tool(tool_name, parameters)
                 # fastmcp returns a list of content objects; we assume first is main
                 text_result = (
                     result[0].text
@@ -167,6 +269,8 @@ class MCPTool(AutoTool):
                     "tool": tool_name,
                     "parameters": parameters,
                     "result": parsed,
+                    "llm_provider": self._llm_provider,
+                    "llm_model": self._llm_model,
                 }
             except Exception as e:
                 logger.exception(f"Error calling tool '{tool_name}': {e}")
@@ -176,6 +280,13 @@ class MCPTool(AutoTool):
                     "tool": tool_name,
                     "parameters": parameters,
                 }
+        finally:
+            # Clean up all server connections
+            for sc in server_clients:
+                try:
+                    await sc["client"].__aexit__(None, None, None)
+                except Exception as e:
+                    logger.error(f"Error closing MCP client: {e}")
 
 
 class MCPPlugin:
