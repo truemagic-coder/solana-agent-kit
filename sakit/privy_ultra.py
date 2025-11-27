@@ -210,12 +210,15 @@ class PrivyUltraTool(AutoTool):
                 transaction = VersionedTransaction.from_bytes(tx_bytes)
                 message_bytes = to_bytes_versioned(transaction.message)
                 payer_signature = payer_keypair.sign_message(message_bytes)
-                
+
                 # Create partially signed transaction (payer signed, taker placeholder)
                 # We need to pass this to Privy for the taker's signature
                 partially_signed = VersionedTransaction.populate(
                     transaction.message,
-                    [payer_signature, transaction.signatures[1]]  # Keep taker's placeholder
+                    [
+                        payer_signature,
+                        transaction.signatures[1],
+                    ],  # Keep taker's placeholder
                 )
                 tx_to_sign = base64.b64encode(bytes(partially_signed)).decode("utf-8")
 

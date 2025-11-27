@@ -61,8 +61,8 @@ Don't use tickers - but mint addresses in your user queries.
 config = {
     "tools": {
         "solana_ultra": {
-            "rpc_url": "my-rpc-url", # Required - your RPC URL - Helius is recommended
             "private_key": "my-private-key", # Required - base58 string - please use env vars to store the key as it is very confidential
+            "jupiter_api_key": "my-jupiter-api-key", # Optional but recommended - get free key at jup.ag for dynamic rate limits (starts at 5 RPS, scales with usage)
             "referral_account": "my-referral-account", # Optional - your Jupiter referral account public key for collecting fees
             "referral_fee": 50, # Optional - fee in basis points (50-255 bps, e.g., 50 = 0.5%). Jupiter takes 20% of this fee.
             "payer_private_key": "payer-private-key", # Optional - base58 private key for gasless transactions (integrator pays gas)
@@ -77,6 +77,10 @@ config = {
 - **Transaction Landing**: Jupiter handles retries and transaction confirmation
 - **Referral Fees**: Optionally collect integrator fees (50-255 bps) via your Jupiter referral account
 - **Integrator Gas Payer**: Optionally pay for gas on behalf of users for truly gasless swaps
+- **Dynamic Rate Limits**: With API key, rate limits scale automatically with your usage (free)
+
+**API Key (Recommended):**
+Get a free Jupiter API key at [jup.ag](https://jup.ag) for dynamic rate limits. Without a key, you use the lite API with lower limits. With a key, you start at 5 RPS and it scales automatically at no cost.
 
 **Setting up Referral Account:**
 To collect fees, you need a Jupiter referral account. Create one at [referral.jup.ag](https://referral.jup.ag/). Jupiter takes 20% of the referral fee you set. You also need to create token accounts for the tokens you want to collect fees in.
@@ -189,6 +193,7 @@ config = {
             "app_id": "your-privy-app-id", # Required - your Privy application ID
             "app_secret": "your-privy-app-secret", # Required - your Privy application secret
             "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "jupiter_api_key": "my-jupiter-api-key", # Optional but recommended - get free key at jup.ag for dynamic rate limits
             "referral_account": "my-referral-account", # Optional - your Jupiter referral account public key for collecting fees
             "referral_fee": 50, # Optional - fee in basis points (50-255 bps, e.g., 50 = 0.5%). Jupiter takes 20% of this fee.
             "payer_private_key": "payer-private-key", # Optional - base58 private key for gasless transactions (integrator pays gas)
@@ -202,6 +207,7 @@ config = {
 - **Privy Delegated Wallets**: Use Privy's embedded wallets with delegation for seamless user experience
 - **Referral Fees**: Optionally collect integrator fees (50-255 bps) via your Jupiter referral account
 - **Integrator Gas Payer**: Optionally pay for gas on behalf of users for truly gasless swaps
+- **Dynamic Rate Limits**: With API key, rate limits scale automatically with your usage (free)
 
 ### Privy Wallet Address
 

@@ -16,7 +16,9 @@ from solders.message import to_bytes_versioned
 
 logger = logging.getLogger(__name__)
 
-JUPITER_ULTRA_API = "https://lite-api.jup.ag/ultra/v1"
+# Use lite API for no-key access, main API for keyed access with dynamic rate limits
+JUPITER_ULTRA_API_LITE = "https://lite-api.jup.ag/ultra/v1"
+JUPITER_ULTRA_API_PRO = "https://api.jup.ag/ultra/v1"
 
 
 @dataclass
@@ -57,10 +59,17 @@ class JupiterUltra:
         Initialize Jupiter Ultra client.
 
         Args:
-            api_key: Optional Jupiter API key for higher rate limits
-            base_url: Optional custom base URL (defaults to lite API)
+            api_key: Optional Jupiter API key for dynamic rate limits (get free key at jup.ag)
+            base_url: Optional custom base URL (auto-selects based on api_key if not provided)
         """
-        self.base_url = base_url or JUPITER_ULTRA_API
+        # Use Pro API with dynamic rate limits if API key provided, otherwise use Lite API
+        if base_url:
+            self.base_url = base_url
+        elif api_key:
+            self.base_url = JUPITER_ULTRA_API_PRO
+        else:
+            self.base_url = JUPITER_ULTRA_API_LITE
+
         self.api_key = api_key
         self._headers = {"Content-Type": "application/json"}
         if api_key:
@@ -305,10 +314,10 @@ def sign_ultra_transaction(
     transaction = VersionedTransaction.from_bytes(transaction_bytes)
 
     message_bytes = to_bytes_versioned(transaction.message)
-    
+
     # Get taker signature
     taker_signature = sign_message_func(message_bytes)
-    
+
     if payer_sign_func:
         # With integrator payer: transaction needs both taker and payer signatures
         payer_signature = payer_sign_func(message_bytes)
