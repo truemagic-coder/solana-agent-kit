@@ -13,6 +13,9 @@ from solana_agent import AutoTool, ToolRegistry
 import httpx
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
+from solders.keypair import Keypair
+from solders.transaction import VersionedTransaction
+from solders.message import to_bytes_versioned
 
 from sakit.utils.ultra import JupiterUltra
 
@@ -110,6 +113,7 @@ class PrivyUltraTool(AutoTool):
         self.jupiter_api_key = None
         self.referral_account = None
         self.referral_fee = None
+        self.payer_private_key = None
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -144,6 +148,7 @@ class PrivyUltraTool(AutoTool):
         self.jupiter_api_key = tool_cfg.get("jupiter_api_key")
         self.referral_account = tool_cfg.get("referral_account")
         self.referral_fee = tool_cfg.get("referral_fee")
+        self.payer_private_key = tool_cfg.get("payer_private_key")
 
     async def execute(
         self,
@@ -169,6 +174,13 @@ class PrivyUltraTool(AutoTool):
         public_key = wallet_info["public_key"]
 
         try:
+            # Check if integrator payer is configured for gasless transactions
+            payer_keypair = None
+            payer_pubkey = None
+            if self.payer_private_key:
+                payer_keypair = Keypair.from_base58_string(self.payer_private_key)
+                payer_pubkey = str(payer_keypair.pubkey())
+
             # Initialize Jupiter Ultra client
             ultra = JupiterUltra(api_key=self.jupiter_api_key)
 
@@ -180,6 +192,8 @@ class PrivyUltraTool(AutoTool):
                 taker=public_key,
                 referral_account=self.referral_account,
                 referral_fee=self.referral_fee,
+                payer=payer_pubkey,
+                close_authority=public_key if payer_pubkey else None,
             )
 
             if not order.transaction:
@@ -188,10 +202,27 @@ class PrivyUltraTool(AutoTool):
                     "message": "No transaction returned from Jupiter Ultra.",
                 }
 
+            # If payer is configured, we need to sign with payer first, then Privy
+            tx_to_sign = order.transaction
+            if payer_keypair:
+                # Payer signs first
+                tx_bytes = base64.b64decode(order.transaction)
+                transaction = VersionedTransaction.from_bytes(tx_bytes)
+                message_bytes = to_bytes_versioned(transaction.message)
+                payer_signature = payer_keypair.sign_message(message_bytes)
+                
+                # Create partially signed transaction (payer signed, taker placeholder)
+                # We need to pass this to Privy for the taker's signature
+                partially_signed = VersionedTransaction.populate(
+                    transaction.message,
+                    [payer_signature, transaction.signatures[1]]  # Keep taker's placeholder
+                )
+                tx_to_sign = base64.b64encode(bytes(partially_signed)).decode("utf-8")
+
             # Sign transaction via Privy
             sign_result = await privy_sign_and_send(
                 wallet_id,
-                order.transaction,
+                tx_to_sign,
                 self.app_id,
                 self.app_secret,
                 self.signing_key,

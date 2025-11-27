@@ -65,6 +65,7 @@ config = {
             "private_key": "my-private-key", # Required - base58 string - please use env vars to store the key as it is very confidential
             "referral_account": "my-referral-account", # Optional - your Jupiter referral account public key for collecting fees
             "referral_fee": 50, # Optional - fee in basis points (50-255 bps, e.g., 50 = 0.5%). Jupiter takes 20% of this fee.
+            "payer_private_key": "payer-private-key", # Optional - base58 private key for gasless transactions (integrator pays gas)
         },
     },
 }
@@ -75,9 +76,13 @@ config = {
 - **Priority Fees**: Automatically calculated to ensure transaction landing
 - **Transaction Landing**: Jupiter handles retries and transaction confirmation
 - **Referral Fees**: Optionally collect integrator fees (50-255 bps) via your Jupiter referral account
+- **Integrator Gas Payer**: Optionally pay for gas on behalf of users for truly gasless swaps
 
 **Setting up Referral Account:**
-To collect fees, you need a Jupiter referral account. Create one at [referral.jup.ag](https://referral.jup.ag/). Jupiter takes 20% of the referral fee you set.
+To collect fees, you need a Jupiter referral account. Create one at [referral.jup.ag](https://referral.jup.ag/). Jupiter takes 20% of the referral fee you set. You also need to create token accounts for the tokens you want to collect fees in.
+
+**Gasless Transactions:**
+By default, Jupiter Ultra provides gasless swaps when the user has < 0.01 SOL and trade is > $10. However, this **doesn't work with referral fees**. To enable gasless + referral fees, configure `payer_private_key` - this wallet will pay all gas fees and you recoup costs via referral fees.
 
 ### Jupiter Holdings
 
@@ -186,6 +191,7 @@ config = {
             "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
             "referral_account": "my-referral-account", # Optional - your Jupiter referral account public key for collecting fees
             "referral_fee": 50, # Optional - fee in basis points (50-255 bps, e.g., 50 = 0.5%). Jupiter takes 20% of this fee.
+            "payer_private_key": "payer-private-key", # Optional - base58 private key for gasless transactions (integrator pays gas)
         },
     },
 }
@@ -195,6 +201,7 @@ config = {
 - **Jupiter Ultra API**: Access to competitive pricing with automatic slippage protection
 - **Privy Delegated Wallets**: Use Privy's embedded wallets with delegation for seamless user experience
 - **Referral Fees**: Optionally collect integrator fees (50-255 bps) via your Jupiter referral account
+- **Integrator Gas Payer**: Optionally pay for gas on behalf of users for truly gasless swaps
 
 ### Privy Wallet Address
 

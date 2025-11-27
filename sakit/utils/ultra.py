@@ -74,6 +74,8 @@ class JupiterUltra:
         taker: str,
         referral_account: Optional[str] = None,
         referral_fee: Optional[int] = None,
+        payer: Optional[str] = None,
+        close_authority: Optional[str] = None,
     ) -> UltraOrderResponse:
         """
         Get a swap order from Jupiter Ultra.
@@ -85,6 +87,8 @@ class JupiterUltra:
             taker: User's wallet address
             referral_account: Optional referral account for fees
             referral_fee: Optional referral fee in basis points (50-255)
+            payer: Optional integrator payer public key for gasless transactions
+            close_authority: Optional close authority for token accounts (required with payer)
 
         Returns:
             UltraOrderResponse with transaction to sign
@@ -103,6 +107,10 @@ class JupiterUltra:
             params["referralAccount"] = referral_account
         if referral_fee is not None:
             params["referralFee"] = str(referral_fee)
+        if payer:
+            params["payer"] = payer
+        if close_authority:
+            params["closeAuthority"] = close_authority
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
@@ -280,13 +288,15 @@ class JupiterUltra:
 def sign_ultra_transaction(
     transaction_base64: str,
     sign_message_func,
+    payer_sign_func=None,
 ) -> str:
     """
     Sign a Jupiter Ultra transaction.
 
     Args:
         transaction_base64: Base64 encoded transaction from get_order
-        sign_message_func: Function that signs a message and returns signature
+        sign_message_func: Function that signs a message and returns signature (taker)
+        payer_sign_func: Optional function that signs for the payer (integrator gas payer)
 
     Returns:
         Base64 encoded signed transaction
@@ -295,8 +305,20 @@ def sign_ultra_transaction(
     transaction = VersionedTransaction.from_bytes(transaction_bytes)
 
     message_bytes = to_bytes_versioned(transaction.message)
-    signature = sign_message_func(message_bytes)
-
-    signed_transaction = VersionedTransaction.populate(transaction.message, [signature])
+    
+    # Get taker signature
+    taker_signature = sign_message_func(message_bytes)
+    
+    if payer_sign_func:
+        # With integrator payer: transaction needs both taker and payer signatures
+        payer_signature = payer_sign_func(message_bytes)
+        signed_transaction = VersionedTransaction.populate(
+            transaction.message, [payer_signature, taker_signature]
+        )
+    else:
+        # Standard flow: only taker signature
+        signed_transaction = VersionedTransaction.populate(
+            transaction.message, [taker_signature]
+        )
 
     return base64.b64encode(bytes(signed_transaction)).decode("utf-8")

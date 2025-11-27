@@ -28,6 +28,7 @@ class SolanaUltraTool(AutoTool):
         self._jupiter_api_key: Optional[str] = None
         self._referral_account: Optional[str] = None
         self._referral_fee: Optional[int] = None
+        self._payer_private_key: Optional[str] = None
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -57,6 +58,7 @@ class SolanaUltraTool(AutoTool):
         self._jupiter_api_key = tool_cfg.get("jupiter_api_key")
         self._referral_account = tool_cfg.get("referral_account")
         self._referral_fee = tool_cfg.get("referral_fee")
+        self._payer_private_key = tool_cfg.get("payer_private_key")
 
     async def execute(
         self,
@@ -71,6 +73,13 @@ class SolanaUltraTool(AutoTool):
             keypair = Keypair.from_base58_string(self._private_key)
             taker = str(keypair.pubkey())
 
+            # Check if integrator payer is configured for gasless transactions
+            payer_keypair = None
+            payer_pubkey = None
+            if self._payer_private_key:
+                payer_keypair = Keypair.from_base58_string(self._payer_private_key)
+                payer_pubkey = str(payer_keypair.pubkey())
+
             # Initialize Jupiter Ultra client
             ultra = JupiterUltra(api_key=self._jupiter_api_key)
 
@@ -82,6 +91,8 @@ class SolanaUltraTool(AutoTool):
                 taker=taker,
                 referral_account=self._referral_account,
                 referral_fee=self._referral_fee,
+                payer=payer_pubkey,
+                close_authority=taker if payer_pubkey else None,
             )
 
             if not order.transaction:
@@ -94,6 +105,7 @@ class SolanaUltraTool(AutoTool):
             signed_tx = sign_ultra_transaction(
                 transaction_base64=order.transaction,
                 sign_message_func=keypair.sign_message,
+                payer_sign_func=payer_keypair.sign_message if payer_keypair else None,
             )
 
             # Execute the swap via Jupiter Ultra
