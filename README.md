@@ -14,11 +14,15 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 
 * Solana Transfer - Transfer Solana tokens between the agent's wallet and the destination wallet
 * Solana Ultra - Swap Solana tokens using Jupiter Ultra API with automatic slippage, priority fees, and transaction landing
+* Jupiter Trigger - Create, cancel, and manage limit orders using Jupiter Trigger API
+* Jupiter Recurring - Create, cancel, and manage DCA orders using Jupiter Recurring API
 * Jupiter Holdings - Get token holdings with USD values for any wallet
 * Jupiter Shield - Get security warnings and risk information for tokens
 * Jupiter Token Search - Search for tokens by symbol, name, or address
 * Privy Transfer - Transfer tokens using Privy delegated wallets with sponsored transactions
 * Privy Ultra - Swap tokens using Jupiter Ultra with Privy delegated wallets
+* Privy Trigger - Create and manage limit orders with Privy delegated wallets
+* Privy Recurring - Create and manage DCA orders with Privy delegated wallets
 * Privy Wallet Address - Get the wallet address of a Privy delegated wallet
 * Rugcheck - Check if a token is a rug
 * Internet Search - Search the internet in real-time using Perplexity, Grok, or OpenAI
@@ -87,6 +91,73 @@ To collect fees, you need a Jupiter referral account. Create one at [referral.ju
 
 **Gasless Transactions:**
 By default, Jupiter Ultra provides gasless swaps when the user has < 0.01 SOL and trade is > $10. However, this **doesn't work with referral fees**. To enable gasless + referral fees, configure `payer_private_key` - this wallet will pay all gas fees and you recoup costs via referral fees.
+
+### Jupiter Trigger
+
+This plugin enables Solana Agent to create, cancel, and manage limit orders using Jupiter's Trigger API. It's a smart tool that handles the full lifecycle of limit orders with a single action parameter.
+
+```python
+config = {
+    "tools": {
+        "jupiter_trigger": {
+            "private_key": "my-private-key", # Required - base58 string
+            "jupiter_api_key": "my-jupiter-api-key", # Optional - for pro API with higher rate limits
+            "referral_account": "my-referral-account", # Optional - for collecting fees
+            "referral_fee": 50, # Optional - fee in basis points (50-255 bps)
+            "payer_private_key": "payer-private-key", # Optional - for gasless transactions
+        },
+    },
+}
+```
+
+**Actions:**
+- `create` - Create a new limit order (requires input_mint, output_mint, making_amount, taking_amount)
+- `cancel` - Cancel a specific order (requires order_pubkey)
+- `cancel_all` - Cancel all open orders for the wallet
+- `list` - List all orders for the wallet
+
+**Features:**
+- **Smart Action Routing**: Single tool handles create, cancel, and list operations
+- **Limit Orders**: Set exact prices for token swaps
+- **Order Expiry**: Optionally set expiration time for orders
+- **Referral Fees**: Collect integrator fees on filled orders
+- **Gasless Transactions**: Optionally pay gas on behalf of users
+
+### Jupiter Recurring
+
+This plugin enables Solana Agent to create, cancel, and manage DCA (Dollar Cost Averaging) orders using Jupiter's Recurring API.
+
+```python
+config = {
+    "tools": {
+        "jupiter_recurring": {
+            "private_key": "my-private-key", # Required - base58 string
+            "jupiter_api_key": "my-jupiter-api-key", # Optional - for pro API with higher rate limits
+            "payer_private_key": "payer-private-key", # Optional - for gasless transactions
+        },
+    },
+}
+```
+
+**Actions:**
+- `create` - Create a new DCA order (requires input_mint, output_mint, in_amount, order_count, frequency)
+- `cancel` - Cancel a specific DCA order (requires order_pubkey)
+- `list` - List all DCA orders for the wallet
+
+**Parameters for Create:**
+- `input_mint` - Token to sell
+- `output_mint` - Token to buy
+- `in_amount` - Total amount to DCA (in base units)
+- `order_count` - How many orders to split into
+- `frequency` - Time between orders in seconds (e.g., '3600' for hourly, '86400' for daily)
+- `min_out_amount` / `max_out_amount` - Optional output amount bounds per order
+- `start_at` - Optional start time (unix timestamp)
+
+**Features:**
+- **Time-Based DCA**: Automatically split large orders over time
+- **Amount Bounds**: Set min/max output amount limits per order
+- **Flexible Frequency**: Specify interval in seconds
+- **Gasless Transactions**: Optionally pay gas on behalf of users
 
 ### Jupiter Holdings
 
@@ -208,6 +279,48 @@ config = {
 - **Referral Fees**: Optionally collect integrator fees (50-255 bps) via your Jupiter referral account
 - **Integrator Gas Payer**: Optionally pay for gas on behalf of users for truly gasless swaps
 - **Dynamic Rate Limits**: With API key, rate limits scale automatically with your usage (free)
+
+### Privy Trigger
+
+This plugin enables Solana Agent to create, cancel, and manage limit orders using Jupiter's Trigger API with Privy delegated wallets.
+
+```python
+config = {
+    "tools": {
+        "privy_trigger": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "jupiter_api_key": "my-jupiter-api-key", # Optional - for pro API with higher rate limits
+            "referral_account": "my-referral-account", # Optional - for collecting fees
+            "referral_fee": 50, # Optional - fee in basis points (50-255 bps)
+            "payer_private_key": "payer-private-key", # Optional - for gasless transactions
+        },
+    },
+}
+```
+
+**Actions:** Same as Jupiter Trigger (create, cancel, cancel_all, list)
+
+### Privy Recurring
+
+This plugin enables Solana Agent to create, cancel, and manage DCA orders using Jupiter's Recurring API with Privy delegated wallets.
+
+```python
+config = {
+    "tools": {
+        "privy_recurring": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "jupiter_api_key": "my-jupiter-api-key", # Optional - for pro API with higher rate limits
+            "payer_private_key": "payer-private-key", # Optional - for gasless transactions
+        },
+    },
+}
+```
+
+**Actions:** Same as Jupiter Recurring (create, cancel, list)
 
 ### Privy Wallet Address
 
