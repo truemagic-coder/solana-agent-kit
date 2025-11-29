@@ -143,6 +143,49 @@ class TestJupiterTriggerToolCancelAction:
         assert result["status"] == "error"
         assert "order_pubkey" in result["message"].lower()
 
+    @pytest.mark.asyncio
+    async def test_cancel_order_not_owned_by_user(self):
+        """Should reject cancellation of orders not owned by the wallet."""
+        from unittest.mock import MagicMock, AsyncMock
+
+        tool = JupiterTriggerTool()
+        tool.configure(
+            {
+                "tools": {
+                    "jupiter_trigger": {
+                        "private_key": "5jGR...base58privatekey",
+                    }
+                }
+            }
+        )
+
+        # Mock Keypair to return a predictable public key
+        with patch("sakit.jupiter_trigger.Keypair") as MockKeypair:
+            mock_keypair = MagicMock()
+            mock_keypair.pubkey.return_value = "UserWalletPubkey123"
+            MockKeypair.from_base58_string.return_value = mock_keypair
+
+            # Mock JupiterTrigger to return user's orders
+            with patch("sakit.jupiter_trigger.JupiterTrigger") as MockTrigger:
+                mock_trigger_instance = MockTrigger.return_value
+                mock_trigger_instance.get_orders = AsyncMock(
+                    return_value={
+                        "success": True,
+                        "orders": [
+                            {"order": "UserOwnedOrder123"},
+                            {"order": "UserOwnedOrder456"},
+                        ],
+                    }
+                )
+
+                result = await tool.execute(
+                    action="cancel",
+                    order_pubkey="SomeoneElsesOrder789",  # Not in user's orders
+                )
+
+        assert result["status"] == "error"
+        assert "does not belong" in result["message"]
+
 
 class TestJupiterTriggerToolListAction:
     """Test list actions."""

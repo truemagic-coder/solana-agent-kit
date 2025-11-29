@@ -177,6 +177,43 @@ class TestPrivyTriggerToolCancelAction:
         assert result["status"] == "error"
         assert "order_pubkey" in result["message"].lower()
 
+    @pytest.mark.asyncio
+    async def test_cancel_order_not_owned_by_user(self, privy_trigger_tool):
+        """Should reject cancellation of orders not owned by the user."""
+        from unittest.mock import AsyncMock
+
+        mock_wallet = {
+            "wallet_id": "wallet123",
+            "public_key": "UserPublicKey123",
+        }
+
+        # Mock the wallet lookup
+        with patch("sakit.privy_trigger._get_privy_embedded_wallet") as mock_get_wallet:
+            mock_get_wallet.return_value = mock_wallet
+
+            # Mock the JupiterTrigger.get_orders to return orders for this user
+            with patch("sakit.privy_trigger.JupiterTrigger") as MockTrigger:
+                mock_trigger_instance = MockTrigger.return_value
+                # User's orders - does NOT include the order they're trying to cancel
+                mock_trigger_instance.get_orders = AsyncMock(
+                    return_value={
+                        "success": True,
+                        "orders": [
+                            {"order": "UserOwnedOrder123"},
+                            {"order": "UserOwnedOrder456"},
+                        ],
+                    }
+                )
+
+                result = await privy_trigger_tool.execute(
+                    user_id="did:privy:user123",
+                    action="cancel",
+                    order_pubkey="SomeoneElsesOrder789",  # Not in user's orders
+                )
+
+        assert result["status"] == "error"
+        assert "does not belong" in result["message"]
+
 
 class TestPrivyTriggerToolUnknownAction:
     """Test unknown action handling."""

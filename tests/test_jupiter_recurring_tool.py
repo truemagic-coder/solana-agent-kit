@@ -118,6 +118,49 @@ class TestJupiterRecurringToolCancelAction:
         assert result["status"] == "error"
         assert "order_pubkey" in result["message"].lower()
 
+    @pytest.mark.asyncio
+    async def test_cancel_order_not_owned_by_user(self):
+        """Should reject cancellation of orders not owned by the wallet."""
+        from unittest.mock import MagicMock, AsyncMock
+
+        tool = JupiterRecurringTool()
+        tool.configure(
+            {
+                "tools": {
+                    "jupiter_recurring": {
+                        "private_key": "5jGR...base58privatekey",
+                    }
+                }
+            }
+        )
+
+        # Mock Keypair to return a predictable public key
+        with patch("sakit.jupiter_recurring.Keypair") as MockKeypair:
+            mock_keypair = MagicMock()
+            mock_keypair.pubkey.return_value = "UserWalletPubkey123"
+            MockKeypair.from_base58_string.return_value = mock_keypair
+
+            # Mock JupiterRecurring to return user's orders
+            with patch("sakit.jupiter_recurring.JupiterRecurring") as MockRecurring:
+                mock_recurring_instance = MockRecurring.return_value
+                mock_recurring_instance.get_orders = AsyncMock(
+                    return_value={
+                        "success": True,
+                        "orders": [
+                            {"order": "UserOwnedDCA123"},
+                            {"order": "UserOwnedDCA456"},
+                        ],
+                    }
+                )
+
+                result = await tool.execute(
+                    action="cancel",
+                    order_pubkey="SomeoneElsesDCA789",  # Not in user's orders
+                )
+
+        assert result["status"] == "error"
+        assert "does not belong" in result["message"]
+
 
 class TestJupiterRecurringToolListAction:
     """Test list action."""

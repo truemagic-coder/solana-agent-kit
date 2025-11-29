@@ -234,6 +234,19 @@ class JupiterRecurringTool(AutoTool):
             keypair = Keypair.from_base58_string(self._private_key)
             user = str(keypair.pubkey())
 
+            # Verify the order belongs to this user before attempting to cancel
+            orders_result = await recurring.get_orders(user=user, order_status="active")
+            if orders_result.get("success", False):
+                user_orders = [
+                    o.get("order") or o.get("orderPubkey")
+                    for o in orders_result.get("orders", [])
+                ]
+                if order_pubkey not in user_orders:
+                    return {
+                        "status": "error",
+                        "message": f"Order {order_pubkey} does not belong to this wallet or is not active.",
+                    }
+
             payer_keypair = None
             payer_pubkey = None
             if self._payer_private_key:

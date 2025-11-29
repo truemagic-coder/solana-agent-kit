@@ -369,6 +369,21 @@ class PrivyTriggerTool(AutoTool):
             }
 
         try:
+            # Verify the order belongs to this user before attempting to cancel
+            orders_result = await trigger.get_orders(
+                user=public_key, order_status="active"
+            )
+            if orders_result.get("success", False):
+                user_orders = [
+                    o.get("order") or o.get("orderPubkey")
+                    for o in orders_result.get("orders", [])
+                ]
+                if order_pubkey not in user_orders:
+                    return {
+                        "status": "error",
+                        "message": f"Order {order_pubkey} does not belong to this user or is not active.",
+                    }
+
             payer_pubkey = None
             if self._payer_private_key:
                 payer_keypair = Keypair.from_base58_string(self._payer_private_key)

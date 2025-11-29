@@ -181,6 +181,45 @@ class TestPrivyRecurringToolCancelAction:
         assert result["status"] == "error"
         assert "order_pubkey" in result["message"].lower()
 
+    @pytest.mark.asyncio
+    async def test_cancel_order_not_owned_by_user(self, privy_recurring_tool):
+        """Should reject cancellation of orders not owned by the user."""
+        from unittest.mock import AsyncMock
+
+        mock_wallet = {
+            "wallet_id": "wallet123",
+            "public_key": "UserPublicKey123",
+        }
+
+        # Mock the wallet lookup
+        with patch(
+            "sakit.privy_recurring._get_privy_embedded_wallet"
+        ) as mock_get_wallet:
+            mock_get_wallet.return_value = mock_wallet
+
+            # Mock the JupiterRecurring.get_orders to return orders for this user
+            with patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring:
+                mock_recurring_instance = MockRecurring.return_value
+                # User's orders - does NOT include the order they're trying to cancel
+                mock_recurring_instance.get_orders = AsyncMock(
+                    return_value={
+                        "success": True,
+                        "orders": [
+                            {"order": "UserOwnedDCA123"},
+                            {"order": "UserOwnedDCA456"},
+                        ],
+                    }
+                )
+
+                result = await privy_recurring_tool.execute(
+                    user_id="did:privy:user123",
+                    action="cancel",
+                    order_pubkey="SomeoneElsesDCA789",  # Not in user's orders
+                )
+
+        assert result["status"] == "error"
+        assert "does not belong" in result["message"]
+
 
 class TestPrivyRecurringToolUnknownAction:
     """Test unknown action handling."""
