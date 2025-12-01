@@ -30,6 +30,7 @@ def make_memo_instruction(memo: str) -> Instruction:
         data=memo.encode("utf-8"),
     )
 
+
 class TokenTransferManager:
     @staticmethod
     async def transfer(
@@ -81,7 +82,9 @@ class TokenTransferManager:
                         TransferParams(
                             from_pubkey=wallet_pubkey,
                             to_pubkey=wallet.fee_payer.pubkey(),
-                            lamports=int(amount * LAMPORTS_PER_SOL * (fee_percentage / 100)),
+                            lamports=int(
+                                amount * LAMPORTS_PER_SOL * (fee_percentage / 100)
+                            ),
                         )
                     )
                     ixs.append(ix_fee)
@@ -128,7 +131,6 @@ class TokenTransferManager:
                 ).value.units_consumed
 
                 compute_budget_ix = set_compute_unit_limit(int(cu_units + 100_000))
-
 
                 new_msg = Message(
                     instructions=[*ixs, compute_budget_ix],
@@ -184,7 +186,7 @@ class TokenTransferManager:
                 from_ata = (
                     (await token.get_accounts_by_owner(wallet_pubkey)).value[0].pubkey
                 )
-                
+
                 to_ata = get_associated_token_address(
                     to_pubkey, mint_pubkey, token_program_id=program_id
                 )
@@ -218,8 +220,14 @@ class TokenTransferManager:
                 ixs.append(ix_spl)
 
                 if wallet.fee_payer:
-                    to_fee_ata = (await token.get_accounts_by_owner(wallet.fee_payer.pubkey())).value[0].pubkey
-                    fee_amount = int(amount * (10**mint_info.decimals) * (fee_percentage / 100))
+                    to_fee_ata = (
+                        (await token.get_accounts_by_owner(wallet.fee_payer.pubkey()))
+                        .value[0]
+                        .pubkey
+                    )
+                    fee_amount = int(
+                        amount * (10**mint_info.decimals) * (fee_percentage / 100)
+                    )
                     ix_fee = spl_transfer(
                         SPLTransferParams(
                             program_id=program_id,

@@ -171,7 +171,14 @@ class PrivyTransferTool(AutoTool):
             if "helius" in self.rpc_url:
                 provider = "helius"
             transaction = await TokenTransferManager.transfer(
-                wallet, to_address, amount, mint, provider, True, self.fee_percentage, memo
+                wallet,
+                to_address,
+                amount,
+                mint,
+                provider,
+                True,
+                self.fee_percentage,
+                memo,
             )
             encoded_transaction = base64.b64encode(bytes(transaction)).decode("utf-8")
             result = await privy_sign_and_send(

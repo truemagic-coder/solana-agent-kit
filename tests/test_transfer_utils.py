@@ -192,7 +192,7 @@ class TestTokenTransferManager:
             sol_mint = "So11111111111111111111111111111111111111112"
 
             try:
-                result = await TokenTransferManager.transfer(
+                await TokenTransferManager.transfer(
                     wallet=mock_wallet,
                     to="RecipientPubkey123",
                     amount=1.0,
