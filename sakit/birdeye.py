@@ -1,7 +1,12 @@
 """Birdeye Tool - Comprehensive Solana token analytics and wallet data."""
 
+import logging
+from typing import Any, Dict, Optional
+
 import httpx
-from solana_agent import AutoTool
+from solana_agent import AutoTool, ToolRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class BirdeyeTool(AutoTool):
@@ -19,90 +24,203 @@ class BirdeyeTool(AutoTool):
     - Network utilities
     """
 
-    def __init__(self):
+    def __init__(self, registry: Optional[ToolRegistry] = None):
         super().__init__(
             name="birdeye",
-            description="""Comprehensive Birdeye API for Solana token analytics and wallet data.
-
-Actions:
-PRICE:
-- price: Get current price of a token
-- multi_price: Get prices for multiple tokens
-- history_price: Get historical price data
-- historical_price_unix: Get historical price at unix timestamp
-- price_volume_single: Get price and volume for single token
-- price_volume_multi: Get price and volume for multiple tokens
-
-OHLCV:
-- ohlcv: Get OHLCV candlestick data for a token
-- ohlcv_pair: Get OHLCV data for a trading pair
-- ohlcv_base_quote: Get OHLCV for base/quote pair
-- ohlcv_v3: Get OHLCV v3 for token
-- ohlcv_pair_v3: Get OHLCV v3 for pair
-
-TRADES:
-- trades_token: Get recent trades for a token
-- trades_pair: Get recent trades for a pair
-- trades_token_seek: Get trades for token with time bounds
-- trades_pair_seek: Get trades for pair with time bounds
-- trades_v3: Get trades v3 with filters
-- trades_token_v3: Get token trades v3
-
-TOKEN:
-- token_list: Get list of tokens
-- token_list_v3: Get token list v3
-- token_list_scroll: Get token list with scroll pagination
-- token_overview: Get detailed token overview
-- token_metadata_single: Get metadata for single token
-- token_metadata_multiple: Get metadata for multiple tokens
-- token_market_data: Get market data for single token
-- token_market_data_multiple: Get market data for multiple tokens
-- token_trade_data_single: Get trade data for single token
-- token_trade_data_multiple: Get trade data for multiple tokens
-- token_holder: Get token holders
-- token_trending: Get trending tokens
-- token_new_listing: Get newly listed tokens
-- token_top_traders: Get top traders for a token
-- token_markets: Get markets for a token
-- token_security: Get token security analysis
-- token_creation_info: Get token creation information
-- token_mint_burn: Get mint/burn transactions
-- token_all_time_trades_single: Get all-time trade stats for single token
-- token_all_time_trades_multiple: Get all-time trade stats for multiple tokens
-- token_exit_liquidity: Get exit liquidity for a token
-- token_exit_liquidity_multiple: Get exit liquidity for multiple tokens (max 50)
-
-PAIR:
-- pair_overview_single: Get overview for single pair
-- pair_overview_multiple: Get overview for multiple pairs
-
-TRADER:
-- trader_gainers_losers: Get top gainers and losers
-- trader_txs_seek: Get trader transactions with time bounds
-
-WALLET:
-- wallet_token_list: Get wallet token holdings
-- wallet_token_balance: Get specific token balance in wallet
-- wallet_tx_list: Get wallet transaction history
-- wallet_balance_change: Get wallet balance changes
-- wallet_pnl_summary: Get PNL summary for a wallet
-- wallet_pnl_details: Get PNL details broken down by token (POST)
-- wallet_pnl_multiple: Get PNL for multiple wallets (max 50)
-- wallet_current_net_worth: Get current net worth and portfolio
-- wallet_net_worth: Get historical net worth by dates
-- wallet_net_worth_details: Get asset details on a specific date
-
-SEARCH:
-- search: Search for tokens/pairs
-
-UTILS:
-- latest_block: Get latest block info
-- networks: Get supported networks
-- supported_chains: Get supported chains for wallet API""",
+            description=(
+                "Comprehensive Birdeye API for Solana token analytics and wallet data. "
+                "Use action parameter to specify what data to fetch. "
+                "Actions include: price, multi_price, history_price, ohlcv, token_overview, "
+                "token_holder, token_trending, token_security, wallet_pnl_summary, search, and more."
+            ),
+            registry=registry,
         )
         self.base_url = "https://public-api.birdeye.so"
         self.api_key = ""
-        self.default_chain = "solana"  # Can be overridden via config
+        self.default_chain = "solana"
+
+    def get_schema(self) -> Dict[str, Any]:
+        """Return the JSON schema for the tool parameters."""
+        return {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": (
+                        "The action to perform. Available actions: "
+                        "PRICE: price, multi_price, history_price, historical_price_unix, price_volume_single, price_volume_multi. "
+                        "OHLCV: ohlcv, ohlcv_pair, ohlcv_base_quote, ohlcv_v3, ohlcv_pair_v3. "
+                        "TRADES: trades_token, trades_pair, trades_token_seek, trades_pair_seek, trades_v3, trades_token_v3. "
+                        "TOKEN: token_list, token_list_v3, token_list_scroll, token_overview, token_metadata_single, "
+                        "token_metadata_multiple, token_market_data, token_market_data_multiple, token_trade_data_single, "
+                        "token_trade_data_multiple, token_holder, token_trending, token_new_listing, token_top_traders, "
+                        "token_markets, token_security, token_creation_info, token_mint_burn, token_all_time_trades_single, "
+                        "token_all_time_trades_multiple, token_exit_liquidity, token_exit_liquidity_multiple. "
+                        "PAIR: pair_overview_single, pair_overview_multiple. "
+                        "TRADER: trader_gainers_losers, trader_txs_seek. "
+                        "WALLET: wallet_token_list, wallet_token_balance, wallet_tx_list, wallet_balance_change, "
+                        "wallet_pnl_summary, wallet_pnl_details, wallet_pnl_multiple, wallet_current_net_worth, "
+                        "wallet_net_worth, wallet_net_worth_details. "
+                        "SEARCH: search. "
+                        "UTILS: latest_block, networks, supported_chains."
+                    ),
+                },
+                "address": {
+                    "type": "string",
+                    "description": "Token or pair address. Required for most actions. Pass empty string if not needed.",
+                    "default": "",
+                },
+                "wallet": {
+                    "type": "string",
+                    "description": "Wallet address. Required for wallet_* actions. Pass empty string if not needed.",
+                    "default": "",
+                },
+                "keyword": {
+                    "type": "string",
+                    "description": "Search keyword for the 'search' action. Pass empty string if not needed.",
+                    "default": "",
+                },
+                "list_address": {
+                    "type": "string",
+                    "description": "Comma-separated list of addresses for multi_* actions. Pass empty string if not needed.",
+                    "default": "",
+                },
+                "type": {
+                    "type": "string",
+                    "description": "Time interval type (1m, 5m, 15m, 30m, 1H, 4H, 1D, 1W). Pass empty string if not needed.",
+                    "default": "",
+                },
+                "time_from": {
+                    "type": "integer",
+                    "description": "Start time as Unix timestamp. Pass 0 if not needed.",
+                    "default": 0,
+                },
+                "time_to": {
+                    "type": "integer",
+                    "description": "End time as Unix timestamp. Pass 0 if not needed.",
+                    "default": 0,
+                },
+                "offset": {
+                    "type": "integer",
+                    "description": "Pagination offset. Pass 0 if not needed.",
+                    "default": 0,
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of results to return. Pass 0 to use default.",
+                    "default": 0,
+                },
+                "chain": {
+                    "type": "string",
+                    "description": "Blockchain network (default: solana). Pass empty string for default.",
+                    "default": "",
+                },
+                "token_address": {
+                    "type": "string",
+                    "description": "Token address for wallet_token_balance. Pass empty string if not needed.",
+                    "default": "",
+                },
+                "base_address": {
+                    "type": "string",
+                    "description": "Base token address for ohlcv_base_quote. Pass empty string if not needed.",
+                    "default": "",
+                },
+                "quote_address": {
+                    "type": "string",
+                    "description": "Quote token address for ohlcv_base_quote. Pass empty string if not needed.",
+                    "default": "",
+                },
+                "unixtime": {
+                    "type": "integer",
+                    "description": "Unix timestamp for historical_price_unix. Pass 0 if not needed.",
+                    "default": 0,
+                },
+                "before_time": {
+                    "type": "integer",
+                    "description": "Before time filter for seek actions. Pass 0 if not needed.",
+                    "default": 0,
+                },
+                "after_time": {
+                    "type": "integer",
+                    "description": "After time filter for seek actions. Pass 0 if not needed.",
+                    "default": 0,
+                },
+                "tx_type": {
+                    "type": "string",
+                    "description": "Transaction type filter (buy, sell, all). Pass empty string if not needed.",
+                    "default": "",
+                },
+                "time_frame": {
+                    "type": "string",
+                    "description": "Time frame for top traders (24h, 7d, 30d). Pass empty string if not needed.",
+                    "default": "",
+                },
+                "owner": {
+                    "type": "string",
+                    "description": "Owner address for trades_v3. Pass empty string if not needed.",
+                    "default": "",
+                },
+                "min_liquidity": {
+                    "type": "integer",
+                    "description": "Minimum liquidity filter. Pass 0 if not needed.",
+                    "default": 0,
+                },
+                "wallets": {
+                    "type": "string",
+                    "description": "Comma-separated wallet addresses for wallet_pnl_multiple. Pass empty string if not needed.",
+                    "default": "",
+                },
+                "tokens": {
+                    "type": "string",
+                    "description": "Comma-separated token addresses for wallet_pnl_details. Pass empty string if not needed.",
+                    "default": "",
+                },
+                "time": {
+                    "type": "string",
+                    "description": "ISO 8601 UTC time for wallet_net_worth. Pass empty string if not needed.",
+                    "default": "",
+                },
+                "count": {
+                    "type": "integer",
+                    "description": "Number of time periods for wallet_net_worth. Pass 0 if not needed.",
+                    "default": 0,
+                },
+                "direction": {
+                    "type": "string",
+                    "description": "Direction for wallet_net_worth (back, forward). Pass empty string if not needed.",
+                    "default": "",
+                },
+            },
+            "required": [
+                "action",
+                "address",
+                "wallet",
+                "keyword",
+                "list_address",
+                "type",
+                "time_from",
+                "time_to",
+                "offset",
+                "limit",
+                "chain",
+                "token_address",
+                "base_address",
+                "quote_address",
+                "unixtime",
+                "before_time",
+                "after_time",
+                "tx_type",
+                "time_frame",
+                "owner",
+                "min_liquidity",
+                "wallets",
+                "tokens",
+                "time",
+                "count",
+                "direction",
+            ],
+            "additionalProperties": False,
+        }
 
     def configure(self, config: dict) -> None:
         """Configure the tool with API key from config."""
@@ -159,9 +277,89 @@ UTILS:
             except Exception as e:
                 return {"success": False, "error": str(e)}
 
-    async def run(self, action: str, **kwargs) -> dict:
+    async def execute(
+        self,
+        action: str,
+        address: str = "",
+        wallet: str = "",
+        keyword: str = "",
+        list_address: str = "",
+        type: str = "",
+        time_from: int = 0,
+        time_to: int = 0,
+        offset: int = 0,
+        limit: int = 0,
+        chain: str = "",
+        token_address: str = "",
+        base_address: str = "",
+        quote_address: str = "",
+        unixtime: int = 0,
+        before_time: int = 0,
+        after_time: int = 0,
+        tx_type: str = "",
+        time_frame: str = "",
+        owner: str = "",
+        min_liquidity: int = 0,
+        wallets: str = "",
+        tokens: str = "",
+        time: str = "",
+        count: int = 0,
+        direction: str = "",
+    ) -> Dict[str, Any]:
         """Execute a Birdeye action."""
-        chain = kwargs.pop("chain", None) or self.default_chain
+        # Use default chain if not specified
+        chain = chain or self.default_chain
+
+        # Build kwargs from the schema parameters for the internal action handlers
+        kwargs: Dict[str, Any] = {}
+        if address:
+            kwargs["address"] = address
+        if wallet:
+            kwargs["wallet"] = wallet
+        if keyword:
+            kwargs["keyword"] = keyword
+        if list_address:
+            kwargs["list_address"] = list_address
+        if type:
+            kwargs["type"] = type
+        if time_from:
+            kwargs["time_from"] = time_from
+        if time_to:
+            kwargs["time_to"] = time_to
+        if offset:
+            kwargs["offset"] = offset
+        if limit:
+            kwargs["limit"] = limit
+        if token_address:
+            kwargs["token_address"] = token_address
+        if base_address:
+            kwargs["base_address"] = base_address
+        if quote_address:
+            kwargs["quote_address"] = quote_address
+        if unixtime:
+            kwargs["unixtime"] = unixtime
+        if before_time:
+            kwargs["before_time"] = before_time
+        if after_time:
+            kwargs["after_time"] = after_time
+        if tx_type:
+            kwargs["tx_type"] = tx_type
+        if time_frame:
+            kwargs["time_frame"] = time_frame
+        if owner:
+            kwargs["owner"] = owner
+        if min_liquidity:
+            kwargs["min_liquidity"] = min_liquidity
+        if wallets:
+            kwargs["wallets"] = wallets
+        if tokens:
+            kwargs["tokens"] = tokens
+        if time:
+            kwargs["time"] = time
+        if count:
+            kwargs["count"] = count
+        if direction:
+            kwargs["direction"] = direction
 
         # ==================== PRICE ====================
         if action == "price":
@@ -995,3 +1193,33 @@ UTILS:
 
         else:
             return {"success": False, "error": f"Unknown action: {action}"}
+
+
+class BirdeyePlugin:
+    """Plugin for Birdeye API integration."""
+
+    def __init__(self):
+        self.name = "birdeye"
+        self.config = None
+        self.tool_registry = None
+        self._tool = None
+
+    @property
+    def description(self):
+        return "Plugin for Birdeye Solana token analytics and wallet data."
+
+    def initialize(self, tool_registry: ToolRegistry) -> None:
+        self.tool_registry = tool_registry
+        self._tool = BirdeyeTool(registry=tool_registry)
+
+    def configure(self, config: Dict[str, Any]) -> None:
+        self.config = config
+        if self._tool:
+            self._tool.configure(self.config)
+
+    def get_tools(self) -> list[AutoTool]:
+        return [self._tool] if self._tool else []
+
+
+def get_plugin():
+    return BirdeyePlugin()
