@@ -69,6 +69,8 @@ TOKEN:
 - token_mint_burn: Get mint/burn transactions
 - token_all_time_trades_single: Get all-time trade stats for single token
 - token_all_time_trades_multiple: Get all-time trade stats for multiple tokens
+- token_exit_liquidity: Get exit liquidity for a token
+- token_exit_liquidity_multiple: Get exit liquidity for multiple tokens (max 50)
 
 PAIR:
 - pair_overview_single: Get overview for single pair
@@ -83,6 +85,12 @@ WALLET:
 - wallet_token_balance: Get specific token balance in wallet
 - wallet_tx_list: Get wallet transaction history
 - wallet_balance_change: Get wallet balance changes
+- wallet_pnl_summary: Get PNL summary for a wallet
+- wallet_pnl_details: Get PNL details broken down by token (POST)
+- wallet_pnl_multiple: Get PNL for multiple wallets (max 50)
+- wallet_current_net_worth: Get current net worth and portfolio
+- wallet_net_worth: Get historical net worth by dates
+- wallet_net_worth_details: Get asset details on a specific date
 
 SEARCH:
 - search: Search for tokens/pairs
@@ -728,6 +736,29 @@ UTILS:
                 "GET", "/defi/v3/all-time-trades/multiple", params=params, chain=chain
             )
 
+        elif action == "token_exit_liquidity":
+            # Get exit liquidity for a token
+            address = kwargs.get("address")
+            if not address:
+                return {"success": False, "error": "address is required"}
+            params = {"address": address}
+            return await self._request(
+                "GET", "/defi/v3/token/exit-liquidity", params=params, chain=chain
+            )
+
+        elif action == "token_exit_liquidity_multiple":
+            # Get exit liquidity for multiple tokens (max 50)
+            addresses = kwargs.get("list_address")
+            if not addresses:
+                return {"success": False, "error": "list_address is required"}
+            params = {"list_address": addresses}
+            return await self._request(
+                "GET",
+                "/defi/v3/token/exit-liquidity/multiple",
+                params=params,
+                chain=chain,
+            )
+
         # ==================== PAIR ====================
         elif action == "pair_overview_single":
             # Get overview for single pair
@@ -842,6 +873,84 @@ UTILS:
                 params["offset"] = kwargs["offset"]
             return await self._request(
                 "GET", "/wallet/v2/balance-change", params=params, chain=chain
+            )
+
+        elif action == "wallet_pnl_summary":
+            # Get PNL summary for a wallet
+            wallet = kwargs.get("wallet")
+            if not wallet:
+                return {"success": False, "error": "wallet is required"}
+            params = {"wallet": wallet}
+            if kwargs.get("tx_type"):
+                params["tx_type"] = kwargs["tx_type"]
+            return await self._request(
+                "GET", "/wallet/v2/pnl/summary", params=params, chain=chain
+            )
+
+        elif action == "wallet_pnl_details":
+            # Get PNL details broken down by token (POST, max 100 tokens)
+            wallet = kwargs.get("wallet")
+            if not wallet:
+                return {"success": False, "error": "wallet is required"}
+            json_data = {"wallet": wallet}
+            if kwargs.get("tokens"):
+                json_data["tokens"] = kwargs["tokens"]
+            return await self._request(
+                "POST", "/wallet/v2/pnl/details", json_data=json_data, chain=chain
+            )
+
+        elif action == "wallet_pnl_multiple":
+            # Get PNL for multiple wallets (max 50)
+            wallets = kwargs.get("wallets")
+            if not wallets:
+                return {"success": False, "error": "wallets list is required"}
+            params = {
+                "wallets": ",".join(wallets) if isinstance(wallets, list) else wallets
+            }
+            return await self._request(
+                "GET", "/wallet/v2/pnl/multiple", params=params, chain=chain
+            )
+
+        elif action == "wallet_current_net_worth":
+            # Get current net worth and portfolio
+            wallet = kwargs.get("wallet")
+            if not wallet:
+                return {"success": False, "error": "wallet is required"}
+            params = {"wallet": wallet}
+            return await self._request(
+                "GET", "/wallet/v2/current-net-worth", params=params, chain=chain
+            )
+
+        elif action == "wallet_net_worth":
+            # Get historical net worth by dates
+            wallet = kwargs.get("wallet")
+            if not wallet:
+                return {"success": False, "error": "wallet is required"}
+            params = {"wallet": wallet}
+            if kwargs.get("time"):
+                params["time"] = kwargs["time"]  # ISO 8601 UTC format
+            if kwargs.get("type"):
+                params["type"] = kwargs["type"]  # 1h or 1d
+            if kwargs.get("count"):
+                params["count"] = kwargs["count"]
+            if kwargs.get("direction"):
+                params["direction"] = kwargs["direction"]  # back or forward
+            return await self._request(
+                "GET", "/wallet/v2/net-worth", params=params, chain=chain
+            )
+
+        elif action == "wallet_net_worth_details":
+            # Get asset details on a specific date
+            wallet = kwargs.get("wallet")
+            if not wallet:
+                return {"success": False, "error": "wallet is required"}
+            params = {"wallet": wallet}
+            if kwargs.get("time"):
+                params["time"] = kwargs["time"]  # ISO 8601 UTC format
+            if kwargs.get("type"):
+                params["type"] = kwargs["type"]  # 1h or 1d
+            return await self._request(
+                "GET", "/wallet/v2/net-worth-details", params=params, chain=chain
             )
 
         # ==================== SEARCH ====================
