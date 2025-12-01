@@ -27,6 +27,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Privy Recurring - Create and manage DCA orders with Privy delegated wallets
 * Privy Wallet Address - Get the wallet address of a Privy delegated wallet
 * Rugcheck - Check if a token is a rug
+* Vybe - Look up and label known Solana wallets (CEX, market makers, AMM pools, treasuries)
 * Birdeye - Comprehensive token analytics including prices, OHLCV, trades, wallet data, trending tokens, top traders, and more
 * Internet Search - Search the internet in real-time using Perplexity, Grok, or OpenAI
 * MCP - Interface with MCP web servers
@@ -346,6 +347,42 @@ config = {
 This plugin enables Solana Agent to check if a token is a rug. 
 
 No config is needed.
+
+### Vybe
+
+This plugin enables Solana Agent to look up and label known Solana wallet addresses using the Vybe Network API. It identifies CEX wallets, market makers, AMM pools, project treasuries, and influencers - useful for understanding who owns wallets when analyzing top holders or traders.
+
+The tool caches the known accounts list in memory (1 hour TTL) and performs fast bulk lookups.
+
+```python
+config = {
+    "tools": {
+        "vybe": {
+            "api_key": "your-vybe-api-key",  # Required - get your API key from vybenetwork.com
+        },
+    },
+    "agents": [
+        {
+            "name": "wallet_analyst",
+            "instructions": "You are an expert at analyzing Solana wallets. When showing top holders or traders, use the vybe tool to identify known accounts like CEX wallets or market makers.",
+            "specialization": "Wallet analysis and labeling",
+            "tools": ["birdeye", "vybe"],  # Often used together with birdeye
+        }
+    ]
+}
+```
+
+**Parameters:**
+- `addresses` (required) - Comma-separated list of wallet addresses to look up
+- `refresh_cache` (optional) - Force refresh the cached known accounts list
+
+**Returns:**
+- Labels for each address (CEX, Exchange, AMM, Market Maker, DeFi, etc.)
+- Entity names (Binance, Coinbase, Raydium, Wintermute, etc.)
+- Summary of known vs unknown wallets
+
+**Example Use Case:**
+When querying top holders of a token via Birdeye, pass the wallet addresses to Vybe to identify which are CEX wallets or market makers vs real traders.
 
 ### Birdeye
 
