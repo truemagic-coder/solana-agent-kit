@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "12.4.12"
+version = "13.0.0"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -16,15 +16,17 @@ packages = [{ include = "sakit" }]
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0"
 httpx = "^0.28.1"
-solana-agent = ">=30.0.0"
-boto3 = "^1.40.24"
-botocore = "^1.40.24"
+solana-agent = ">=31.4.0"
+boto3 = "^1.41.3"
+botocore = "^1.41.3"
 nemo-agent = "5.0.3"
-fastmcp = "^2.12.2"
-solana = "^0.36.9"
-solders = "^0.26.0"
-pynacl = "^1.5.0"
+fastmcp = "^2.13.1"
+solana = "^0.36.10"
+solders = "^0.27.1"
+pynacl = "^1.6.1"
 based58 = "^0.1.1"
+openai = "*"
+
 
 
 [build-system]
@@ -40,9 +42,24 @@ solana_transfer = "sakit.solana_transfer:get_plugin"
 solana_swap = "sakit.solana_swap:get_plugin"
 solana_balance = "sakit.solana_balance:get_plugin"
 solana_price = "sakit.solana_price:get_plugin"
+solana_ultra = "sakit.solana_ultra:get_plugin"
 rugcheck = "sakit.rugcheck:get_plugin"
 privy_swap = "sakit.privy_swap:get_plugin"
 privy_transfer = "sakit.privy_transfer:get_plugin"
 privy_balance = "sakit.privy_balance:get_plugin"
 privy_wallet_address = "sakit.privy_wallet_address:get_plugin"
+privy_ultra = "sakit.privy_ultra:get_plugin"
+privy_trigger = "sakit.privy_trigger:get_plugin"
+privy_recurring = "sakit.privy_recurring:get_plugin"
 sns_lookup = "sakit.sns_lookup:get_plugin"
+jupiter_holdings = "sakit.jupiter_holdings:get_plugin"
+jupiter_shield = "sakit.jupiter_shield:get_plugin"
+jupiter_token_search = "sakit.jupiter_token_search:get_plugin"
+jupiter_trigger = "sakit.jupiter_trigger:get_plugin"
+jupiter_recurring = "sakit.jupiter_recurring:get_plugin"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0.1"
+pytest-asyncio = "^1.3.0"
+respx = "^0.22.0"
+ruff = "^0.14.7"

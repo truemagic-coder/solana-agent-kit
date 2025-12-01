@@ -4,6 +4,8 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/sakit)](https://pypi.org/project/sakit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![codecov](https://img.shields.io/codecov/c/github/truemagic-coder/solana-agent-kit/main.svg)](https://codecov.io/gh/truemagic-coder/solana-agent-kit)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/truemagic-coder/solana-agent-kit/ci.yml?branch=main)](https://github.com/truemagic-coder/solana-agent-kit/actions/workflows/ci.yml)
 [![Ruff Style](https://img.shields.io/badge/style-ruff-41B5BE)](https://github.com/astral-sh/ruff)
 [![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/truemagic-coder/solana-agent-kit)](https://libraries.io/pypi/sakit)
 
@@ -13,13 +15,21 @@ A collection of powerful plugins to extend the capabilities of Solana Agent.
 Solana Agent Kit provides a growing library of plugins that enhance your Solana Agent with new capabilities:
 
 * Solana Transfer - Transfer Solana tokens between the agent's wallet and the destination wallet
-* Solana Swap - Swap Solana tokens on Jupiter in the agent's wallet
-* Solana Balance - Get the token balances of a wallet
-* Solana Price - Get the price of a token
-* Solana SNS Lookup - Get the Solana address for a SNS domain
+* Solana Ultra - Swap Solana tokens using Jupiter Ultra API with automatic slippage, priority fees, and transaction landing
+* Jupiter Trigger - Create, cancel, and manage limit orders using Jupiter Trigger API
+* Jupiter Recurring - Create, cancel, and manage DCA orders using Jupiter Recurring API
+* Jupiter Holdings - Get token holdings with USD values for any wallet
+* Jupiter Shield - Get security warnings and risk information for tokens
+* Jupiter Token Search - Search for tokens by symbol, name, or address
+* Privy Transfer - Transfer tokens using Privy delegated wallets with sponsored transactions
+* Privy Ultra - Swap tokens using Jupiter Ultra with Privy delegated wallets
+* Privy Trigger - Create and manage limit orders with Privy delegated wallets
+* Privy Recurring - Create and manage DCA orders with Privy delegated wallets
+* Privy Wallet Address - Get the wallet address of a Privy delegated wallet
 * Rugcheck - Check if a token is a rug
+* Birdeye - Comprehensive token analytics including prices, OHLCV, trades, wallet data, trending tokens, top traders, and more
 * Internet Search - Search the internet in real-time using Perplexity, Grok, or OpenAI
-* MCP - Interface with any MCP web server - Zapier is supported
+* MCP - Interface with MCP web servers
 * Image Generation - Generate images with OpenAI, Grok, or Gemini with uploading to S3 compatible storage
 * Nemo Agent - Generate Python projects with Nemo Agent with uploading to S3 compatible storage
 
@@ -48,61 +58,283 @@ config = {
 }
 ```
 
-### Solana Swap
+### Solana Ultra
 
-This plugin enables Solana Agent to swap tokens using Jupiter.
+This plugin enables Solana Agent to swap tokens using Jupiter Ultra API. Jupiter Ultra automatically handles slippage, priority fees, and transaction landing for reliable swaps.
 
 Don't use tickers - but mint addresses in your user queries.
 
 ```python
 config = {
     "tools": {
-        "solana_swap": {
-            "rpc_url": "my-rpc-url", # Required - your RPC URL - Helius is recommended
+        "solana_ultra": {
             "private_key": "my-private-key", # Required - base58 string - please use env vars to store the key as it is very confidential
-            "jupiter_url": "my-custom-url" # Optional - if you are using a custom Jupiter service like Metis from QuickNode
+            "jupiter_api_key": "my-jupiter-api-key", # Optional but recommended - get free key at jup.ag for dynamic rate limits (starts at 5 RPS, scales with usage)
+            "referral_account": "my-referral-account", # Optional - your Jupiter referral account public key for collecting fees
+            "referral_fee": 50, # Optional - fee in basis points (50-255 bps, e.g., 50 = 0.5%). Jupiter takes 20% of this fee.
+            "payer_private_key": "payer-private-key", # Optional - base58 private key for gasless transactions (integrator pays gas)
         },
     },
 }
 ```
 
-### Solana Balance
+**Features:**
+- **Jupiter Ultra API**: Access to competitive pricing with automatic slippage protection
+- **Priority Fees**: Automatically calculated to ensure transaction landing
+- **Transaction Landing**: Jupiter handles retries and transaction confirmation
+- **Referral Fees**: Optionally collect integrator fees (50-255 bps) via your Jupiter referral account
+- **Integrator Gas Payer**: Optionally pay for gas on behalf of users for truly gasless swaps
+- **Dynamic Rate Limits**: With API key, rate limits scale automatically with your usage (free)
 
-This plugin enables Solana Agent to get the token balances of a wallet.
+**API Key (Recommended):**
+Get a free Jupiter API key at [jup.ag](https://jup.ag) for dynamic rate limits. Without a key, you use the lite API with lower limits. With a key, you start at 5 RPS and it scales automatically at no cost.
+
+**Setting up Referral Account:**
+To collect fees, you need a Jupiter referral account. Create one at [referral.jup.ag](https://referral.jup.ag/). Jupiter takes 20% of the referral fee you set. You also need to create token accounts for the tokens you want to collect fees in.
+
+**Gasless Transactions:**
+By default, Jupiter Ultra provides gasless swaps when the user has < 0.01 SOL and trade is > $10. However, this **doesn't work with referral fees**. To enable gasless + referral fees, configure `payer_private_key` - this wallet will pay all gas fees and you recoup costs via referral fees.
+
+### Jupiter Trigger
+
+This plugin enables Solana Agent to create, cancel, and manage limit orders using Jupiter's Trigger API. It's a smart tool that handles the full lifecycle of limit orders with a single action parameter.
 
 ```python
 config = {
     "tools": {
-        "solana_balance": {
-            "api_key": "my-alphavybe-api-key", # Required - your AlphaVybe API key - the free plan allows this call
+        "jupiter_trigger": {
+            "private_key": "my-private-key", # Required - base58 string
+            "jupiter_api_key": "my-jupiter-api-key", # Optional - for pro API with higher rate limits
+            "referral_account": "my-referral-account", # Optional - for collecting fees
+            "referral_fee": 50, # Optional - fee in basis points (50-255 bps)
+            "payer_private_key": "payer-private-key", # Optional - for gasless transactions
         },
     },
 }
 ```
 
-### Solana Price
+**Actions:**
+- `create` - Create a new limit order (requires input_mint, output_mint, making_amount, taking_amount)
+- `cancel` - Cancel a specific order (requires order_pubkey)
+- `cancel_all` - Cancel all open orders for the wallet
+- `list` - List all orders for the wallet
 
-This plugin enables Solana Agent to get the price in USD of a token.
+**Features:**
+- **Smart Action Routing**: Single tool handles create, cancel, and list operations
+- **Limit Orders**: Set exact prices for token swaps
+- **Order Expiry**: Optionally set expiration time for orders
+- **Referral Fees**: Collect integrator fees on filled orders
+- **Gasless Transactions**: Optionally pay gas on behalf of users
+
+### Jupiter Recurring
+
+This plugin enables Solana Agent to create, cancel, and manage DCA (Dollar Cost Averaging) orders using Jupiter's Recurring API.
 
 ```python
 config = {
     "tools": {
-        "solana_price": {
-            "api_key": "my-birdeye-api-key", # Required - your Birdeye API key - the free plan allows this call
+        "jupiter_recurring": {
+            "private_key": "my-private-key", # Required - base58 string
+            "jupiter_api_key": "my-jupiter-api-key", # Optional - for pro API with higher rate limits
+            "payer_private_key": "payer-private-key", # Optional - for gasless transactions
         },
     },
 }
 ```
 
-### Solana SNS Lookup
+**Actions:**
+- `create` - Create a new DCA order (requires input_mint, output_mint, in_amount, order_count, frequency)
+- `cancel` - Cancel a specific DCA order (requires order_pubkey)
+- `list` - List all DCA orders for the wallet
 
-This plugin enables Solana Agent to get the Solana address of an SNS domain.
+**Parameters for Create:**
+- `input_mint` - Token to sell
+- `output_mint` - Token to buy
+- `in_amount` - Total amount to DCA (in base units)
+- `order_count` - How many orders to split into
+- `frequency` - Time between orders in seconds (e.g., '3600' for hourly, '86400' for daily)
+- `min_out_amount` / `max_out_amount` - Optional output amount bounds per order
+- `start_at` - Optional start time (unix timestamp)
+
+**Features:**
+- **Time-Based DCA**: Automatically split large orders over time
+- **Amount Bounds**: Set min/max output amount limits per order
+- **Flexible Frequency**: Specify interval in seconds
+- **Gasless Transactions**: Optionally pay gas on behalf of users
+
+### Jupiter Holdings
+
+This plugin enables Solana Agent to get token holdings with USD values for any wallet address using Jupiter Ultra API.
 
 ```python
 config = {
     "tools": {
-        "sns_lookup": {
-            "quicknode_url": "my-quicknode-rpc-url", # Required - your QuickNode RPC URL with the SNS addon enabled
+        "jupiter_holdings": {}, # No configuration required
+    },
+    "agents": [
+        {
+            "name": "portfolio_analyst",
+            "instructions": "You are an expert in analyzing Solana portfolios. Use the jupiter_holdings tool to get wallet token balances.",
+            "specialization": "Portfolio analysis",
+            "tools": ["jupiter_holdings"],
+        }
+    ]
+}
+```
+
+**Returns:**
+- Token mint addresses, symbols, and names
+- Token balances and USD values
+- Total portfolio value in USD
+
+### Jupiter Shield
+
+This plugin enables Solana Agent to get security warnings and risk information for Solana tokens using Jupiter's Shield API.
+
+```python
+config = {
+    "tools": {
+        "jupiter_shield": {}, # No configuration required
+    },
+    "agents": [
+        {
+            "name": "security_analyst",
+            "instructions": "You are a security expert for Solana tokens. Use the jupiter_shield tool to check token security before trading.",
+            "specialization": "Token security analysis",
+            "tools": ["jupiter_shield"],
+        }
+    ]
+}
+```
+
+**Returns:**
+- Security warnings for each token
+- Risk flags and descriptions
+- Recommended caution levels
+
+### Jupiter Token Search
+
+This plugin enables Solana Agent to search for Solana tokens by symbol, name, or address using Jupiter's search API.
+
+```python
+config = {
+    "tools": {
+        "jupiter_token_search": {}, # No configuration required
+    },
+    "agents": [
+        {
+            "name": "token_researcher",
+            "instructions": "You are an expert in finding Solana tokens. Use the jupiter_token_search tool to search for tokens.",
+            "specialization": "Token research",
+            "tools": ["jupiter_token_search"],
+        }
+    ]
+}
+```
+
+**Returns:**
+- Token mint addresses
+- Token symbols and names
+- Token metadata (logo, decimals, etc.)
+
+
+### Privy Transfer
+
+This plugin enables Solana Agent to transfer SOL and SPL tokens using Privy delegated wallets. The fee_payer wallet pays for transaction fees, enabling gasless transfers for users.
+
+```python
+config = {
+    "tools": {
+        "privy_transfer": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "rpc_url": "my-rpc-url", # Required - your RPC URL - Helius is recommended
+            "fee_payer": "fee-payer-private-key", # Required - base58 private key for the fee payer wallet
+        },
+    },
+}
+```
+
+### Privy Ultra
+
+This plugin enables Solana Agent to swap tokens using Jupiter Ultra API with Privy delegated wallets. Jupiter Ultra automatically handles slippage, priority fees, and transaction landing.
+
+```python
+config = {
+    "tools": {
+        "privy_ultra": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "jupiter_api_key": "my-jupiter-api-key", # Optional but recommended - get free key at jup.ag for dynamic rate limits
+            "referral_account": "my-referral-account", # Optional - your Jupiter referral account public key for collecting fees
+            "referral_fee": 50, # Optional - fee in basis points (50-255 bps, e.g., 50 = 0.5%). Jupiter takes 20% of this fee.
+            "payer_private_key": "payer-private-key", # Optional - base58 private key for gasless transactions (integrator pays gas)
+        },
+    },
+}
+```
+
+**Features:**
+- **Jupiter Ultra API**: Access to competitive pricing with automatic slippage protection
+- **Privy Delegated Wallets**: Use Privy's embedded wallets with delegation for seamless user experience
+- **Referral Fees**: Optionally collect integrator fees (50-255 bps) via your Jupiter referral account
+- **Integrator Gas Payer**: Optionally pay for gas on behalf of users for truly gasless swaps
+- **Dynamic Rate Limits**: With API key, rate limits scale automatically with your usage (free)
+
+### Privy Trigger
+
+This plugin enables Solana Agent to create, cancel, and manage limit orders using Jupiter's Trigger API with Privy delegated wallets.
+
+```python
+config = {
+    "tools": {
+        "privy_trigger": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "jupiter_api_key": "my-jupiter-api-key", # Optional - for pro API with higher rate limits
+            "referral_account": "my-referral-account", # Optional - for collecting fees
+            "referral_fee": 50, # Optional - fee in basis points (50-255 bps)
+            "payer_private_key": "payer-private-key", # Optional - for gasless transactions
+        },
+    },
+}
+```
+
+**Actions:** Same as Jupiter Trigger (create, cancel, cancel_all, list)
+
+### Privy Recurring
+
+This plugin enables Solana Agent to create, cancel, and manage DCA orders using Jupiter's Recurring API with Privy delegated wallets.
+
+```python
+config = {
+    "tools": {
+        "privy_recurring": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "jupiter_api_key": "my-jupiter-api-key", # Optional - for pro API with higher rate limits
+            "payer_private_key": "payer-private-key", # Optional - for gasless transactions
+        },
+    },
+}
+```
+
+**Actions:** Same as Jupiter Recurring (create, cancel, list)
+
+### Privy Wallet Address
+
+This plugin enables Solana Agent to get the wallet address of a Privy delegated wallet.
+
+```python
+config = {
+    "tools": {
+        "privy_wallet_address": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
         },
     },
 }
@@ -115,8 +347,104 @@ This plugin enables Solana Agent to check if a token is a rug.
 
 No config is needed.
 
+### Birdeye
+
+This plugin enables Solana Agent to access comprehensive Solana token analytics via the Birdeye API. It provides 50 actions covering prices, OHLCV data, trades, wallet analytics, token information, and more.
+
+```python
+config = {
+    "tools": {
+        "birdeye": {
+            "api_key": "your-birdeye-api-key",  # Required - get your API key from birdeye.so
+            "chain": "solana",  # Optional - lock to a specific chain (default: "solana")
+        },
+    },
+    "agents": [
+        {
+            "name": "token_analyst",
+            "instructions": "You are an expert Solana token analyst. Use the birdeye tool to analyze tokens, wallets, and market trends.",
+            "specialization": "Token and market analysis",
+            "tools": ["birdeye"],
+        }
+    ]
+}
+```
+
+**Available Actions:**
+
+*Price Data:*
+- `price` - Get current price of a token
+- `multi_price` - Get prices for multiple tokens
+- `multi_price_post` - Get prices for multiple tokens (POST)
+- `history_price` - Get historical price data
+- `historical_price_unix` - Get price at specific unix timestamp
+- `price_volume_single` - Get price and volume for single token
+- `price_volume_multi` - Get price and volume for multiple tokens
+
+*OHLCV Data:*
+- `ohlcv` - Get OHLCV candlestick data for a token
+- `ohlcv_pair` - Get OHLCV data for a trading pair
+- `ohlcv_base_quote` - Get OHLCV for base/quote pair
+- `ohlcv_v3` - Get OHLCV v3 for token
+- `ohlcv_pair_v3` - Get OHLCV v3 for pair
+
+*Trade Data:*
+- `trades_token` - Get recent trades for a token
+- `trades_pair` - Get recent trades for a pair
+- `trades_token_seek` - Get trades with time bounds
+- `trades_pair_seek` - Get pair trades with time bounds
+- `trades_v3` - Get trades v3 with filters
+- `trades_token_v3` - Get token trades v3
+
+*Token Information:*
+- `token_list` - Get list of tokens
+- `token_list_v3` - Get token list v3
+- `token_list_scroll` - Get token list with pagination
+- `token_overview` - Get detailed token overview
+- `token_metadata_single` - Get metadata for single token
+- `token_metadata_multiple` - Get metadata for multiple tokens
+- `token_market_data` - Get market data for single token
+- `token_market_data_multiple` - Get market data for multiple tokens
+- `token_trade_data_single` - Get trade data for single token
+- `token_trade_data_multiple` - Get trade data for multiple tokens
+- `token_holder` - Get token holders
+- `token_trending` - Get trending tokens
+- `token_new_listing` - Get newly listed tokens
+- `token_top_traders` - Get top traders for a token
+- `token_markets` - Get markets for a token
+- `token_security` - Get token security analysis
+- `token_creation_info` - Get token creation information
+- `token_mint_burn` - Get mint/burn transactions
+- `token_all_time_trades_single` - Get all-time trade stats
+- `token_all_time_trades_multiple` - Get all-time trade stats for multiple tokens
+
+*Pair Data:*
+- `pair_overview_single` - Get overview for single pair
+- `pair_overview_multiple` - Get overview for multiple pairs
+
+*Trader Data:*
+- `trader_gainers_losers` - Get top gainers and losers
+- `trader_txs_seek` - Get trader transactions with time bounds
+
+*Wallet Data:*
+- `wallet_token_list` - Get wallet token holdings
+- `wallet_token_balance` - Get specific token balance in wallet
+- `wallet_tx_list` - Get wallet transaction history
+- `wallet_balance_change` - Get wallet balance changes
+
+*Search:*
+- `search` - Search for tokens/pairs
+
+*Utilities:*
+- `latest_block` - Get latest block info
+- `networks` - Get supported networks
+- `supported_chains` - Get supported chains
+
+**Multi-Chain Support:**
+All actions support a `chain` parameter (defaults to "solana"). Birdeye supports multiple chains including Ethereum, BSC, Arbitrum, etc.
+
 ### Internet Search
-This plugin enables Solana Agent to search the internet for up-to-date information using Perplexity or OpenAI.
+This plugin enables Solana Agent to search the internet for up-to-date information using Perplexity, OpenAI, or Grok.
 
 Please ensure you include a prompt to instruct the agent to use the tool - otherwise it may not use it.
 
@@ -127,7 +455,11 @@ config = {
             "api_key": "your-api-key", # Required - either a Perplexity, Grok, or OpenAI API key
             "provider": "openai", # Optional, defaults to openai - can be "openai', "perplexity", or "grok" - grok also searches X
             "citations": True, # Optional, defaults to True - only applies for Perplexity and Grok
-            "model": "gpt-4o-mini-search-preview"  # Optional, defaults to "sonar" for Perplexity or "gpt-4o-mini-search-preview" for OpenAI or "grok-3-mini-fast" for Grok
+            "model": "gpt-4o-mini-search-preview",  # Optional, defaults to "sonar" for Perplexity or "gpt-4o-mini-search-preview" for OpenAI or "grok-4-1-fast-non-reasoning" for Grok
+            # Grok-specific options:
+            "grok_web_search": True,  # Optional, defaults to True - enable web search
+            "grok_x_search": True,    # Optional, defaults to True - enable X/Twitter search
+            "grok_timeout": 90,       # Optional, defaults to 90 - timeout in seconds (Grok can be slow)
         }
     },
     "agents": [
@@ -141,6 +473,12 @@ config = {
 }
 ```
 
+**Grok Performance Tips:**
+- Grok search with both web and X search can take 30-90+ seconds
+- For faster responses, disable one search type: `grok_x_search: False` or `grok_web_search: False`
+- X-only search is useful for real-time social sentiment on crypto/tokens
+- Web-only search is faster for general information
+
 **Available Search Models for Perplexity**
 * sonar
 * sonar-pro
@@ -150,29 +488,29 @@ config = {
 * gpt-4o-search-preview
 
 **Available Search Models for Grok**
-* grok-3
-* grok-3-fast
-* grok-3-mini
-* grok-3-mini-fast
+* grok-4-1-fast-non-reasoning
+* grok-4-fast
+* grok-4.1-fast
 
 ### MCP
 
-[Zapier](https://zapier.com/mcp) MCP has been tested, works, and is supported.
+The MCP plugin supports both OpenAI and Grok as LLM providers for tool selection, and can connect to multiple MCP servers simultaneously with custom headers for each server.
 
-Zapier integrates over 7,000+ apps with 30,000+ actions that your AI Agent can utilize.
-
-Other MCP servers may work but are not supported.
-
-OpenAI is a requirement.
-
+**Single Server Configuration (Simple):**
 ```python
 config = {
     "openai": {
-        "api_key": "your-api-key",
+        "api_key": "your-openai-api-key",  # Required if using OpenAI as LLM provider
     },
     "tools": {
         "mcp": {
-            "url": "my-zapier-mcp-url",
+            "url": "my-zapier-mcp-url",  # Required: Your MCP server URL
+            "headers": {  # Optional: Custom headers for authentication/authorization
+                "Authorization": "Bearer your-token",
+                "X-Custom-Header": "value"
+            },
+            "llm_provider": "openai",  # Optional: "openai" (default) or "grok"
+            "llm_model": "gpt-4.1-mini",  # Optional: defaults to "gpt-4.1-mini" for OpenAI or "grok-4-1-fast-non-reasoning" for Grok
         }
     },
     "agents": [
@@ -180,11 +518,55 @@ config = {
             "name": "zapier_expert",
             "instructions": "You are an expert in using Zapier integrations using MCP. You always use the mcp tool to perform Zapier AI like actions.",
             "specialization": "Zapier service integration expert",
-            "tools": ["mcp"],  # Enable the tool for this agent
+            "tools": ["mcp"],
         }
     ]
 }
 ```
+
+**Multiple Servers Configuration (Advanced):**
+```python
+config = {
+    "grok": {
+        "api_key": "your-grok-api-key",  # Required if using Grok as LLM provider
+    },
+    "tools": {
+        "mcp": {
+            "servers": [  # List of MCP servers to connect to
+                {
+                    "url": "https://zapier-mcp-server.com/api",
+                    "headers": {
+                        "Authorization": "Bearer zapier-token"
+                    }
+                },
+                {
+                    "url": "https://another-mcp-server.com/api",
+                    "headers": {
+                        "X-API-Key": "another-api-key"
+                    }
+                }
+            ],
+            "llm_provider": "grok",  # Use Grok for tool selection
+            "llm_model": "grok-4-1-fast-non-reasoning",  # Optional: override default model
+        }
+    },
+    "agents": [
+        {
+            "name": "mcp_expert",
+            "instructions": "You are an expert in using MCP integrations. You always use the mcp tool to perform actions across multiple services.",
+            "specialization": "Multi-service integration expert",
+            "tools": ["mcp"],
+        }
+    ]
+}
+```
+
+**Configuration Options:**
+- `llm_provider`: Choose "openai" or "grok" for tool selection (default: "openai")
+- `llm_model`: Override the default model for your chosen provider
+- `headers`: Add custom HTTP headers for authentication or other purposes
+- `servers`: Connect to multiple MCP servers simultaneously (tools from all servers are available)
+- `api_key`: Can be provided in the tool config or in the provider-specific config section
 
 ### Image Generation
 
