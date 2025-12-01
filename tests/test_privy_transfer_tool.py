@@ -62,7 +62,14 @@ class TestPrivyTransferToolSchema:
         assert "to_address" in schema["properties"]
         assert "amount" in schema["properties"]
         assert "mint" in schema["properties"]
-        assert set(schema["required"]) == {"user_id", "to_address", "amount", "mint"}
+        assert "memo" in schema["properties"]
+        assert set(schema["required"]) == {
+            "user_id",
+            "to_address",
+            "amount",
+            "mint",
+            "memo",
+        }
 
     def test_schema_property_types(self, transfer_tool):
         """Should have correct property types."""
@@ -71,6 +78,7 @@ class TestPrivyTransferToolSchema:
         assert schema["properties"]["to_address"]["type"] == "string"
         assert schema["properties"]["amount"]["type"] == "number"
         assert schema["properties"]["mint"]["type"] == "string"
+        assert schema["properties"]["memo"]["type"] == "string"
 
 
 class TestPrivyTransferToolConfigure:
