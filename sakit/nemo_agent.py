@@ -388,15 +388,17 @@ class NemoAgentPlugin:  # Renamed plugin class
         logger.info(f"Initializing {self.name} plugin.")
         self._tool = NemoAgentTool(registry=tool_registry)  # Use NemoAgentTool
 
-        registered_tool = tool_registry.get_tool(self._tool.name)
-        if registered_tool:
-            logger.info(
-                f"{self.name} tool ('{self._tool.name}') registration verification: Success"
-            )
-        else:
-            logger.error(
-                f"{self.name} tool ('{self._tool.name}') registration verification: Failed"
-            )
+        # Verification (only if tool_registry is provided)
+        if tool_registry is not None:
+            registered_tool = tool_registry.get_tool(self._tool.name)
+            if registered_tool:
+                logger.info(
+                    f"{self.name} tool ('{self._tool.name}') registration verification: Success"
+                )
+            else:
+                logger.error(
+                    f"{self.name} tool ('{self._tool.name}') registration verification: Failed"
+                )
 
     def configure(self, config: Dict[str, Any]) -> None:
         if not NEMO_AGENT_AVAILABLE:

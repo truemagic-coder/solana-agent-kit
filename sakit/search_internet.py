@@ -381,23 +381,23 @@ class SearchInternetPlugin:
 
         # Create and immediately register the tool
         self._tool = SearchInternetTool(registry=tool_registry)
-        # AutoTool handles registration if registry is passed in __init__
-        success = tool_registry.register_tool(
-            self._tool
-        )  # This line might be redundant
-        logger.info(
-            f"Tool registration attempt result: {success}"
-        )  # Log result if kept
 
-        # Check available tools in registry
-        all_tools = tool_registry.list_all_tools()
-        logger.info(f"All registered tools: {all_tools}")
+        # Verification (only if tool_registry is provided)
+        if tool_registry is not None:
+            # AutoTool handles registration if registry is passed in __init__
+            # This explicit registration is redundant but kept for backwards compatibility
+            success = tool_registry.register_tool(self._tool)
+            logger.info(f"Tool registration attempt result: {success}")
 
-        # Force a check to make sure it's registered
-        registered_tool = tool_registry.get_tool("search_internet")
-        logger.info(
-            f"Tool registration verification: {'Success' if registered_tool else 'Failed'}"
-        )
+            # Check available tools in registry
+            all_tools = tool_registry.list_all_tools()
+            logger.info(f"All registered tools: {all_tools}")
+
+            # Force a check to make sure it's registered
+            registered_tool = tool_registry.get_tool("search_internet")
+            logger.info(
+                f"Tool registration verification: {'Success' if registered_tool else 'Failed'}"
+            )
 
     def configure(self, config: Dict[str, Any]) -> None:
         """Configure the plugin with the provided config."""

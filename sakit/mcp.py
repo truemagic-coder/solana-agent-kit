@@ -328,11 +328,13 @@ class MCPPlugin:
         logger.info("Initializing MCP plugin (fastmcp).")
         self._tool = MCPTool(registry=tool_registry)
 
-        registered_tool = tool_registry.get_tool("mcp")
-        if registered_tool and isinstance(registered_tool, MCPTool):
-            logger.info("MCP tool registration verification: Success")
-        else:
-            logger.error("MCP tool registration verification: Failed or wrong type")
+        # Verification (only if tool_registry is provided)
+        if tool_registry is not None:
+            registered_tool = tool_registry.get_tool("mcp")
+            if registered_tool and isinstance(registered_tool, MCPTool):
+                logger.info("MCP tool registration verification: Success")
+            else:
+                logger.error("MCP tool registration verification: Failed or wrong type")
 
     def configure(self, config: Dict[str, Any]) -> None:
         if not FASTMCP_AVAILABLE:
