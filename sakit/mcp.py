@@ -113,7 +113,7 @@ class MCPTool(AutoTool):
             self._llm_api_key = grok_api_key
             self._llm_base_url = "https://api.x.ai/v1"
             if not self._llm_model:
-                self._llm_model = grok_model or "grok-4-1-fast"
+                self._llm_model = grok_model or "grok-4-1-fast-non-reasoning"
             logger.info(f"MCPTool: Using Grok with model {self._llm_model}")
         elif self._llm_provider == "grok":
             # Grok requested but no grok config - check mcp config for api_key

@@ -52,9 +52,10 @@ class VybeTool(AutoTool):
                         "Force refresh the known accounts cache. "
                         "Default is false. Only set to true if you need fresh data."
                     ),
+                    "default": False,
                 },
             },
-            "required": ["addresses"],
+            "required": ["addresses", "refresh_cache"],
             "additionalProperties": False,
         }
 

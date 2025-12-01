@@ -36,9 +36,10 @@ class JupiterHoldingsTool(AutoTool):
                 "native_only": {
                     "type": "boolean",
                     "description": "If true, only returns native SOL balance (faster). Default is false.",
+                    "default": False,
                 },
             },
-            "required": ["wallet_address"],
+            "required": ["wallet_address", "native_only"],
             "additionalProperties": False,
         }
 

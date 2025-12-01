@@ -146,30 +146,45 @@ class PrivyTriggerTool(AutoTool):
                 },
                 "input_mint": {
                     "type": "string",
-                    "description": "Token mint to sell (required for 'create').",
+                    "description": "Token mint to sell (required for 'create'). Pass empty string if not needed.",
+                    "default": "",
                 },
                 "output_mint": {
                     "type": "string",
-                    "description": "Token mint to buy (required for 'create').",
+                    "description": "Token mint to buy (required for 'create'). Pass empty string if not needed.",
+                    "default": "",
                 },
                 "making_amount": {
                     "type": "string",
-                    "description": "Amount of input token to sell in base units (required for 'create').",
+                    "description": "Amount of input token to sell in base units (required for 'create'). Pass empty string if not needed.",
+                    "default": "",
                 },
                 "taking_amount": {
                     "type": "string",
-                    "description": "Amount of output token to receive in base units (required for 'create').",
+                    "description": "Amount of output token to receive in base units (required for 'create'). Pass empty string if not needed.",
+                    "default": "",
                 },
                 "expired_at": {
                     "type": "string",
-                    "description": "Unix timestamp when order expires (optional for 'create').",
+                    "description": "Unix timestamp when order expires (optional for 'create'). Pass empty string if not needed.",
+                    "default": "",
                 },
                 "order_pubkey": {
                     "type": "string",
-                    "description": "Order public key to cancel (required for 'cancel'). Get this from 'list' action.",
+                    "description": "Order public key to cancel (required for 'cancel'). Get this from 'list' action. Pass empty string if not needed.",
+                    "default": "",
                 },
             },
-            "required": ["user_id", "action"],
+            "required": [
+                "user_id",
+                "action",
+                "input_mint",
+                "output_mint",
+                "making_amount",
+                "taking_amount",
+                "expired_at",
+                "order_pubkey",
+            ],
             "additionalProperties": False,
         }
 
