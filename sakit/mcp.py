@@ -279,6 +279,7 @@ class MCPTool(AutoTool):
                     parsed = json.loads(text_result)
                 except Exception:
                     parsed = text_result
+
                 return {
                     "status": "success",
                     "tool": tool_name,
