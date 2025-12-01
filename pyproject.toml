@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "13.1.1"
+version = "13.2.0"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -52,6 +52,7 @@ rugcheck = "sakit.rugcheck:get_plugin"
 search_internet = "sakit.search_internet:get_plugin"
 solana_transfer = "sakit.solana_transfer:get_plugin"
 solana_ultra = "sakit.solana_ultra:get_plugin"
+vybe = "sakit.vybe:get_plugin"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.1"
