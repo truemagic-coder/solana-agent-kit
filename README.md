@@ -431,6 +431,16 @@ config = {
 - `wallet_token_balance` - Get specific token balance in wallet
 - `wallet_tx_list` - Get wallet transaction history
 - `wallet_balance_change` - Get wallet balance changes
+- `wallet_pnl_summary` - Get PNL summary for a wallet (realized/unrealized profit, win rate, etc.)
+- `wallet_pnl_details` - Get PNL details broken down by token (POST, max 100 tokens)
+- `wallet_pnl_multiple` - Get PNL for multiple wallets (max 50)
+- `wallet_current_net_worth` - Get current net worth and portfolio
+- `wallet_net_worth` - Get historical net worth by dates (hourly/daily)
+- `wallet_net_worth_details` - Get asset details on a specific date
+
+*Exit Liquidity:*
+- `token_exit_liquidity` - Get exit liquidity for a token (available liquidity to exit position)
+- `token_exit_liquidity_multiple` - Get exit liquidity for multiple tokens (max 50)
 
 *Search:*
 - `search` - Search for tokens/pairs

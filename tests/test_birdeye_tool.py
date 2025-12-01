@@ -533,6 +533,48 @@ class TestTokenActions:
         assert result["success"] is True
 
 
+class TestExitLiquidityActions:
+    """Tests for exit liquidity actions."""
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_token_exit_liquidity(self, tool):
+        """Test token_exit_liquidity action."""
+        respx.get("https://public-api.birdeye.so/defi/v3/token/exit-liquidity").mock(
+            return_value=Response(
+                200, json={"data": {"liquidity": 500000, "price_impact": 0.5}}
+            )
+        )
+        result = await tool.run("token_exit_liquidity", address=SOL)
+        assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_token_exit_liquidity_missing_address(self, tool):
+        """Test token_exit_liquidity without address."""
+        result = await tool.run("token_exit_liquidity")
+        assert result["success"] is False
+        assert "address is required" in result["error"]
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_token_exit_liquidity_multiple(self, tool):
+        """Test token_exit_liquidity_multiple action."""
+        respx.get(
+            "https://public-api.birdeye.so/defi/v3/token/exit-liquidity/multiple"
+        ).mock(return_value=Response(200, json={"data": {}}))
+        result = await tool.run(
+            "token_exit_liquidity_multiple", list_address=f"{SOL},{BONK}"
+        )
+        assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_token_exit_liquidity_multiple_missing_address(self, tool):
+        """Test token_exit_liquidity_multiple without list_address."""
+        result = await tool.run("token_exit_liquidity_multiple")
+        assert result["success"] is False
+        assert "list_address is required" in result["error"]
+
+
 class TestPairActions:
     """Tests for pair-related actions."""
 
@@ -657,6 +699,133 @@ class TestWalletActions:
             "wallet_balance_change", wallet=TEST_WALLET, token_address=SOL
         )
         assert result["success"] is True
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_wallet_pnl_summary(self, tool):
+        """Test wallet_pnl_summary action."""
+        respx.get("https://public-api.birdeye.so/wallet/v2/pnl/summary").mock(
+            return_value=Response(
+                200,
+                json={
+                    "data": {
+                        "pnl": {"realized_profit_usd": 1000, "unrealized_usd": 500}
+                    }
+                },
+            )
+        )
+        result = await tool.run("wallet_pnl_summary", wallet=TEST_WALLET)
+        assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_wallet_pnl_summary_missing_wallet(self, tool):
+        """Test wallet_pnl_summary without wallet."""
+        result = await tool.run("wallet_pnl_summary")
+        assert result["success"] is False
+        assert "wallet is required" in result["error"]
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_wallet_pnl_details(self, tool):
+        """Test wallet_pnl_details action (POST)."""
+        respx.post("https://public-api.birdeye.so/wallet/v2/pnl/details").mock(
+            return_value=Response(200, json={"data": {"tokens": []}})
+        )
+        result = await tool.run(
+            "wallet_pnl_details", wallet=TEST_WALLET, tokens=[SOL, "BonkMint123"]
+        )
+        assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_wallet_pnl_details_missing_wallet(self, tool):
+        """Test wallet_pnl_details without wallet."""
+        result = await tool.run("wallet_pnl_details")
+        assert result["success"] is False
+        assert "wallet is required" in result["error"]
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_wallet_pnl_multiple(self, tool):
+        """Test wallet_pnl_multiple action."""
+        respx.get("https://public-api.birdeye.so/wallet/v2/pnl/multiple").mock(
+            return_value=Response(200, json={"data": {}})
+        )
+        result = await tool.run(
+            "wallet_pnl_multiple", wallets=[TEST_WALLET, "AnotherWallet123"]
+        )
+        assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_wallet_pnl_multiple_missing_wallets(self, tool):
+        """Test wallet_pnl_multiple without wallets."""
+        result = await tool.run("wallet_pnl_multiple")
+        assert result["success"] is False
+        assert "wallets list is required" in result["error"]
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_wallet_current_net_worth(self, tool):
+        """Test wallet_current_net_worth action."""
+        respx.get("https://public-api.birdeye.so/wallet/v2/current-net-worth").mock(
+            return_value=Response(
+                200, json={"data": {"total_usd": 10000, "tokens": []}}
+            )
+        )
+        result = await tool.run("wallet_current_net_worth", wallet=TEST_WALLET)
+        assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_wallet_current_net_worth_missing_wallet(self, tool):
+        """Test wallet_current_net_worth without wallet."""
+        result = await tool.run("wallet_current_net_worth")
+        assert result["success"] is False
+        assert "wallet is required" in result["error"]
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_wallet_net_worth(self, tool):
+        """Test wallet_net_worth action."""
+        respx.get("https://public-api.birdeye.so/wallet/v2/net-worth").mock(
+            return_value=Response(200, json={"data": {"items": []}})
+        )
+        result = await tool.run(
+            "wallet_net_worth",
+            wallet=TEST_WALLET,
+            time="2025-11-30 00:00:00",
+            type="1d",
+            count=7,
+            direction="back",
+        )
+        assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_wallet_net_worth_missing_wallet(self, tool):
+        """Test wallet_net_worth without wallet."""
+        result = await tool.run("wallet_net_worth")
+        assert result["success"] is False
+        assert "wallet is required" in result["error"]
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_wallet_net_worth_details(self, tool):
+        """Test wallet_net_worth_details action."""
+        respx.get("https://public-api.birdeye.so/wallet/v2/net-worth-details").mock(
+            return_value=Response(200, json={"data": {"tokens": []}})
+        )
+        result = await tool.run(
+            "wallet_net_worth_details",
+            wallet=TEST_WALLET,
+            time="2025-11-30 00:00:00",
+            type="1d",
+        )
+        assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_wallet_net_worth_details_missing_wallet(self, tool):
+        """Test wallet_net_worth_details without wallet."""
+        result = await tool.run("wallet_net_worth_details")
+        assert result["success"] is False
+        assert "wallet is required" in result["error"]
 
 
 class TestSearchAction:
