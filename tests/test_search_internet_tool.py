@@ -147,6 +147,32 @@ class TestSearchInternetToolConfigure:
         """Should store citations setting."""
         assert search_tool_perplexity._citations is True
 
+    def test_configure_grok_defaults(self, search_tool_grok):
+        """Should have default Grok settings."""
+        assert search_tool_grok._grok_web_search is True
+        assert search_tool_grok._grok_x_search is True
+        assert search_tool_grok._grok_timeout == 90
+
+    def test_configure_grok_custom_settings(self):
+        """Should configure custom Grok settings."""
+        tool = SearchInternetTool()
+        tool.configure(
+            {
+                "tools": {
+                    "search_internet": {
+                        "api_key": "test-key",
+                        "provider": "grok",
+                        "grok_web_search": True,
+                        "grok_x_search": False,
+                        "grok_timeout": 120,
+                    }
+                }
+            }
+        )
+        assert tool._grok_web_search is True
+        assert tool._grok_x_search is False
+        assert tool._grok_timeout == 120
+
 
 class TestSearchInternetToolExecute:
     """Test execute method."""
@@ -233,7 +259,26 @@ class TestSearchInternetToolExecute:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "output": {"content": "Grok search result"},
+            "output": [
+                {
+                    "type": "web_search_call",
+                    "status": "completed",
+                },
+                {
+                    "type": "message",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": "Grok search result",
+                            "annotations": [
+                                {"type": "url_citation", "url": "https://example.com"}
+                            ],
+                        }
+                    ],
+                    "role": "assistant",
+                    "status": "completed",
+                },
+            ],
         }
 
         with patch("httpx.AsyncClient") as MockClient:
@@ -249,6 +294,9 @@ class TestSearchInternetToolExecute:
 
             assert result["status"] == "success"
             assert "Grok search result" in result["result"]
+            # Should include citation sources
+            assert "Sources" in result["result"]
+            assert "example.com" in result["result"]
 
     @pytest.mark.asyncio
     async def test_execute_api_error(self, search_tool_perplexity):

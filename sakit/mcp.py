@@ -39,7 +39,7 @@ class MCPTool(AutoTool):
             registry=registry,
         )
         self._servers: List[Dict[str, Any]] = []  # List of server configs
-        self._llm_provider: str = "openai"  # "openai" or "grok"
+        self._llm_provider: str = "grok"  # Default to "grok", fallback to "openai"
         self._llm_api_key: Optional[str] = None
         self._llm_base_url: Optional[str] = None
         self._llm_model: Optional[str] = None
@@ -92,29 +92,44 @@ class MCPTool(AutoTool):
                     f"MCPTool: Configured with server root domain: {root_domain}"
                 )
 
-            # Get LLM provider configuration
-            self._llm_provider = mcp_config.get("llm_provider", "openai")
+            # Get LLM provider configuration - default to grok, fallback to openai
+            self._llm_provider = mcp_config.get("llm_provider", "grok")
             self._llm_model = mcp_config.get("llm_model")
 
             if not self._servers:
                 logger.info("MCPTool: No MCP server URLs provided.")
 
-        # Configure LLM settings based on provider
-        if self._llm_provider == "grok":
-            # For Grok, check grok config or tools.mcp config
-            if "grok" in config and isinstance(config["grok"], dict):
-                self._llm_api_key = config["grok"].get("api_key")
-            elif "tools" in config and "mcp" in config["tools"]:
-                self._llm_api_key = config["tools"]["mcp"].get("api_key")
+        # Configure LLM settings - prioritize Grok, fallback to OpenAI
+        # First, try to get Grok config
+        grok_api_key = None
+        grok_model = None
+        if "grok" in config and isinstance(config["grok"], dict):
+            grok_api_key = config["grok"].get("api_key")
+            grok_model = config["grok"].get("model")
 
+        # If Grok is configured (has API key), always use it
+        if grok_api_key:
+            self._llm_provider = "grok"
+            self._llm_api_key = grok_api_key
             self._llm_base_url = "https://api.x.ai/v1"
             if not self._llm_model:
-                self._llm_model = "grok-4-1-fast-non-reasoning"
+                self._llm_model = grok_model or "grok-4-1-fast"
+            logger.info(f"MCPTool: Using Grok with model {self._llm_model}")
+        elif self._llm_provider == "grok":
+            # Grok requested but no grok config - check mcp config for api_key
+            if "tools" in config and "mcp" in config["tools"]:
+                self._llm_api_key = config["tools"]["mcp"].get("api_key")
+            self._llm_base_url = "https://api.x.ai/v1"
+            if not self._llm_model:
+                self._llm_model = "grok-4-1-fast"
             logger.info(f"MCPTool: Using Grok with model {self._llm_model}")
         else:
-            # For OpenAI
+            # Fallback to OpenAI
+            self._llm_provider = "openai"
             if "openai" in config and isinstance(config["openai"], dict):
                 self._llm_api_key = config["openai"].get("api_key")
+                if not self._llm_model:
+                    self._llm_model = config["openai"].get("model")
             elif "tools" in config and "mcp" in config["tools"]:
                 self._llm_api_key = config["tools"]["mcp"].get("api_key")
 

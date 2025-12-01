@@ -95,8 +95,29 @@ class TestMCPToolConfigure:
             assert tool._servers[1]["url"] == "https://server2.com/api"
             assert tool._servers[1]["headers"]["X-Key"] == "abc"
 
-    def test_configure_openai_provider(self):
-        """Should configure OpenAI as default provider."""
+    def test_configure_grok_as_default_provider(self):
+        """Should configure Grok as default provider when grok key is available."""
+        with patch.dict(
+            "sys.modules",
+            {"fastmcp": MagicMock(), "fastmcp.client.transports": MagicMock()},
+        ):
+            from sakit.mcp import MCPTool
+
+            tool = MCPTool()
+            tool.configure(
+                {
+                    "grok": {"api_key": "test-grok-key"},
+                    "openai": {"api_key": "test-openai-key"},
+                    "tools": {"mcp": {"url": "https://mcp.example.com/api"}},
+                }
+            )
+
+            # Grok should be prioritized over OpenAI by default
+            assert tool._llm_provider == "grok"
+            assert tool._llm_api_key == "test-grok-key"
+
+    def test_configure_openai_explicit_provider(self):
+        """Should use OpenAI when explicitly configured."""
         with patch.dict(
             "sys.modules",
             {"fastmcp": MagicMock(), "fastmcp.client.transports": MagicMock()},
@@ -107,10 +128,16 @@ class TestMCPToolConfigure:
             tool.configure(
                 {
                     "openai": {"api_key": "test-openai-key"},
-                    "tools": {"mcp": {"url": "https://mcp.example.com/api"}},
+                    "tools": {
+                        "mcp": {
+                            "url": "https://mcp.example.com/api",
+                            "llm_provider": "openai",
+                        }
+                    },
                 }
             )
 
+            # Should use OpenAI when explicitly specified
             assert tool._llm_provider == "openai"
             assert tool._llm_api_key == "test-openai-key"
 
@@ -160,7 +187,7 @@ class TestMCPToolExecute:
             tool = MCPTool()
             tool.configure(
                 {
-                    "openai": {"api_key": "test-key"},
+                    "grok": {"api_key": "test-key"},
                     "tools": {"mcp": {}},  # No URL
                 }
             )

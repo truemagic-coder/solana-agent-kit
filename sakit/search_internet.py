@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class SearchInternetTool(AutoTool):
-    """Tool for searching the internet using Perplexity AI or OpenAI."""
+    """Tool for searching the internet using Perplexity AI, OpenAI, or Grok."""
 
     def __init__(self, registry=None):
         """Initialize with auto-registration."""
@@ -19,9 +19,13 @@ class SearchInternetTool(AutoTool):
         self._model = ""
         self._citations = True
         self._provider = "openai"
+        # Grok-specific settings
+        self._grok_web_search = True
+        self._grok_x_search = True
+        self._grok_timeout = 90  # seconds
         super().__init__(
             name="search_internet",
-            description="Search the internet for current information using Perplexity AI or OpenAI.",
+            description="Search the internet for current information using Perplexity AI, OpenAI, or Grok.",
             registry=registry,
         )
 
@@ -78,6 +82,17 @@ class SearchInternetTool(AutoTool):
                     logger.info(
                         f"Using model from tools.search_internet.model: {self._model}"
                     )
+
+                # Grok-specific settings
+                if "grok_web_search" in tool_config:
+                    self._grok_web_search = bool(tool_config["grok_web_search"])
+                    logger.info(f"Grok web_search: {self._grok_web_search}")
+                if "grok_x_search" in tool_config:
+                    self._grok_x_search = bool(tool_config["grok_x_search"])
+                    logger.info(f"Grok x_search: {self._grok_x_search}")
+                if "grok_timeout" in tool_config:
+                    self._grok_timeout = int(tool_config["grok_timeout"])
+                    logger.info(f"Grok timeout: {self._grok_timeout}s")
 
         # Set default model *only if* it wasn't set via config
         # This ensures self._provider exists (from __init__ or config override) before being accessed
@@ -206,18 +221,16 @@ class SearchInternetTool(AutoTool):
                     }
                 ]
 
-                # Build tools configuration with image and video understanding enabled
-                tools = [
-                    {
-                        "type": "web_search",
-                        "enable_image_understanding": True,
-                    },
-                    {
-                        "type": "x_search",
-                        "enable_image_understanding": True,
-                        "enable_video_understanding": True,
-                    },
-                ]
+                # Build tools configuration based on settings
+                tools = []
+                if self._grok_web_search:
+                    tools.append({"type": "web_search"})
+                if self._grok_x_search:
+                    tools.append({"type": "x_search"})
+
+                # Ensure at least one search tool is enabled
+                if not tools:
+                    tools.append({"type": "web_search"})
 
                 payload = {
                     "model": self._model,
@@ -230,8 +243,10 @@ class SearchInternetTool(AutoTool):
                     "Content-Type": "application/json",
                 }
 
-                # Use httpx for async requests
-                async with httpx.AsyncClient(timeout=60.0) as client:
+                # Use httpx for async requests with configurable timeout
+                async with httpx.AsyncClient(
+                    timeout=float(self._grok_timeout)
+                ) as client:
                     logger.debug(
                         f"Sending request to Grok Responses API: {url} with model {self._model}"
                     )
@@ -242,7 +257,22 @@ class SearchInternetTool(AutoTool):
                         logger.debug("Grok request successful.")
 
                         # Extract content from the response
-                        content = data.get("output", {}).get("content", "")
+                        # The output is an array - find the message item
+                        content = ""
+                        annotations = []
+                        output_items = data.get("output", [])
+                        for item in output_items:
+                            if item.get("type") == "message":
+                                # Get the text content from the message
+                                content_list = item.get("content", [])
+                                for content_item in content_list:
+                                    if content_item.get("type") == "output_text":
+                                        content = content_item.get("text", "")
+                                        annotations = content_item.get(
+                                            "annotations", []
+                                        )
+                                        break
+                                break
 
                         # Only process citations if setting is enabled
                         if self._citations:
@@ -250,22 +280,15 @@ class SearchInternetTool(AutoTool):
                             if "Sources:" in content:
                                 content = content.split("Sources:")[0].strip()
 
-                            # Get citations if available
+                            # Get citations from annotations
                             links = []
-                            if "citations" in data:
-                                citations = data["citations"]
-                                for i, citation in enumerate(citations, 1):
-                                    url = (
-                                        citation
-                                        if isinstance(citation, str)
-                                        else (
-                                            citation.get("url", "")
-                                            if isinstance(citation, dict)
-                                            else ""
-                                        )
-                                    )
-                                    if url:
-                                        links.append(f"[{i}] {url}")
+                            seen_urls = set()
+                            for annotation in annotations:
+                                if annotation.get("type") == "url_citation":
+                                    url = annotation.get("url", "")
+                                    if url and url not in seen_urls:
+                                        seen_urls.add(url)
+                                        links.append(f"[{len(links) + 1}] {url}")
 
                             # Format the final content with properly numbered sources
                             if links:
@@ -349,7 +372,7 @@ class SearchInternetPlugin:
     @property
     def description(self):
         """Return the plugin description."""
-        return "Plugin for searching the internet with Perplexity AI or OpenAI"  # Updated description
+        return "Plugin for searching the internet with Perplexity AI, OpenAI, or Grok"
 
     def initialize(self, tool_registry: ToolRegistry) -> None:
         """Initialize with tool registry from Solana Agent."""

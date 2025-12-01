@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "13.0.0-dev1"
+version = "13.0.0"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -16,7 +16,7 @@ packages = [{ include = "sakit" }]
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0"
 httpx = "^0.28.1"
-solana-agent = ">=30.0.0"
+solana-agent = ">=31.4.0"
 boto3 = "^1.41.3"
 botocore = "^1.41.3"
 nemo-agent = "5.0.3"

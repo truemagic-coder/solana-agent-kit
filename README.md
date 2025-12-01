@@ -27,6 +27,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Privy Recurring - Create and manage DCA orders with Privy delegated wallets
 * Privy Wallet Address - Get the wallet address of a Privy delegated wallet
 * Rugcheck - Check if a token is a rug
+* Birdeye - Comprehensive token analytics including prices, OHLCV, trades, wallet data, trending tokens, top traders, and more
 * Internet Search - Search the internet in real-time using Perplexity, Grok, or OpenAI
 * MCP - Interface with MCP web servers
 * Image Generation - Generate images with OpenAI, Grok, or Gemini with uploading to S3 compatible storage
@@ -346,8 +347,104 @@ This plugin enables Solana Agent to check if a token is a rug.
 
 No config is needed.
 
+### Birdeye
+
+This plugin enables Solana Agent to access comprehensive Solana token analytics via the Birdeye API. It provides 50 actions covering prices, OHLCV data, trades, wallet analytics, token information, and more.
+
+```python
+config = {
+    "tools": {
+        "birdeye": {
+            "api_key": "your-birdeye-api-key",  # Required - get your API key from birdeye.so
+            "chain": "solana",  # Optional - lock to a specific chain (default: "solana")
+        },
+    },
+    "agents": [
+        {
+            "name": "token_analyst",
+            "instructions": "You are an expert Solana token analyst. Use the birdeye tool to analyze tokens, wallets, and market trends.",
+            "specialization": "Token and market analysis",
+            "tools": ["birdeye"],
+        }
+    ]
+}
+```
+
+**Available Actions:**
+
+*Price Data:*
+- `price` - Get current price of a token
+- `multi_price` - Get prices for multiple tokens
+- `multi_price_post` - Get prices for multiple tokens (POST)
+- `history_price` - Get historical price data
+- `historical_price_unix` - Get price at specific unix timestamp
+- `price_volume_single` - Get price and volume for single token
+- `price_volume_multi` - Get price and volume for multiple tokens
+
+*OHLCV Data:*
+- `ohlcv` - Get OHLCV candlestick data for a token
+- `ohlcv_pair` - Get OHLCV data for a trading pair
+- `ohlcv_base_quote` - Get OHLCV for base/quote pair
+- `ohlcv_v3` - Get OHLCV v3 for token
+- `ohlcv_pair_v3` - Get OHLCV v3 for pair
+
+*Trade Data:*
+- `trades_token` - Get recent trades for a token
+- `trades_pair` - Get recent trades for a pair
+- `trades_token_seek` - Get trades with time bounds
+- `trades_pair_seek` - Get pair trades with time bounds
+- `trades_v3` - Get trades v3 with filters
+- `trades_token_v3` - Get token trades v3
+
+*Token Information:*
+- `token_list` - Get list of tokens
+- `token_list_v3` - Get token list v3
+- `token_list_scroll` - Get token list with pagination
+- `token_overview` - Get detailed token overview
+- `token_metadata_single` - Get metadata for single token
+- `token_metadata_multiple` - Get metadata for multiple tokens
+- `token_market_data` - Get market data for single token
+- `token_market_data_multiple` - Get market data for multiple tokens
+- `token_trade_data_single` - Get trade data for single token
+- `token_trade_data_multiple` - Get trade data for multiple tokens
+- `token_holder` - Get token holders
+- `token_trending` - Get trending tokens
+- `token_new_listing` - Get newly listed tokens
+- `token_top_traders` - Get top traders for a token
+- `token_markets` - Get markets for a token
+- `token_security` - Get token security analysis
+- `token_creation_info` - Get token creation information
+- `token_mint_burn` - Get mint/burn transactions
+- `token_all_time_trades_single` - Get all-time trade stats
+- `token_all_time_trades_multiple` - Get all-time trade stats for multiple tokens
+
+*Pair Data:*
+- `pair_overview_single` - Get overview for single pair
+- `pair_overview_multiple` - Get overview for multiple pairs
+
+*Trader Data:*
+- `trader_gainers_losers` - Get top gainers and losers
+- `trader_txs_seek` - Get trader transactions with time bounds
+
+*Wallet Data:*
+- `wallet_token_list` - Get wallet token holdings
+- `wallet_token_balance` - Get specific token balance in wallet
+- `wallet_tx_list` - Get wallet transaction history
+- `wallet_balance_change` - Get wallet balance changes
+
+*Search:*
+- `search` - Search for tokens/pairs
+
+*Utilities:*
+- `latest_block` - Get latest block info
+- `networks` - Get supported networks
+- `supported_chains` - Get supported chains
+
+**Multi-Chain Support:**
+All actions support a `chain` parameter (defaults to "solana"). Birdeye supports multiple chains including Ethereum, BSC, Arbitrum, etc.
+
 ### Internet Search
-This plugin enables Solana Agent to search the internet for up-to-date information using Perplexity or OpenAI.
+This plugin enables Solana Agent to search the internet for up-to-date information using Perplexity, OpenAI, or Grok.
 
 Please ensure you include a prompt to instruct the agent to use the tool - otherwise it may not use it.
 
@@ -358,7 +455,11 @@ config = {
             "api_key": "your-api-key", # Required - either a Perplexity, Grok, or OpenAI API key
             "provider": "openai", # Optional, defaults to openai - can be "openai', "perplexity", or "grok" - grok also searches X
             "citations": True, # Optional, defaults to True - only applies for Perplexity and Grok
-            "model": "gpt-4o-mini-search-preview"  # Optional, defaults to "sonar" for Perplexity or "gpt-4o-mini-search-preview" for OpenAI or "grok-4-1-fast-non-reasoning" for Grok
+            "model": "gpt-4o-mini-search-preview",  # Optional, defaults to "sonar" for Perplexity or "gpt-4o-mini-search-preview" for OpenAI or "grok-4-1-fast-non-reasoning" for Grok
+            # Grok-specific options:
+            "grok_web_search": True,  # Optional, defaults to True - enable web search
+            "grok_x_search": True,    # Optional, defaults to True - enable X/Twitter search
+            "grok_timeout": 90,       # Optional, defaults to 90 - timeout in seconds (Grok can be slow)
         }
     },
     "agents": [
@@ -371,6 +472,12 @@ config = {
     ]
 }
 ```
+
+**Grok Performance Tips:**
+- Grok search with both web and X search can take 30-90+ seconds
+- For faster responses, disable one search type: `grok_x_search: False` or `grok_web_search: False`
+- X-only search is useful for real-time social sentiment on crypto/tokens
+- Web-only search is faster for general information
 
 **Available Search Models for Perplexity**
 * sonar
