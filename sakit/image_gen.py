@@ -344,17 +344,18 @@ class ImageGenPlugin:
         # Create and register the tool
         self._tool = ImageGenTool(registry=tool_registry)
 
-        # Verification
-        registered_tool = tool_registry.get_tool(self.name)
-        if registered_tool and isinstance(registered_tool, ImageGenTool):
-            logger.info(f"{self.name} tool registration verification: Success")
-        else:
-            logger.error(
-                f"{self.name} tool registration verification: Failed or wrong type ({type(registered_tool)})"
-            )
+        # Verification (only if tool_registry is provided)
+        if tool_registry is not None:
+            registered_tool = tool_registry.get_tool(self.name)
+            if registered_tool and isinstance(registered_tool, ImageGenTool):
+                logger.info(f"{self.name} tool registration verification: Success")
+            else:
+                logger.error(
+                    f"{self.name} tool registration verification: Failed or wrong type ({type(registered_tool)})"
+                )
 
-        all_tools = tool_registry.list_all_tools()
-        logger.info(f"All registered tools after {self.name} init: {all_tools}")
+            all_tools = tool_registry.list_all_tools()
+            logger.info(f"All registered tools after {self.name} init: {all_tools}")
 
     def configure(self, config: Dict[str, Any]) -> None:
         """Configure the plugin and its underlying tool."""
