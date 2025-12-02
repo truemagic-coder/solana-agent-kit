@@ -44,7 +44,7 @@ async def get_privy_embedded_wallet(
     user_id: str, app_id: str, app_secret: str
 ) -> Optional[Dict[str, str]]:
     """Get Privy embedded wallet info for a user.
-    
+
     Supports both:
     - App-first wallets (SDK-created): connector_type == "embedded" with delegated == True
     - Bot-first wallets (API-created): type == "wallet" with chain_type == "solana"
@@ -58,12 +58,12 @@ async def get_privy_embedded_wallet(
             logging.error(f"Privy API error: {resp.text}")
             resp.raise_for_status()
         data = resp.json()
-        
+
         # First, try to find app-first embedded wallet (SDK-created)
         for acct in data.get("linked_accounts", []):
             if acct.get("connector_type") == "embedded" and acct.get("delegated"):
                 return {"wallet_id": acct["id"], "public_key": acct["public_key"]}
-        
+
         # Then, try to find bot-first wallet (API-created via privy_create_wallet)
         # These have type == "wallet" and include chain_type
         for acct in data.get("linked_accounts", []):
@@ -81,7 +81,7 @@ async def get_privy_embedded_wallet(
                 address = acct.get("address") or acct.get("public_key")
                 if wallet_id and address:
                     return {"wallet_id": wallet_id, "public_key": address}
-                    
+
     return None
 
 
