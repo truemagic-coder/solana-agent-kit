@@ -123,17 +123,21 @@ async def privy_sign_and_send(
         # Convert key to PKCS#8 PEM format for SDK compatibility
         pem_key = _convert_key_to_pkcs8_pem(privy_auth_key)
 
-        # Generate authorization signature using SDK
+        # IMPORTANT: The body must match exactly what the SDK sends to the API
+        # signAndSendTransaction requires caip2 for Solana
         url = f"https://api.privy.io/v1/wallets/{wallet_id}/rpc"
         body = {
             "method": "signAndSendTransaction",
             "params": {"transaction": encoded_tx, "encoding": "base64"},
+            "caip2": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+            "chain_type": "solana",
         }
         auth_signature = get_authorization_signature(
             url=url,
             body=body,
-            privy_app_id=privy_client.app_id,
-            privy_authorization_key=pem_key,
+            method="POST",
+            app_id=privy_client.app_id,
+            private_key=pem_key,
         )
 
         # Use SDK's wallets.rpc method for signAndSendTransaction
@@ -141,6 +145,8 @@ async def privy_sign_and_send(
             wallet_id=wallet_id,
             method="signAndSendTransaction",
             params={"transaction": encoded_tx, "encoding": "base64"},
+            caip2="solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+            chain_type="solana",
             privy_authorization_signature=auth_signature,
         )
 

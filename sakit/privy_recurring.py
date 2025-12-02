@@ -140,10 +140,12 @@ async def _privy_sign_transaction(
         # Convert the key to PKCS#8 format expected by the SDK
         pkcs8_key = _convert_key_to_pkcs8_pem(signing_key)
 
+        # IMPORTANT: The body must match exactly what the SDK sends to the API
         url = f"https://api.privy.io/v1/wallets/{wallet_id}/rpc"
         body = {
             "method": "signTransaction",
             "params": {"transaction": encoded_tx, "encoding": "base64"},
+            "chain_type": "solana",
         }
 
         auth_signature = get_authorization_signature(
