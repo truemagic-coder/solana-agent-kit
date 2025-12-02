@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "13.2.2"
+version = "13.3.0"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -43,6 +43,9 @@ jupiter_token_search = "sakit.jupiter_token_search:get_plugin"
 jupiter_trigger = "sakit.jupiter_trigger:get_plugin"
 mcp = "sakit.mcp:get_plugin"
 nemo_agent = "sakit.nemo_agent:get_plugin"
+privy_create_user = "sakit.privy_create_user:get_plugin"
+privy_create_wallet = "sakit.privy_create_wallet:get_plugin"
+privy_get_user_by_telegram = "sakit.privy_get_user_by_telegram:get_plugin"
 privy_recurring = "sakit.privy_recurring:get_plugin"
 privy_transfer = "sakit.privy_transfer:get_plugin"
 privy_trigger = "sakit.privy_trigger:get_plugin"

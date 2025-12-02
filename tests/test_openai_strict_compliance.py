@@ -92,6 +92,28 @@ class TestOpenAIStrictCompliance:
 
         assert self._check_schema_compliance(NemoAgentTool, "nemo_agent")
 
+    def test_privy_create_user_compliance(self):
+        """Test privy_create_user tool is OpenAI strict compliant."""
+        from sakit.privy_create_user import PrivyCreateUserTool
+
+        assert self._check_schema_compliance(PrivyCreateUserTool, "privy_create_user")
+
+    def test_privy_create_wallet_compliance(self):
+        """Test privy_create_wallet tool is OpenAI strict compliant."""
+        from sakit.privy_create_wallet import PrivyCreateWalletTool
+
+        assert self._check_schema_compliance(
+            PrivyCreateWalletTool, "privy_create_wallet"
+        )
+
+    def test_privy_get_user_by_telegram_compliance(self):
+        """Test privy_get_user_by_telegram tool is OpenAI strict compliant."""
+        from sakit.privy_get_user_by_telegram import PrivyGetUserByTelegramTool
+
+        assert self._check_schema_compliance(
+            PrivyGetUserByTelegramTool, "privy_get_user_by_telegram"
+        )
+
     def test_privy_recurring_compliance(self):
         """Test privy_recurring tool is OpenAI strict compliant."""
         from sakit.privy_recurring import PrivyRecurringTool
