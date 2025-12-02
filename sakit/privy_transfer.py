@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional
 from solana_agent import AutoTool, ToolRegistry
 from privy import AsyncPrivyAPI
 from privy.lib.authorization_signatures import get_authorization_signature
+from cryptography.hazmat.primitives import serialization
 from sakit.utils.wallet import SolanaWalletClient
 from sakit.utils.transfer import TokenTransferManager
 
@@ -12,6 +13,60 @@ logger = logging.getLogger(__name__)
 LAMPORTS_PER_SOL = 10**9
 SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+
+
+def _convert_key_to_pkcs8_pem(key_string: str) -> str:
+    """Convert a private key to PKCS#8 PEM format for the Privy SDK."""
+    private_key_string = key_string.replace("wallet-auth:", "")
+
+    # Try loading as PKCS#8 PEM format first
+    try:
+        private_key_pem = f"-----BEGIN PRIVATE KEY-----\n{private_key_string}\n-----END PRIVATE KEY-----"
+        serialization.load_pem_private_key(
+            private_key_pem.encode("utf-8"), password=None
+        )
+        return private_key_string
+    except (ValueError, TypeError):
+        pass
+
+    # Try as EC PRIVATE KEY (SEC1) format
+    try:
+        ec_key_pem = f"-----BEGIN EC PRIVATE KEY-----\n{private_key_string}\n-----END EC PRIVATE KEY-----"
+        private_key = serialization.load_pem_private_key(
+            ec_key_pem.encode("utf-8"), password=None
+        )
+        pkcs8_bytes = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+        pkcs8_pem = pkcs8_bytes.decode("utf-8")
+        lines = pkcs8_pem.strip().split("\n")
+        return "".join(lines[1:-1])
+    except (ValueError, TypeError):
+        pass
+
+    # Try loading as raw DER bytes
+    try:
+        der_bytes = base64.b64decode(private_key_string)
+        try:
+            private_key = serialization.load_der_private_key(der_bytes, password=None)
+        except (ValueError, TypeError):
+            from cryptography.hazmat.primitives.asymmetric import ec
+
+            private_key = ec.derive_private_key(
+                int.from_bytes(der_bytes, "big"), ec.SECP256R1()
+            )
+        pkcs8_bytes = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+        pkcs8_pem = pkcs8_bytes.decode("utf-8")
+        lines = pkcs8_pem.strip().split("\n")
+        return "".join(lines[1:-1])
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"Could not load private key: {e}")
 
 
 async def get_privy_embedded_wallet(
@@ -65,25 +120,26 @@ async def privy_sign_and_send(
 ) -> Dict[str, Any]:
     """Sign and send a transaction using Privy SDK."""
     try:
+        # Convert key to PKCS#8 PEM format for SDK compatibility
+        pem_key = _convert_key_to_pkcs8_pem(privy_auth_key)
+
         # Generate authorization signature using SDK
         url = f"https://api.privy.io/v1/wallets/{wallet_id}/rpc"
         body = {
             "method": "signAndSendTransaction",
-            "caip2": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
             "params": {"transaction": encoded_tx, "encoding": "base64"},
         }
         auth_signature = get_authorization_signature(
             url=url,
             body=body,
             privy_app_id=privy_client.app_id,
-            privy_authorization_key=privy_auth_key,
+            privy_authorization_key=pem_key,
         )
 
-        # Use SDK's wallets.rpc method with caip2 for signAndSendTransaction
+        # Use SDK's wallets.rpc method for signAndSendTransaction
         result = await privy_client.wallets.rpc(
             wallet_id=wallet_id,
             method="signAndSendTransaction",
-            caip2="solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
             params={"transaction": encoded_tx, "encoding": "base64"},
             privy_authorization_signature=auth_signature,
         )

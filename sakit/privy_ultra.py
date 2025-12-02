@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional
 from solana_agent import AutoTool, ToolRegistry
 from privy import AsyncPrivyAPI
 from privy.lib.authorization_signatures import get_authorization_signature
+from cryptography.hazmat.primitives import serialization
 from solders.keypair import Keypair
 from solders.transaction import VersionedTransaction
 from solders.message import to_bytes_versioned
@@ -19,6 +20,81 @@ from solders.message import to_bytes_versioned
 from sakit.utils.ultra import JupiterUltra
 
 logger = logging.getLogger(__name__)
+
+
+def convert_key_to_pkcs8_pem(key_string: str) -> str:
+    """Convert a private key to PKCS#8 PEM format for the Privy SDK.
+
+    The SDK expects keys in PKCS#8 PEM format (-----BEGIN PRIVATE KEY-----).
+    This function handles keys in various formats:
+    - Already in PKCS#8 PEM base64
+    - SEC1 EC format (-----BEGIN EC PRIVATE KEY-----)
+    - Raw DER bytes (PKCS#8 or SEC1)
+
+    Returns the base64 content (without headers) in PKCS#8 format.
+    """
+    # Strip wallet-auth: prefix if present
+    private_key_string = key_string.replace("wallet-auth:", "")
+
+    # Try loading as PKCS#8 PEM format first
+    try:
+        private_key_pem = f"-----BEGIN PRIVATE KEY-----\n{private_key_string}\n-----END PRIVATE KEY-----"
+        private_key = serialization.load_pem_private_key(
+            private_key_pem.encode("utf-8"), password=None
+        )
+        # Already in correct format, return as-is
+        return private_key_string
+    except (ValueError, TypeError):
+        pass
+
+    # Try as EC PRIVATE KEY (SEC1) format
+    try:
+        ec_key_pem = f"-----BEGIN EC PRIVATE KEY-----\n{private_key_string}\n-----END EC PRIVATE KEY-----"
+        private_key = serialization.load_pem_private_key(
+            ec_key_pem.encode("utf-8"), password=None
+        )
+        # Convert to PKCS#8 format
+        pkcs8_bytes = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+        # Extract base64 content (remove headers and newlines)
+        pkcs8_pem = pkcs8_bytes.decode("utf-8")
+        lines = pkcs8_pem.strip().split("\n")
+        base64_content = "".join(lines[1:-1])
+        return base64_content
+    except (ValueError, TypeError):
+        pass
+
+    # Try loading as raw DER bytes
+    try:
+        der_bytes = base64.b64decode(private_key_string)
+        # Try PKCS#8 DER
+        try:
+            private_key = serialization.load_der_private_key(der_bytes, password=None)
+        except (ValueError, TypeError):
+            # Try SEC1 DER
+            from cryptography.hazmat.primitives.asymmetric import ec
+
+            private_key = ec.derive_private_key(
+                int.from_bytes(der_bytes, "big"), ec.SECP256R1()
+            )
+        # Convert to PKCS#8 PEM format
+        pkcs8_bytes = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+        pkcs8_pem = pkcs8_bytes.decode("utf-8")
+        lines = pkcs8_pem.strip().split("\n")
+        base64_content = "".join(lines[1:-1])
+        return base64_content
+    except (ValueError, TypeError) as e:
+        raise ValueError(
+            f"Could not load private key. Expected base64-encoded PKCS#8 or SEC1 format. "
+            f"Generate with: openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256. Error: {e}"
+        )
 
 
 async def get_privy_embedded_wallet(
@@ -116,6 +192,9 @@ async def privy_sign_transaction(
     Uses the wallets.rpc method with method="signTransaction" for Solana.
     The SDK handles authorization signature generation automatically when provided.
     """
+    # Convert the key to PKCS#8 format expected by the SDK
+    pkcs8_key = convert_key_to_pkcs8_pem(signing_key)
+
     # Generate the authorization signature using the SDK's utility
     url = f"https://api.privy.io/v1/wallets/{wallet_id}/rpc"
     body = {
@@ -129,7 +208,7 @@ async def privy_sign_transaction(
         body=body,
         method="POST",
         app_id=privy_client.app_id,
-        private_key=signing_key,
+        private_key=pkcs8_key,
     )
 
     # Call the SDK's rpc method for Solana signTransaction
