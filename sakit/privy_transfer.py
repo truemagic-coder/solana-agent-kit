@@ -1,78 +1,21 @@
 import base64
-import json
 import logging
 from typing import Dict, Any, List, Optional
 from solana_agent import AutoTool, ToolRegistry
-import httpx
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
+from privy import AsyncPrivyAPI
+from privy.lib.authorization_signatures import get_authorization_signature
 from sakit.utils.wallet import SolanaWalletClient
 from sakit.utils.transfer import TokenTransferManager
+
+logger = logging.getLogger(__name__)
 
 LAMPORTS_PER_SOL = 10**9
 SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 
 
-def canonicalize(obj):
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"))
-
-
-def get_authorization_signature(url, body, privy_app_id, privy_auth_key):
-    payload = {
-        "version": 1,
-        "method": "POST",
-        "url": url,
-        "body": body,
-        "headers": {"privy-app-id": privy_app_id},
-    }
-    serialized_payload = canonicalize(payload)
-    private_key_string = privy_auth_key.replace("wallet-auth:", "")
-
-    # Try to load the key - it could be in different formats
-    private_key = None
-
-    # First, try as PKCS#8 PEM format (standard format from openssl genpkey)
-    try:
-        private_key_pem = f"-----BEGIN PRIVATE KEY-----\n{private_key_string}\n-----END PRIVATE KEY-----"
-        private_key = serialization.load_pem_private_key(
-            private_key_pem.encode("utf-8"), password=None
-        )
-    except (ValueError, TypeError):
-        pass
-
-    # If that fails, try as EC PRIVATE KEY (SEC1) format
-    if private_key is None:
-        try:
-            ec_key_pem = f"-----BEGIN EC PRIVATE KEY-----\n{private_key_string}\n-----END EC PRIVATE KEY-----"
-            private_key = serialization.load_pem_private_key(
-                ec_key_pem.encode("utf-8"), password=None
-            )
-        except (ValueError, TypeError):
-            pass
-
-    # If that fails, try loading as raw DER bytes (PKCS#8)
-    if private_key is None:
-        try:
-            der_bytes = base64.b64decode(private_key_string)
-            private_key = serialization.load_der_private_key(der_bytes, password=None)
-        except (ValueError, TypeError):
-            pass
-
-    if private_key is None:
-        raise ValueError(
-            "Could not load private key. Expected base64-encoded PKCS#8 or SEC1 format. "
-            "Generate with: openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256"
-        )
-
-    signature = private_key.sign(
-        serialized_payload.encode("utf-8"), ec.ECDSA(hashes.SHA256())
-    )
-    return base64.b64encode(signature).decode("utf-8")
-
-
 async def get_privy_embedded_wallet(
-    user_id: str, app_id: str, app_secret: str
+    user_id: str, privy_client: AsyncPrivyAPI
 ) -> Optional[Dict[str, str]]:
     """Get Privy embedded wallet info for a user.
 
@@ -80,15 +23,9 @@ async def get_privy_embedded_wallet(
     - App-first wallets (SDK-created): connector_type == "embedded" with delegated == True
     - Bot-first wallets (API-created): type == "wallet" with chain_type == "solana"
     """
-    url = f"https://auth.privy.io/api/v1/users/{user_id}"
-    headers = {"privy-app-id": app_id}
-    auth = (app_id, app_secret)
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(url, headers=headers, auth=auth, timeout=10)
-        if resp.status_code != 200:
-            logging.error(f"Privy API error: {resp.text}")
-            resp.raise_for_status()
-        data = resp.json()
+    try:
+        user = await privy_client.users.get(user_id)
+        data = user.model_dump() if hasattr(user, "model_dump") else user.__dict__
 
         # First, try to find embedded wallet with delegation
         for acct in data.get("linked_accounts", []):
@@ -117,35 +54,46 @@ async def get_privy_embedded_wallet(
                 if wallet_id and address:
                     return {"wallet_id": wallet_id, "public_key": address}
 
-    return None
+        return None
+    except Exception as e:
+        logger.error(f"Error getting Privy embedded wallet: {e}")
+        return None
 
 
 async def privy_sign_and_send(
-    wallet_id: str, encoded_tx: str, app_id: str, app_secret: str, privy_auth_key: str
+    wallet_id: str, encoded_tx: str, privy_client: AsyncPrivyAPI, privy_auth_key: str
 ) -> Dict[str, Any]:
-    url = f"https://api.privy.io/v1/wallets/{wallet_id}/rpc"
-    auth_string = f"{app_id}:{app_secret}"
-    encoded_auth = base64.b64encode(auth_string.encode()).decode()
-    body = {
-        "method": "signAndSendTransaction",
-        "caip2": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-        "params": {"transaction": encoded_tx, "encoding": "base64"},
-    }
-    signature = get_authorization_signature(
-        url=url, body=body, privy_app_id=app_id, privy_auth_key=privy_auth_key
-    )
-    headers = {
-        "Authorization": f"Basic {encoded_auth}",
-        "privy-app-id": app_id,
-        "privy-authorization-signature": signature,
-        "Content-Type": "application/json",
-    }
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(url, headers=headers, json=body, timeout=10)
-        if resp.status_code != 200:
-            logging.error(f"Privy sign and send failed: {resp.text}")
-            resp.raise_for_status()
-        return resp.json()
+    """Sign and send a transaction using Privy SDK."""
+    try:
+        # Generate authorization signature using SDK
+        url = f"https://api.privy.io/v1/wallets/{wallet_id}/rpc"
+        body = {
+            "method": "signAndSendTransaction",
+            "caip2": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+            "params": {"transaction": encoded_tx, "encoding": "base64"},
+        }
+        auth_signature = get_authorization_signature(
+            url=url,
+            body=body,
+            privy_app_id=privy_client.app_id,
+            privy_authorization_key=privy_auth_key,
+        )
+
+        # Use SDK's wallets.rpc method with caip2 for signAndSendTransaction
+        result = await privy_client.wallets.rpc(
+            wallet_id=wallet_id,
+            method="signAndSendTransaction",
+            caip2="solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+            params={"transaction": encoded_tx, "encoding": "base64"},
+            privy_authorization_signature=auth_signature,
+        )
+
+        return (
+            result.model_dump() if hasattr(result, "model_dump") else {"data": result}
+        )
+    except Exception as e:
+        logger.error(f"Privy sign and send failed: {e}")
+        raise
 
 
 class PrivyTransferTool(AutoTool):
@@ -216,9 +164,14 @@ class PrivyTransferTool(AutoTool):
             ]
         ):
             return {"status": "error", "message": "Privy config missing."}
-        wallet_info = await get_privy_embedded_wallet(
-            user_id, self.app_id, self.app_secret
+
+        # Create SDK client
+        privy_client = AsyncPrivyAPI(
+            app_id=self.app_id,
+            app_secret=self.app_secret,
         )
+
+        wallet_info = await get_privy_embedded_wallet(user_id, privy_client)
         if not wallet_info:
             return {
                 "status": "error",
@@ -246,13 +199,12 @@ class PrivyTransferTool(AutoTool):
             result = await privy_sign_and_send(
                 wallet_id,
                 encoded_transaction,
-                self.app_id,
-                self.app_secret,
+                privy_client,
                 self.signing_key,
             )
             return {"status": "success", "result": result}
         except Exception as e:
-            logging.exception(f"Privy transfer failed: {str(e)}")
+            logger.exception(f"Privy transfer failed: {str(e)}")
             return {"status": "error", "message": str(e)}
 
 

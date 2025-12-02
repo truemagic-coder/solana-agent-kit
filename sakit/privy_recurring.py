@@ -2,18 +2,16 @@
 Jupiter Recurring (DCA) tool for Privy delegated wallets.
 
 Enables creating, canceling, and managing DCA orders using Jupiter Recurring API
-with Privy embedded wallets.
+with Privy embedded wallets. Uses the official Privy Python SDK.
 """
 
 import base64
-import json
 import logging
 from typing import Dict, Any, List, Optional
 
 from solana_agent import AutoTool, ToolRegistry
-import httpx
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
+from privy import AsyncPrivyAPI
+from privy.lib.authorization_signatures import get_authorization_signature
 from solders.keypair import Keypair  # type: ignore
 from solders.transaction import VersionedTransaction  # type: ignore
 from solders.message import to_bytes_versioned  # type: ignore
@@ -23,142 +21,93 @@ from sakit.utils.recurring import JupiterRecurring
 logger = logging.getLogger(__name__)
 
 
-def _canonicalize(obj):
-    """Canonicalize JSON for Privy signature."""
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"))
-
-
-def _get_authorization_signature(url, body, privy_app_id, privy_auth_key):
-    """Generate Privy authorization signature."""
-    payload = {
-        "version": 1,
-        "method": "POST",
-        "url": url,
-        "body": body,
-        "headers": {"privy-app-id": privy_app_id},
-    }
-    serialized_payload = _canonicalize(payload)
-    private_key_string = privy_auth_key.replace("wallet-auth:", "")
-
-    # Try to load the key - it could be in different formats
-    private_key = None
-
-    # First, try as PKCS#8 PEM format (standard format from openssl genpkey)
-    try:
-        private_key_pem = f"-----BEGIN PRIVATE KEY-----\n{private_key_string}\n-----END PRIVATE KEY-----"
-        private_key = serialization.load_pem_private_key(
-            private_key_pem.encode("utf-8"), password=None
-        )
-    except (ValueError, TypeError):
-        pass
-
-    # If that fails, try as EC PRIVATE KEY (SEC1) format
-    if private_key is None:
-        try:
-            ec_key_pem = f"-----BEGIN EC PRIVATE KEY-----\n{private_key_string}\n-----END EC PRIVATE KEY-----"
-            private_key = serialization.load_pem_private_key(
-                ec_key_pem.encode("utf-8"), password=None
-            )
-        except (ValueError, TypeError):
-            pass
-
-    # If that fails, try loading as raw DER bytes (PKCS#8)
-    if private_key is None:
-        try:
-            der_bytes = base64.b64decode(private_key_string)
-            private_key = serialization.load_der_private_key(der_bytes, password=None)
-        except (ValueError, TypeError):
-            pass
-
-    if private_key is None:
-        raise ValueError(
-            "Could not load private key. Expected base64-encoded PKCS#8 or SEC1 format. "
-            "Generate with: openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256"
-        )
-
-    signature = private_key.sign(
-        serialized_payload.encode("utf-8"), ec.ECDSA(hashes.SHA256())
-    )
-    return base64.b64encode(signature).decode("utf-8")
-
-
 async def _get_privy_embedded_wallet(
-    user_id: str, app_id: str, app_secret: str
+    privy_client: AsyncPrivyAPI, user_id: str
 ) -> Optional[Dict[str, str]]:
-    """Get Privy embedded wallet info for a user.
+    """Get Privy embedded wallet info for a user using the official SDK.
 
     Supports both:
     - App-first wallets (SDK-created): connector_type == "embedded" with delegated == True
     - Bot-first wallets (API-created): type == "wallet" with chain_type == "solana"
     """
-    url = f"https://auth.privy.io/api/v1/users/{user_id}"
-    headers = {"privy-app-id": app_id}
-    auth = (app_id, app_secret)
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(url, headers=headers, auth=auth, timeout=10)
-        if resp.status_code != 200:
-            logger.error(f"Privy API error: {resp.text}")
-            return None
-        data = resp.json()
+    try:
+        user = await privy_client.users.get(user_id)
+        linked_accounts = user.linked_accounts or []
 
         # First, try to find embedded wallet with delegation
-        for acct in data.get("linked_accounts", []):
-            if acct.get("connector_type") == "embedded" and acct.get("delegated"):
-                wallet_id = acct.get("id")
-                # Use 'address' field if 'public_key' is null (common for API-created wallets)
-                address = acct.get("address") or acct.get("public_key")
+        for acct in linked_accounts:
+            if getattr(acct, "connector_type", None) == "embedded" and getattr(
+                acct, "delegated", False
+            ):
+                wallet_id = getattr(acct, "id", None)
+                address = getattr(acct, "address", None) or getattr(
+                    acct, "public_key", None
+                )
                 if wallet_id and address:
                     return {"wallet_id": wallet_id, "public_key": address}
 
         # Then, try to find bot-first wallet (API-created via privy_create_wallet)
-        for acct in data.get("linked_accounts", []):
-            acct_type = acct.get("type", "")
-            if acct_type == "wallet" and acct.get("chain_type") == "solana":
-                wallet_id = acct.get("id")
-                address = acct.get("address") or acct.get("public_key")
+        for acct in linked_accounts:
+            acct_type = getattr(acct, "type", "")
+            if acct_type == "wallet" and getattr(acct, "chain_type", None) == "solana":
+                wallet_id = getattr(acct, "id", None)
+                address = getattr(acct, "address", None) or getattr(
+                    acct, "public_key", None
+                )
                 if wallet_id and address:
                     return {"wallet_id": wallet_id, "public_key": address}
-            if "solana" in acct_type.lower() and "embedded" in acct_type.lower():
-                wallet_id = acct.get("id")
-                address = acct.get("address") or acct.get("public_key")
+            if (
+                acct_type
+                and "solana" in acct_type.lower()
+                and "embedded" in acct_type.lower()
+            ):
+                wallet_id = getattr(acct, "id", None)
+                address = getattr(acct, "address", None) or getattr(
+                    acct, "public_key", None
+                )
                 if wallet_id and address:
                     return {"wallet_id": wallet_id, "public_key": address}
 
-    return None
+        return None
+    except Exception as e:
+        logger.error(f"Privy API error getting user {user_id}: {e}")
+        return None
 
 
 async def _privy_sign_transaction(
+    privy_client: AsyncPrivyAPI,
     wallet_id: str,
     encoded_tx: str,
-    app_id: str,
-    app_secret: str,
-    privy_auth_key: str,
+    signing_key: str,
 ) -> Optional[str]:
-    """Sign transaction via Privy."""
-    url = f"https://api.privy.io/v1/wallets/{wallet_id}/rpc"
-    auth_string = f"{app_id}:{app_secret}"
-    encoded_auth = base64.b64encode(auth_string.encode()).decode()
-    body = {
-        "method": "signTransaction",
-        "caip2": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-        "params": {"transaction": encoded_tx, "encoding": "base64"},
-    }
-    signature = _get_authorization_signature(
-        url=url, body=body, privy_app_id=app_id, privy_auth_key=privy_auth_key
-    )
-    headers = {
-        "Authorization": f"Basic {encoded_auth}",
-        "privy-app-id": app_id,
-        "privy-authorization-signature": signature,
-        "Content-Type": "application/json",
-    }
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(url, headers=headers, json=body, timeout=20)
-        if resp.status_code != 200:
-            logger.error(f"Privy API error: {resp.text}")
-            return None
-        result = resp.json()
-        return result.get("data", {}).get("signedTransaction")
+    """Sign a Solana transaction via Privy using the official SDK."""
+    try:
+        url = f"https://api.privy.io/v1/wallets/{wallet_id}/rpc"
+        body = {
+            "method": "signTransaction",
+            "params": {"transaction": encoded_tx, "encoding": "base64"},
+        }
+
+        auth_signature = get_authorization_signature(
+            url=url,
+            body=body,
+            method="POST",
+            app_id=privy_client.app_id,
+            private_key=signing_key,
+        )
+
+        result = await privy_client.wallets.rpc(
+            wallet_id=wallet_id,
+            method="signTransaction",
+            params={"transaction": encoded_tx, "encoding": "base64"},
+            chain_type="solana",
+            privy_authorization_signature=auth_signature,
+        )
+
+        return result.data.signed_transaction if result.data else None
+    except Exception as e:
+        logger.error(f"Privy API error signing transaction: {e}")
+        return None
 
 
 class PrivyRecurringTool(AutoTool):

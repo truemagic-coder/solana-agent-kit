@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "13.3.3"
+version = "13.3.4"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -26,6 +26,7 @@ solders = "^0.27.1"
 pynacl = "^1.6.1"
 based58 = "^0.1.1"
 openai = "*"
+privy-client = "^0.5.0"
 
 
 
