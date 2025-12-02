@@ -39,12 +39,43 @@ def _get_authorization_signature(url, body, privy_app_id, privy_auth_key):
     }
     serialized_payload = _canonicalize(payload)
     private_key_string = privy_auth_key.replace("wallet-auth:", "")
-    private_key_pem = (
-        f"-----BEGIN PRIVATE KEY-----\n{private_key_string}\n-----END PRIVATE KEY-----"
-    )
-    private_key = serialization.load_pem_private_key(
-        private_key_pem.encode("utf-8"), password=None
-    )
+
+    # Try to load the key - it could be in different formats
+    private_key = None
+
+    # First, try as PKCS#8 PEM format (standard format from openssl genpkey)
+    try:
+        private_key_pem = f"-----BEGIN PRIVATE KEY-----\n{private_key_string}\n-----END PRIVATE KEY-----"
+        private_key = serialization.load_pem_private_key(
+            private_key_pem.encode("utf-8"), password=None
+        )
+    except (ValueError, TypeError):
+        pass
+
+    # If that fails, try as EC PRIVATE KEY (SEC1) format
+    if private_key is None:
+        try:
+            ec_key_pem = f"-----BEGIN EC PRIVATE KEY-----\n{private_key_string}\n-----END EC PRIVATE KEY-----"
+            private_key = serialization.load_pem_private_key(
+                ec_key_pem.encode("utf-8"), password=None
+            )
+        except (ValueError, TypeError):
+            pass
+
+    # If that fails, try loading as raw DER bytes (PKCS#8)
+    if private_key is None:
+        try:
+            der_bytes = base64.b64decode(private_key_string)
+            private_key = serialization.load_der_private_key(der_bytes, password=None)
+        except (ValueError, TypeError):
+            pass
+
+    if private_key is None:
+        raise ValueError(
+            "Could not load private key. Expected base64-encoded PKCS#8 or SEC1 format. "
+            "Generate with: openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256"
+        )
+
     signature = private_key.sign(
         serialized_payload.encode("utf-8"), ec.ECDSA(hashes.SHA256())
     )
