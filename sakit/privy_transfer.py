@@ -43,6 +43,12 @@ def get_authorization_signature(url, body, privy_app_id, privy_auth_key):
 async def get_privy_embedded_wallet(
     user_id: str, app_id: str, app_secret: str
 ) -> Optional[Dict[str, str]]:
+    """Get Privy embedded wallet info for a user.
+    
+    Supports both:
+    - App-first wallets (SDK-created): connector_type == "embedded" with delegated == True
+    - Bot-first wallets (API-created): type == "wallet" with chain_type == "solana"
+    """
     url = f"https://auth.privy.io/api/v1/users/{user_id}"
     headers = {"privy-app-id": app_id}
     auth = (app_id, app_secret)
@@ -52,9 +58,30 @@ async def get_privy_embedded_wallet(
             logging.error(f"Privy API error: {resp.text}")
             resp.raise_for_status()
         data = resp.json()
+        
+        # First, try to find app-first embedded wallet (SDK-created)
         for acct in data.get("linked_accounts", []):
             if acct.get("connector_type") == "embedded" and acct.get("delegated"):
                 return {"wallet_id": acct["id"], "public_key": acct["public_key"]}
+        
+        # Then, try to find bot-first wallet (API-created via privy_create_wallet)
+        # These have type == "wallet" and include chain_type
+        for acct in data.get("linked_accounts", []):
+            acct_type = acct.get("type", "")
+            # Check for Solana embedded wallets created via API
+            if acct_type == "wallet" and acct.get("chain_type") == "solana":
+                wallet_id = acct.get("id")
+                # API wallets use "address" field, SDK wallets use "public_key"
+                address = acct.get("address") or acct.get("public_key")
+                if wallet_id and address:
+                    return {"wallet_id": wallet_id, "public_key": address}
+            # Also check for solana_embedded_wallet type
+            if "solana" in acct_type.lower() and "embedded" in acct_type.lower():
+                wallet_id = acct.get("id")
+                address = acct.get("address") or acct.get("public_key")
+                if wallet_id and address:
+                    return {"wallet_id": wallet_id, "public_key": address}
+                    
     return None
 
 
