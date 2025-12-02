@@ -26,6 +26,9 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Privy Trigger - Create and manage limit orders with Privy delegated wallets
 * Privy Recurring - Create and manage DCA orders with Privy delegated wallets
 * Privy Wallet Address - Get the wallet address of a Privy delegated wallet
+* Privy Create User - Create a new Privy user with a linked Telegram account (for bot-first flows)
+* Privy Create Wallet - Create a Solana wallet for a Privy user with optional bot delegation
+* Privy Get User by Telegram - Look up an existing Privy user by their Telegram ID
 * Rugcheck - Check if a token is a rug
 * Vybe - Look up and label known Solana wallets (CEX, market makers, AMM pools, treasuries)
 * Birdeye - Comprehensive token analytics including prices, OHLCV, trades, wallet data, trending tokens, top traders, and more
@@ -341,6 +344,89 @@ config = {
 }
 ```
 
+### Privy Create User
+
+This plugin enables Solana Agent to create a new Privy user with a linked Telegram account. Used for **bot-first** Telegram bot flows where users first interact with the bot and wallets are created server-side.
+
+```python
+config = {
+    "tools": {
+        "privy_create_user": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+        },
+    },
+}
+```
+
+**Parameters:**
+- `telegram_user_id` (required) - The Telegram user ID to link to the new Privy user
+
+**Returns:**
+- `user_id` - The Privy user ID (did:privy:...)
+- `created_at` - Unix timestamp of when the user was created
+- `linked_accounts` - List of linked accounts including the Telegram account
+
+### Privy Create Wallet
+
+This plugin enables Solana Agent to create a new Solana wallet for a Privy user with optional bot delegation. When `add_bot_signer` is true, the bot can execute transactions on behalf of the user.
+
+**Prerequisites:**
+1. Create an authorization key locally:
+   ```bash
+   openssl ecparam -name prime256v1 -genkey -noout -out private.pem
+   openssl ec -in private.pem -pubout -outform DER | base64
+   ```
+2. Register the public key as a key quorum in the [Privy Dashboard](https://dashboard.privy.io/apps?authorization-keys)
+3. Save the key quorum ID as `signer_id` in the config
+
+```python
+config = {
+    "tools": {
+        "privy_create_wallet": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "signer_id": "your-key-quorum-id", # Required if add_bot_signer=True - the key quorum ID from Privy Dashboard
+            "policy_ids": [], # Optional - list of policy IDs to apply to the signer for restricted permissions
+        },
+    },
+}
+```
+
+**Parameters:**
+- `user_id` (required) - The Privy user ID (did:privy:...) to create a wallet for
+- `chain_type` (optional) - "solana" or "ethereum" (default: "solana")
+- `add_bot_signer` (optional) - Whether to add the bot as an additional signer for delegation (default: true)
+
+**Returns:**
+- `wallet_id` - The Privy wallet ID
+- `address` - The wallet's public address
+- `chain_type` - The blockchain type
+- `additional_signers` - List of additional signers (including bot if enabled)
+
+### Privy Get User by Telegram
+
+This plugin enables Solana Agent to look up an existing Privy user by their Telegram user ID. Useful for checking if a user already has a Privy account and wallet before creating a new one.
+
+```python
+config = {
+    "tools": {
+        "privy_get_user_by_telegram": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+        },
+    },
+}
+```
+
+**Parameters:**
+- `telegram_user_id` (required) - The Telegram user ID to look up
+
+**Returns:**
+- `status` - "success" if found, "not_found" if no user exists
+- `user_id` - The Privy user ID (did:privy:...)
+- `wallets` - List of embedded wallets with address, chain_type, and delegation status
+- `has_wallet` - Boolean indicating if the user has at least one wallet
 
 ### Rugcheck
 
