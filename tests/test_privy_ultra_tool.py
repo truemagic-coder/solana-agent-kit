@@ -557,9 +557,7 @@ class TestPrivyUltraToolExecuteSuccess:
         mock_execute_result.input_amount_result = 1000000000
         mock_execute_result.output_amount_result = 50000000
 
-        mock_sign_result = {
-            "data": {"signedTransaction": "signed-tx-base64"}
-        }
+        mock_sign_result = {"data": {"signedTransaction": "signed-tx-base64"}}
 
         with (
             patch(
@@ -609,9 +607,7 @@ class TestPrivyUltraToolExecuteSuccess:
         mock_execute_result.code = "INSUFFICIENT_FUNDS"
         mock_execute_result.signature = None
 
-        mock_sign_result = {
-            "data": {"signedTransaction": "signed-tx-base64"}
-        }
+        mock_sign_result = {"data": {"signedTransaction": "signed-tx-base64"}}
 
         with (
             patch(
@@ -700,9 +696,7 @@ class TestPrivyUltraToolExecuteSuccess:
             patch("sakit.privy_ultra.JupiterUltra") as MockUltra,
         ):
             mock_instance = AsyncMock()
-            mock_instance.get_order = AsyncMock(
-                side_effect=Exception("Network error")
-            )
+            mock_instance.get_order = AsyncMock(side_effect=Exception("Network error"))
             MockUltra.return_value = mock_instance
 
             result = await configured_ultra_tool.execute(

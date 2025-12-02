@@ -399,7 +399,9 @@ class TestImageGenToolExecute:
         mock_client.images.generate = AsyncMock(return_value=mock_response)
 
         with (
-            patch("sakit.image_gen.AsyncOpenAI", return_value=mock_client) as mock_openai,
+            patch(
+                "sakit.image_gen.AsyncOpenAI", return_value=mock_client
+            ) as mock_openai,
             patch.object(
                 tool,
                 "_upload_to_s3",
