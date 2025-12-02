@@ -20,10 +20,13 @@ async def get_privy_embedded_wallet_address(
         resp.raise_for_status()
         data = resp.json()
 
-        # First, try to find app-first embedded wallet (SDK-created)
+        # First, try to find embedded wallet with delegation
         for acct in data.get("linked_accounts", []):
             if acct.get("connector_type") == "embedded" and acct.get("delegated"):
-                return acct["public_key"]
+                # Use 'address' field if 'public_key' is null (common for API-created wallets)
+                address = acct.get("address") or acct.get("public_key")
+                if address:
+                    return address
 
         # Then, try to find bot-first wallet (API-created via privy_create_wallet)
         for acct in data.get("linked_accounts", []):

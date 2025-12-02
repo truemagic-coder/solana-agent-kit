@@ -69,14 +69,39 @@ async def get_privy_embedded_wallet(
             resp.raise_for_status()
         data = resp.json()
 
-        # First, try to find app-first embedded wallet (SDK-created)
-        for acct in data.get("linked_accounts", []):
+        linked_accounts = data.get("linked_accounts", [])
+        logger.info(f"Privy user {user_id} has {len(linked_accounts)} linked accounts")
+
+        # Log all account types for debugging
+        for i, acct in enumerate(linked_accounts):
+            acct_type = acct.get("type", "unknown")
+            connector_type = acct.get("connector_type", "none")
+            chain_type = acct.get("chain_type", "none")
+            delegated = acct.get("delegated", False)
+            has_id = "id" in acct
+            has_address = "address" in acct
+            has_public_key = "public_key" in acct
+            logger.info(
+                f"  Account {i}: type={acct_type}, connector_type={connector_type}, "
+                f"chain_type={chain_type}, delegated={delegated}, "
+                f"has_id={has_id}, has_address={has_address}, has_public_key={has_public_key}"
+            )
+
+        # First, try to find embedded wallet with delegation
+        for acct in linked_accounts:
             if acct.get("connector_type") == "embedded" and acct.get("delegated"):
-                return {"wallet_id": acct["id"], "public_key": acct["public_key"]}
+                wallet_id = acct.get("id")
+                # Use 'address' field if 'public_key' is null (common for API-created wallets)
+                address = acct.get("address") or acct.get("public_key")
+                if wallet_id and address:
+                    logger.info(
+                        f"Found embedded delegated wallet: {wallet_id}, address: {address}"
+                    )
+                    return {"wallet_id": wallet_id, "public_key": address}
 
         # Then, try to find bot-first wallet (API-created via privy_create_wallet)
         # These have type == "wallet" and include chain_type
-        for acct in data.get("linked_accounts", []):
+        for acct in linked_accounts:
             acct_type = acct.get("type", "")
             # Check for Solana embedded wallets created via API
             if acct_type == "wallet" and acct.get("chain_type") == "solana":
@@ -84,14 +109,21 @@ async def get_privy_embedded_wallet(
                 # API wallets use "address" field, SDK wallets use "public_key"
                 address = acct.get("address") or acct.get("public_key")
                 if wallet_id and address:
+                    logger.info(
+                        f"Found bot-first wallet: {wallet_id}, address: {address}"
+                    )
                     return {"wallet_id": wallet_id, "public_key": address}
             # Also check for solana_embedded_wallet type
             if "solana" in acct_type.lower() and "embedded" in acct_type.lower():
                 wallet_id = acct.get("id")
                 address = acct.get("address") or acct.get("public_key")
                 if wallet_id and address:
+                    logger.info(
+                        f"Found solana_embedded_wallet: {wallet_id}, address: {address}"
+                    )
                     return {"wallet_id": wallet_id, "public_key": address}
 
+        logger.warning(f"No suitable wallet found for user {user_id}")
     return None
 
 
