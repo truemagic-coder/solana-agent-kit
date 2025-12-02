@@ -5,15 +5,12 @@ Tests the PrivyTriggerTool which uses Jupiter Trigger API with
 Privy delegated wallets for transaction signing.
 """
 
-import base64
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 
 from sakit.privy_trigger import (
     PrivyTriggerTool,
     PrivyTriggerPlugin,
-    _canonicalize,
-    _get_authorization_signature,
     _get_privy_embedded_wallet,
     _privy_sign_transaction,
     get_plugin,
@@ -68,266 +65,121 @@ def privy_trigger_tool_with_payer():
     return tool
 
 
-class TestCanonicalize:
-    """Test _canonicalize function."""
-
-    def test_canonicalize_simple_dict(self):
-        """Should canonicalize a simple dictionary."""
-        obj = {"b": 2, "a": 1}
-        result = _canonicalize(obj)
-        assert result == '{"a":1,"b":2}'
-
-    def test_canonicalize_nested_dict(self):
-        """Should canonicalize nested dictionaries."""
-        obj = {"outer": {"b": 2, "a": 1}, "key": "value"}
-        result = _canonicalize(obj)
-        assert '"key":"value"' in result
-        assert '"outer":{' in result
-
-    def test_canonicalize_with_arrays(self):
-        """Should handle arrays in dictionaries."""
-        obj = {"items": [3, 1, 2], "name": "test"}
-        result = _canonicalize(obj)
-        assert '"items":[3,1,2]' in result
-
-    def test_canonicalize_no_spaces(self):
-        """Should produce output with no extra spaces."""
-        obj = {"key": "value", "number": 42}
-        result = _canonicalize(obj)
-        assert " " not in result
-
-
-class TestGetAuthorizationSignature:
-    """Test _get_authorization_signature function."""
-
-    def test_signature_with_sec1_key(self):
-        """Should generate signature with SEC1 format key."""
-        url = "https://api.privy.io/v1/test"
-        body = {"method": "test", "params": {}}
-        app_id = "test-app-id"
-        auth_key = f"wallet-auth:{TEST_EC_KEY_SEC1}"
-
-        signature = _get_authorization_signature(url, body, app_id, auth_key)
-
-        # Signature should be base64 encoded
-        assert signature is not None
-        assert len(signature) > 0
-        # Verify it's valid base64
-        decoded = base64.b64decode(signature)
-        assert len(decoded) > 0
-
-    def test_signature_with_invalid_key_raises_error(self):
-        """Should raise error with invalid key format."""
-        url = "https://api.privy.io/v1/test"
-        body = {"method": "test"}
-        app_id = "test-app-id"
-        auth_key = "wallet-auth:invalid-key-data"
-
-        with pytest.raises(ValueError) as exc_info:
-            _get_authorization_signature(url, body, app_id, auth_key)
-
-        assert "Could not load private key" in str(exc_info.value)
-
-    def test_signature_strips_wallet_auth_prefix(self):
-        """Should strip wallet-auth: prefix from key."""
-        url = "https://api.privy.io/v1/test"
-        body = {"method": "test"}
-        app_id = "test-app-id"
-
-        auth_key = f"wallet-auth:{TEST_EC_KEY_SEC1}"
-
-        signature = _get_authorization_signature(url, body, app_id, auth_key)
-        assert signature is not None
-
-    def test_signature_deterministic_for_same_input(self):
-        """Signatures should be valid ECDSA (may vary due to k randomness)."""
-        url = "https://api.privy.io/v1/test"
-        body = {"method": "test", "params": {}}
-        app_id = "test-app-id"
-        auth_key = f"wallet-auth:{TEST_EC_KEY_SEC1}"
-
-        sig1 = _get_authorization_signature(url, body, app_id, auth_key)
-        sig2 = _get_authorization_signature(url, body, app_id, auth_key)
-
-        # Both should be valid base64 signatures
-        assert len(base64.b64decode(sig1)) > 0
-        assert len(base64.b64decode(sig2)) > 0
-
-
 class TestGetPrivyEmbeddedWallet:
     """Test _get_privy_embedded_wallet function."""
 
     @pytest.mark.asyncio
     async def test_finds_embedded_delegated_wallet(self):
         """Should find embedded delegated wallet with address field."""
-        mock_response = {
-            "linked_accounts": [
-                {
-                    "type": "wallet",
-                    "id": "wallet-123",
-                    "connector_type": "embedded",
-                    "delegated": True,
-                    "address": "WalletAddress123",
-                    "public_key": None,
-                }
-            ]
-        }
+        mock_account = MagicMock()
+        mock_account.type = "wallet"
+        mock_account.id = "wallet-123"
+        mock_account.connector_type = "embedded"
+        mock_account.delegated = True
+        mock_account.address = "WalletAddress123"
+        mock_account.public_key = None
+        mock_account.chain_type = None
 
-        with patch("sakit.privy_trigger.httpx.AsyncClient") as MockClient:
-            mock_instance = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_response
-            mock_instance.get = AsyncMock(return_value=mock_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_user = MagicMock()
+        mock_user.linked_accounts = [mock_account]
 
-            result = await _get_privy_embedded_wallet(
-                "did:privy:user123", "app-id", "app-secret"
-            )
+        mock_privy_client = AsyncMock()
+        mock_privy_client.users.get = AsyncMock(return_value=mock_user)
 
-            assert result is not None
-            assert result["wallet_id"] == "wallet-123"
-            assert result["public_key"] == "WalletAddress123"
+        result = await _get_privy_embedded_wallet(
+            mock_privy_client, "did:privy:user123"
+        )
+
+        assert result is not None
+        assert result["wallet_id"] == "wallet-123"
+        assert result["public_key"] == "WalletAddress123"
 
     @pytest.mark.asyncio
     async def test_finds_bot_first_wallet(self):
         """Should find bot-first wallet (API-created)."""
-        mock_response = {
-            "linked_accounts": [
-                {
-                    "type": "wallet",
-                    "id": "bot-wallet-456",
-                    "chain_type": "solana",
-                    "address": "BotWalletAddress456",
-                }
-            ]
-        }
+        mock_account = MagicMock()
+        mock_account.type = "wallet"
+        mock_account.id = "bot-wallet-456"
+        mock_account.connector_type = None
+        mock_account.delegated = False
+        mock_account.chain_type = "solana"
+        mock_account.address = "BotWalletAddress456"
+        mock_account.public_key = None
 
-        with patch("sakit.privy_trigger.httpx.AsyncClient") as MockClient:
-            mock_instance = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_response
-            mock_instance.get = AsyncMock(return_value=mock_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_user = MagicMock()
+        mock_user.linked_accounts = [mock_account]
 
-            result = await _get_privy_embedded_wallet(
-                "did:privy:user123", "app-id", "app-secret"
-            )
+        mock_privy_client = AsyncMock()
+        mock_privy_client.users.get = AsyncMock(return_value=mock_user)
 
-            assert result is not None
-            assert result["wallet_id"] == "bot-wallet-456"
-            assert result["public_key"] == "BotWalletAddress456"
+        result = await _get_privy_embedded_wallet(
+            mock_privy_client, "did:privy:user123"
+        )
+
+        assert result is not None
+        assert result["wallet_id"] == "bot-wallet-456"
+        assert result["public_key"] == "BotWalletAddress456"
 
     @pytest.mark.asyncio
     async def test_finds_solana_embedded_wallet_type(self):
         """Should find solana_embedded_wallet type."""
-        mock_response = {
-            "linked_accounts": [
-                {
-                    "type": "solana_embedded_wallet",
-                    "id": "solana-wallet-789",
-                    "address": "SolanaWalletAddress789",
-                }
-            ]
-        }
+        mock_account = MagicMock()
+        mock_account.type = "solana_embedded_wallet"
+        mock_account.id = "solana-wallet-789"
+        mock_account.connector_type = None
+        mock_account.delegated = False
+        mock_account.chain_type = None
+        mock_account.address = "SolanaWalletAddress789"
+        mock_account.public_key = None
 
-        with patch("sakit.privy_trigger.httpx.AsyncClient") as MockClient:
-            mock_instance = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_response
-            mock_instance.get = AsyncMock(return_value=mock_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_user = MagicMock()
+        mock_user.linked_accounts = [mock_account]
 
-            result = await _get_privy_embedded_wallet(
-                "did:privy:user123", "app-id", "app-secret"
-            )
+        mock_privy_client = AsyncMock()
+        mock_privy_client.users.get = AsyncMock(return_value=mock_user)
 
-            assert result is not None
-            assert result["wallet_id"] == "solana-wallet-789"
-            assert result["public_key"] == "SolanaWalletAddress789"
+        result = await _get_privy_embedded_wallet(
+            mock_privy_client, "did:privy:user123"
+        )
+
+        assert result is not None
+        assert result["wallet_id"] == "solana-wallet-789"
+        assert result["public_key"] == "SolanaWalletAddress789"
 
     @pytest.mark.asyncio
     async def test_returns_none_for_no_suitable_wallet(self):
         """Should return None when no suitable wallet found."""
-        mock_response = {
-            "linked_accounts": [
-                {
-                    "type": "email",
-                    "email": "test@example.com",
-                }
-            ]
-        }
+        mock_account = MagicMock()
+        mock_account.type = "email"
+        mock_account.connector_type = None
+        mock_account.delegated = False
+        mock_account.chain_type = None
 
-        with patch("sakit.privy_trigger.httpx.AsyncClient") as MockClient:
-            mock_instance = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_response
-            mock_instance.get = AsyncMock(return_value=mock_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_user = MagicMock()
+        mock_user.linked_accounts = [mock_account]
 
-            result = await _get_privy_embedded_wallet(
-                "did:privy:user123", "app-id", "app-secret"
-            )
+        mock_privy_client = AsyncMock()
+        mock_privy_client.users.get = AsyncMock(return_value=mock_user)
 
-            assert result is None
+        result = await _get_privy_embedded_wallet(
+            mock_privy_client, "did:privy:user123"
+        )
+
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_returns_none_on_api_error(self):
         """Should return None on API error."""
-        with patch("sakit.privy_trigger.httpx.AsyncClient") as MockClient:
-            mock_instance = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.status_code = 401
-            mock_resp.text = "Unauthorized"
-            mock_instance.get = AsyncMock(return_value=mock_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_privy_client = AsyncMock()
+        mock_privy_client.users.get = AsyncMock(
+            side_effect=Exception("401 Unauthorized")
+        )
 
-            result = await _get_privy_embedded_wallet(
-                "did:privy:user123", "app-id", "app-secret"
-            )
+        result = await _get_privy_embedded_wallet(
+            mock_privy_client, "did:privy:user123"
+        )
 
-            assert result is None
-
-    @pytest.mark.asyncio
-    async def test_prefers_public_key_over_address(self):
-        """Should use public_key when available."""
-        mock_response = {
-            "linked_accounts": [
-                {
-                    "type": "wallet",
-                    "id": "wallet-123",
-                    "connector_type": "embedded",
-                    "delegated": True,
-                    "address": "AddressValue",
-                    "public_key": "PublicKeyValue",
-                }
-            ]
-        }
-
-        with patch("sakit.privy_trigger.httpx.AsyncClient") as MockClient:
-            mock_instance = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_response
-            mock_instance.get = AsyncMock(return_value=mock_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
-
-            result = await _get_privy_embedded_wallet(
-                "did:privy:user123", "app-id", "app-secret"
-            )
-
-            # The code uses: acct.get("address") or acct.get("public_key")
-            # So address takes precedence when both are present
-            assert result["public_key"] == "AddressValue"
+        assert result is None
 
 
 class TestPrivySignTransaction:
@@ -336,27 +188,23 @@ class TestPrivySignTransaction:
     @pytest.mark.asyncio
     async def test_successful_sign_transaction(self):
         """Should successfully sign transaction."""
-        mock_response = {
-            "data": {
-                "signedTransaction": "signed-tx-base64",
-            }
-        }
+        mock_rpc_result = MagicMock()
+        mock_rpc_result.data = MagicMock()
+        mock_rpc_result.data.signed_transaction = "signed-tx-base64"
 
-        with patch("sakit.privy_trigger.httpx.AsyncClient") as MockClient:
-            mock_instance = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_response
-            mock_instance.post = AsyncMock(return_value=mock_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_privy_client = AsyncMock()
+        mock_privy_client.app_id = "test-app-id"
+        mock_privy_client.wallets.rpc = AsyncMock(return_value=mock_rpc_result)
 
+        with patch(
+            "sakit.privy_trigger.get_authorization_signature",
+            return_value="mock-signature",
+        ):
             result = await _privy_sign_transaction(
+                privy_client=mock_privy_client,
                 wallet_id="wallet-123",
                 encoded_tx="encoded-tx-base64",
-                app_id="test-app-id",
-                app_secret="test-app-secret",
-                privy_auth_key=f"wallet-auth:{TEST_EC_KEY_SEC1}",
+                signing_key="wallet-auth:test-key",
             )
 
             assert result == "signed-tx-base64"
@@ -364,21 +212,19 @@ class TestPrivySignTransaction:
     @pytest.mark.asyncio
     async def test_returns_none_on_api_error(self):
         """Should return None on API error."""
-        with patch("sakit.privy_trigger.httpx.AsyncClient") as MockClient:
-            mock_instance = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.status_code = 400
-            mock_resp.text = "Bad Request"
-            mock_instance.post = AsyncMock(return_value=mock_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_privy_client = AsyncMock()
+        mock_privy_client.app_id = "test-app-id"
+        mock_privy_client.wallets.rpc = AsyncMock(side_effect=Exception("API Error"))
 
+        with patch(
+            "sakit.privy_trigger.get_authorization_signature",
+            return_value="mock-signature",
+        ):
             result = await _privy_sign_transaction(
+                privy_client=mock_privy_client,
                 wallet_id="wallet-123",
                 encoded_tx="encoded-tx-base64",
-                app_id="test-app-id",
-                app_secret="test-app-secret",
-                privy_auth_key=f"wallet-auth:{TEST_EC_KEY_SEC1}",
+                signing_key="wallet-auth:test-key",
             )
 
             assert result is None
@@ -386,23 +232,22 @@ class TestPrivySignTransaction:
     @pytest.mark.asyncio
     async def test_returns_none_when_no_signed_transaction(self):
         """Should return None when response lacks signedTransaction."""
-        mock_response = {"data": {}}
+        mock_rpc_result = MagicMock()
+        mock_rpc_result.data = None
 
-        with patch("sakit.privy_trigger.httpx.AsyncClient") as MockClient:
-            mock_instance = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_response
-            mock_instance.post = AsyncMock(return_value=mock_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_privy_client = AsyncMock()
+        mock_privy_client.app_id = "test-app-id"
+        mock_privy_client.wallets.rpc = AsyncMock(return_value=mock_rpc_result)
 
+        with patch(
+            "sakit.privy_trigger.get_authorization_signature",
+            return_value="mock-signature",
+        ):
             result = await _privy_sign_transaction(
+                privy_client=mock_privy_client,
                 wallet_id="wallet-123",
                 encoded_tx="encoded-tx-base64",
-                app_id="test-app-id",
-                app_secret="test-app-secret",
-                privy_auth_key=f"wallet-auth:{TEST_EC_KEY_SEC1}",
+                signing_key="wallet-auth:test-key",
             )
 
             assert result is None
