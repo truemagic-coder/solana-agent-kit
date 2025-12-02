@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional
 from solana_agent import AutoTool, ToolRegistry
 from privy import AsyncPrivyAPI
 from privy.lib.authorization_signatures import get_authorization_signature
+from cryptography.hazmat.primitives import serialization
 from solders.keypair import Keypair  # type: ignore
 from solders.transaction import VersionedTransaction  # type: ignore
 from solders.message import to_bytes_versioned  # type: ignore
@@ -19,6 +20,60 @@ from solders.message import to_bytes_versioned  # type: ignore
 from sakit.utils.trigger import JupiterTrigger
 
 logger = logging.getLogger(__name__)
+
+
+def _convert_key_to_pkcs8_pem(key_string: str) -> str:
+    """Convert a private key to PKCS#8 PEM format for the Privy SDK."""
+    private_key_string = key_string.replace("wallet-auth:", "")
+
+    # Try loading as PKCS#8 PEM format first
+    try:
+        private_key_pem = f"-----BEGIN PRIVATE KEY-----\n{private_key_string}\n-----END PRIVATE KEY-----"
+        serialization.load_pem_private_key(
+            private_key_pem.encode("utf-8"), password=None
+        )
+        return private_key_string
+    except (ValueError, TypeError):
+        pass
+
+    # Try as EC PRIVATE KEY (SEC1) format
+    try:
+        ec_key_pem = f"-----BEGIN EC PRIVATE KEY-----\n{private_key_string}\n-----END EC PRIVATE KEY-----"
+        private_key = serialization.load_pem_private_key(
+            ec_key_pem.encode("utf-8"), password=None
+        )
+        pkcs8_bytes = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+        pkcs8_pem = pkcs8_bytes.decode("utf-8")
+        lines = pkcs8_pem.strip().split("\n")
+        return "".join(lines[1:-1])
+    except (ValueError, TypeError):
+        pass
+
+    # Try loading as raw DER bytes
+    try:
+        der_bytes = base64.b64decode(private_key_string)
+        try:
+            private_key = serialization.load_der_private_key(der_bytes, password=None)
+        except (ValueError, TypeError):
+            from cryptography.hazmat.primitives.asymmetric import ec
+
+            private_key = ec.derive_private_key(
+                int.from_bytes(der_bytes, "big"), ec.SECP256R1()
+            )
+        pkcs8_bytes = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+        pkcs8_pem = pkcs8_bytes.decode("utf-8")
+        lines = pkcs8_pem.strip().split("\n")
+        return "".join(lines[1:-1])
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"Could not load private key: {e}")
 
 
 async def _get_privy_embedded_wallet(
@@ -82,6 +137,9 @@ async def _privy_sign_transaction(
 ) -> Optional[str]:
     """Sign a Solana transaction via Privy using the official SDK."""
     try:
+        # Convert the key to PKCS#8 format expected by the SDK
+        pkcs8_key = _convert_key_to_pkcs8_pem(signing_key)
+
         url = f"https://api.privy.io/v1/wallets/{wallet_id}/rpc"
         body = {
             "method": "signTransaction",
@@ -93,7 +151,7 @@ async def _privy_sign_transaction(
             body=body,
             method="POST",
             app_id=privy_client.app_id,
-            private_key=signing_key,
+            private_key=pkcs8_key,
         )
 
         result = await privy_client.wallets.rpc(

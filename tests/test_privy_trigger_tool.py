@@ -196,9 +196,15 @@ class TestPrivySignTransaction:
         mock_privy_client.app_id = "test-app-id"
         mock_privy_client.wallets.rpc = AsyncMock(return_value=mock_rpc_result)
 
-        with patch(
-            "sakit.privy_trigger.get_authorization_signature",
-            return_value="mock-signature",
+        with (
+            patch(
+                "sakit.privy_trigger.get_authorization_signature",
+                return_value="mock-signature",
+            ),
+            patch(
+                "sakit.privy_trigger._convert_key_to_pkcs8_pem",
+                return_value="mock-pem-key",
+            ),
         ):
             result = await _privy_sign_transaction(
                 privy_client=mock_privy_client,

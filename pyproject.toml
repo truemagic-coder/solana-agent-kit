@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "13.3.4"
+version = "13.3.5"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
