@@ -25,6 +25,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Privy Ultra - Swap tokens using Jupiter Ultra with Privy delegated wallets
 * Privy Trigger - Create and manage limit orders with Privy delegated wallets
 * Privy Recurring - Create and manage DCA orders with Privy delegated wallets
+* Privy DFlow - Fast token swaps using DFlow API with Privy delegated wallets and platform fees
 * Privy Wallet Address - Get the wallet address of a Privy delegated wallet
 * Privy Create User - Create a new Privy user with a linked Telegram account (for bot-first flows)
 * Privy Create Wallet - Create a Solana wallet for a Privy user with optional bot delegation
@@ -332,6 +333,35 @@ config = {
 ```
 
 **Actions:** Same as Jupiter Recurring (create, cancel, list)
+
+### Privy DFlow
+
+This plugin enables Solana Agent to swap tokens using DFlow's Swap API with Privy delegated wallets. DFlow offers faster swaps compared to Jupiter Ultra with competitive rates and supports platform fees for monetization.
+
+```python
+config = {
+    "tools": {
+        "privy_dflow": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "platform_fee_bps": 50, # Optional - platform fee in basis points (e.g., 50 = 0.5%)
+            "fee_account": "your-fee-token-account", # Optional - token account to receive platform fees
+            "referral_account": "your-referral-account", # Optional - referral account for tracking
+            "payer_private_key": "payer-private-key", # Optional - for gasless/sponsored transactions
+        },
+    },
+}
+```
+
+**Features:**
+- **Fast Swaps**: DFlow typically executes faster than Jupiter Ultra
+- **Platform Fees**: Collect fees on swaps (in basis points) paid to your fee account
+- **Privy Delegated Wallets**: Seamless user experience with embedded wallets
+- **Gasless Transactions**: Optionally sponsor gas fees for users via `payer_private_key`
+
+**Platform Fee Setup:**
+To collect platform fees, you need to create a token account for the output token and provide it as `fee_account`. The `platform_fee_bps` specifies the fee amount (e.g., 50 = 0.5%).
 
 ### Privy Wallet Address
 
