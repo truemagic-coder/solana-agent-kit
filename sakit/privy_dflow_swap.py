@@ -1,14 +1,15 @@
-"""
-DFlow Swap tool for Privy embedded wallets.
+"""DFlow Swap tool for Privy embedded wallets.
 
 Enables fast token swaps using DFlow's Swap API via Privy delegated wallets.
 Uses the official Privy Python SDK for wallet operations.
 
-DFlow offers faster swaps compared to Jupiter Ultra with similar liquidity
-and supports platform fees for monetization.
+DFlow offers faster swaps compared to Jupiter Ultra with similar liquidity.
 
 Transactions are signed via Privy's signTransaction and sent via Helius RPC
 for priority fees and reliable blockhash handling.
+
+Note: Platform fees are not supported. Use Jupiter Ultra (privy_ultra) if you
+need to collect fees on swaps.
 """
 
 import base64
@@ -207,9 +208,6 @@ class PrivyDFlowSwapTool(AutoTool):
         self._app_id: Optional[str] = None
         self._app_secret: Optional[str] = None
         self._signing_key: Optional[str] = None
-        self._platform_fee_bps: Optional[int] = None
-        self._fee_account: Optional[str] = None
-        self._referral_account: Optional[str] = None
         self._payer_private_key: Optional[str] = None
         self._rpc_url: Optional[str] = None
 
@@ -249,9 +247,6 @@ class PrivyDFlowSwapTool(AutoTool):
         self._app_id = tool_cfg.get("app_id")
         self._app_secret = tool_cfg.get("app_secret")
         self._signing_key = tool_cfg.get("signing_key")
-        self._platform_fee_bps = tool_cfg.get("platform_fee_bps")
-        self._fee_account = tool_cfg.get("fee_account")
-        self._referral_account = tool_cfg.get("referral_account")
         self._payer_private_key = tool_cfg.get("payer_private_key")
         # RPC URL for sending transactions (Helius recommended for priority fees)
         self._rpc_url = tool_cfg.get("rpc_url")
@@ -306,10 +301,6 @@ class PrivyDFlowSwapTool(AutoTool):
                     amount=int(amount),
                     user_public_key=public_key,
                     slippage_bps=slippage_bps if slippage_bps > 0 else None,
-                    platform_fee_bps=self._platform_fee_bps,
-                    platform_fee_mode="outputMint",
-                    fee_account=self._fee_account,
-                    referral_account=self._referral_account,
                     sponsor=sponsor,
                 )
 
@@ -386,7 +377,6 @@ class PrivyDFlowSwapTool(AutoTool):
                         "input_mint": order_result.input_mint,
                         "output_mint": order_result.output_mint,
                         "price_impact": order_result.price_impact_pct,
-                        "platform_fee": order_result.platform_fee,
                         "execution_mode": order_result.execution_mode,
                         "message": f"Swap successful! Signature: {signature}",
                     }
