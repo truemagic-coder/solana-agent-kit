@@ -239,7 +239,8 @@ class JupiterRecurring:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            # Use longer timeout for execute - Jupiter waits for tx confirmation
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(
                     f"{self.base_url}/execute",
                     json=payload,
