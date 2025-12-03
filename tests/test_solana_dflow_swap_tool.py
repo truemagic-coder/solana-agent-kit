@@ -69,9 +69,6 @@ class TestSolanaDFlowSwapToolConfigure:
             "tools": {
                 "solana_dflow_swap": {
                     "private_key": "test_private_key",
-                    "platform_fee_bps": 50,
-                    "fee_account": "FeeAccount123",
-                    "referral_account": "RefAccount123",
                     "payer_private_key": "payer_key",
                     "rpc_url": "https://custom-rpc.com",
                 }
@@ -81,9 +78,6 @@ class TestSolanaDFlowSwapToolConfigure:
         tool.configure(config)
 
         assert tool._private_key == "test_private_key"
-        assert tool._platform_fee_bps == 50
-        assert tool._fee_account == "FeeAccount123"
-        assert tool._referral_account == "RefAccount123"
         assert tool._payer_private_key == "payer_key"
         assert tool._rpc_url == "https://custom-rpc.com"
 
@@ -214,7 +208,7 @@ class TestSolanaDFlowSwapPlugin:
             "tools": {
                 "solana_dflow_swap": {
                     "private_key": "test_private_key",
-                    "platform_fee_bps": 100,
+                    "payer_private_key": "payer_key",
                 }
             }
         }
@@ -222,7 +216,7 @@ class TestSolanaDFlowSwapPlugin:
 
         tool = plugin.get_tools()[0]
         assert tool._private_key == "test_private_key"
-        assert tool._platform_fee_bps == 100
+        assert tool._payer_private_key == "payer_key"
 
 
 class TestSignDFlowTransaction:
@@ -468,55 +462,6 @@ class TestSolanaDFlowSwapToolExecuteAdvanced:
             # Verify slippage was passed
             call_kwargs = mock_dflow_instance.get_order.call_args.kwargs
             assert call_kwargs.get("slippage_bps") == 100
-
-    @pytest.mark.asyncio
-    async def test_execute_with_platform_fees(self):
-        """Should pass platform fee configuration."""
-        tool = SolanaDFlowSwapTool()
-        tool._private_key = "5MaiiCavjCmn9Hs1o3eznqDEhRwxo7pXiAYez7keQUviUkauRiTMD8DrESdrNjN8zd9mTmVhRvBJeg5vhyvgrAhG"
-        tool._rpc_url = "https://api.mainnet-beta.solana.com"
-        tool._platform_fee_bps = 50
-        tool._fee_account = "FeeAccount123"
-        tool._referral_account = "RefAccount123"
-
-        with (
-            patch("sakit.solana_dflow_swap.DFlowSwap") as MockDFlow,
-            patch("sakit.solana_dflow_swap._sign_dflow_transaction") as mock_sign,
-            patch.object(
-                tool, "_send_transaction", new_callable=AsyncMock
-            ) as mock_send,
-        ):
-            mock_dflow_instance = MagicMock()
-            mock_order_result = MagicMock(
-                success=True,
-                transaction="dHJhbnNhY3Rpb24=",
-                in_amount="1000000000",
-                out_amount="50000000",
-                min_out_amount="49500000",
-                input_mint="So11111111111111111111111111111111111111112",
-                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-                price_impact_pct="0.1",
-                platform_fee="100",
-                execution_mode="direct",
-                error=None,
-            )
-            mock_dflow_instance.get_order = AsyncMock(return_value=mock_order_result)
-            MockDFlow.return_value = mock_dflow_instance
-
-            mock_sign.return_value = "c2lnbmVkX3R4"
-            mock_send.return_value = "5abc123def456"
-
-            await tool.execute(
-                input_mint="So11111111111111111111111111111111111111112",
-                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-                amount=1000000000,
-            )
-
-            # Verify fee config was passed
-            call_kwargs = mock_dflow_instance.get_order.call_args.kwargs
-            assert call_kwargs.get("platform_fee_bps") == 50
-            assert call_kwargs.get("fee_account") == "FeeAccount123"
-            assert call_kwargs.get("referral_account") == "RefAccount123"
 
     @pytest.mark.asyncio
     async def test_execute_exception_handling(self):

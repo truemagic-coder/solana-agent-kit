@@ -65,8 +65,8 @@ class TestPrivyDFlowSwapToolConfigure:
                     "app_id": "test_app_id",
                     "app_secret": "test_app_secret",
                     "signing_key": "test_signing_key",
-                    "platform_fee_bps": 50,
-                    "fee_account": "FeeAccount123",
+                    "payer_private_key": "payer_key",
+                    "rpc_url": "https://custom-rpc.com",
                 }
             }
         }
@@ -76,8 +76,8 @@ class TestPrivyDFlowSwapToolConfigure:
         assert tool._app_id == "test_app_id"
         assert tool._app_secret == "test_app_secret"
         assert tool._signing_key == "test_signing_key"
-        assert tool._platform_fee_bps == 50
-        assert tool._fee_account == "FeeAccount123"
+        assert tool._payer_private_key == "payer_key"
+        assert tool._rpc_url == "https://custom-rpc.com"
 
 
 class TestPrivyDFlowSwapToolExecute:
@@ -96,8 +96,7 @@ class TestPrivyDFlowSwapToolExecute:
                         "signing_key": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg"
                         + "A" * 43
                         + "=",
-                        "platform_fee_bps": 50,
-                        "fee_account": "FeeAccount123",
+                        "rpc_url": "https://api.mainnet-beta.solana.com",
                     }
                 }
             }

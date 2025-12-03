@@ -1,9 +1,10 @@
-"""
-DFlow Swap tool for Solana wallets.
+"""DFlow Swap tool for Solana wallets.
 
 Enables fast token swaps using DFlow's Swap API with a Solana keypair.
-DFlow offers faster swaps compared to Jupiter Ultra with similar liquidity
-and supports platform fees for monetization.
+DFlow offers faster swaps compared to Jupiter Ultra with similar liquidity.
+
+Note: Platform fees are not supported. Use Jupiter Ultra (solana_ultra) if you
+need to collect fees on swaps.
 """
 
 import base64
@@ -77,9 +78,6 @@ class SolanaDFlowSwapTool(AutoTool):
             registry=registry,
         )
         self._private_key: Optional[str] = None
-        self._platform_fee_bps: Optional[int] = None
-        self._fee_account: Optional[str] = None
-        self._referral_account: Optional[str] = None
         self._payer_private_key: Optional[str] = None
         self._rpc_url: Optional[str] = None
 
@@ -113,9 +111,6 @@ class SolanaDFlowSwapTool(AutoTool):
         super().configure(config)
         tool_cfg = config.get("tools", {}).get("solana_dflow_swap", {})
         self._private_key = tool_cfg.get("private_key")
-        self._platform_fee_bps = tool_cfg.get("platform_fee_bps")
-        self._fee_account = tool_cfg.get("fee_account")
-        self._referral_account = tool_cfg.get("referral_account")
         self._payer_private_key = tool_cfg.get("payer_private_key")
         self._rpc_url = tool_cfg.get("rpc_url") or DEFAULT_RPC_URL
 
@@ -150,10 +145,6 @@ class SolanaDFlowSwapTool(AutoTool):
                 amount=amount,
                 user_public_key=user_pubkey,
                 slippage_bps=slippage_bps if slippage_bps > 0 else None,
-                platform_fee_bps=self._platform_fee_bps,
-                platform_fee_mode="outputMint",
-                fee_account=self._fee_account,
-                referral_account=self._referral_account,
                 sponsor=sponsor,
             )
 
@@ -191,7 +182,6 @@ class SolanaDFlowSwapTool(AutoTool):
                 "input_mint": order_result.input_mint,
                 "output_mint": order_result.output_mint,
                 "price_impact": order_result.price_impact_pct,
-                "platform_fee": order_result.platform_fee,
                 "execution_mode": order_result.execution_mode,
                 "message": f"Swap successful! Signature: {signature}",
             }

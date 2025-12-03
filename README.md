@@ -16,7 +16,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 
 * Solana Transfer - Transfer Solana tokens between the agent's wallet and the destination wallet
 * Solana Ultra - Swap Solana tokens using Jupiter Ultra API with automatic slippage, priority fees, and transaction landing
-* Solana DFlow Swap - Fast token swaps using DFlow API with platform fees
+* Solana DFlow Swap - Fast token swaps using DFlow API
 * Jupiter Trigger - Create, cancel, and manage limit orders using Jupiter Trigger API
 * Jupiter Recurring - Create, cancel, and manage DCA orders using Jupiter Recurring API
 * Jupiter Holdings - Get token holdings with USD values for any wallet
@@ -26,7 +26,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Privy Ultra - Swap tokens using Jupiter Ultra with Privy delegated wallets
 * Privy Trigger - Create and manage limit orders with Privy delegated wallets
 * Privy Recurring - Create and manage DCA orders with Privy delegated wallets
-* Privy DFlow Swap - Fast token swaps using DFlow API with Privy delegated wallets and platform fees
+* Privy DFlow Swap - Fast token swaps using DFlow API with Privy delegated wallets
 * Privy Wallet Address - Get the wallet address of a Privy delegated wallet
 * Privy Create User - Create a new Privy user with a linked Telegram account (for bot-first flows)
 * Privy Create Wallet - Create a Solana wallet for a Privy user with optional bot delegation
@@ -102,15 +102,15 @@ By default, Jupiter Ultra provides gasless swaps when the user has < 0.01 SOL an
 
 ### Solana DFlow Swap
 
-This plugin enables Solana Agent to swap tokens using DFlow's Swap API with a Solana keypair. DFlow offers faster swaps compared to Jupiter Ultra with competitive rates and supports platform fees for monetization.
+This plugin enables Solana Agent to swap tokens using DFlow's Swap API with a Solana keypair. DFlow offers faster swaps compared to Jupiter Ultra with competitive rates.
+
+**Note:** Platform fees are not supported with DFlow. Use Solana Ultra (Jupiter) if you need to collect fees on swaps.
 
 ```python
 config = {
     "tools": {
         "solana_dflow_swap": {
             "private_key": "my-private-key", # Required - base58 string
-            "platform_fee_bps": 50, # Optional - platform fee in basis points (e.g., 50 = 0.5%)
-            "fee_account": "your-fee-token-account", # Optional - token account to receive platform fees
             "payer_private_key": "payer-private-key", # Optional - for gasless/sponsored transactions
             "rpc_url": "https://api.mainnet-beta.solana.com", # Optional - RPC URL (defaults to mainnet)
         },
@@ -120,11 +120,7 @@ config = {
 
 **Features:**
 - **Fast Swaps**: DFlow typically executes faster than Jupiter Ultra
-- **Platform Fees**: Collect fees on swaps (in basis points) paid to your fee account
 - **Gasless Transactions**: Optionally sponsor gas fees for users via `payer_private_key`
-
-**Platform Fee Setup:**
-To collect platform fees, you need to create a token account for the output token and provide it as `fee_account`. The `platform_fee_bps` specifies the fee amount (e.g., 50 = 0.5%).
 
 ### Jupiter Trigger
 
@@ -363,7 +359,9 @@ config = {
 
 ### Privy DFlow Swap
 
-This plugin enables Solana Agent to swap tokens using DFlow's Swap API with Privy delegated wallets. DFlow offers faster swaps compared to Jupiter Ultra with competitive rates and supports platform fees for monetization.
+This plugin enables Solana Agent to swap tokens using DFlow's Swap API with Privy delegated wallets. DFlow offers faster swaps compared to Jupiter Ultra with competitive rates.
+
+**Note:** Platform fees are not supported with DFlow. Use Privy Ultra (Jupiter) if you need to collect fees on swaps.
 
 Transactions are signed via Privy and sent via your configured RPC (Helius recommended) for reliable blockhash handling and priority fees.
 
@@ -375,8 +373,6 @@ config = {
             "app_secret": "your-privy-app-secret", # Required - your Privy application secret
             "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
             "rpc_url": "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY", # Required - Helius recommended for priority fees
-            "platform_fee_bps": 50, # Optional - platform fee in basis points (e.g., 50 = 0.5%)
-            "fee_account": "your-fee-token-account", # Optional - token account to receive platform fees
             "payer_private_key": "payer-private-key", # Optional - for gasless/sponsored transactions
         },
     },
@@ -385,16 +381,12 @@ config = {
 
 **Features:**
 - **Fast Swaps**: DFlow typically executes faster than Jupiter Ultra
-- **Platform Fees**: Collect fees on swaps (in basis points) paid to your fee account
 - **Privy Delegated Wallets**: Seamless user experience with embedded wallets
 - **Helius Priority Fees**: Uses Helius priority fee estimation for reliable transaction landing
 - **Gasless Transactions**: Optionally sponsor gas fees for users via `payer_private_key`
 
 **RPC URL (Required):**
 Helius RPC is strongly recommended (`https://mainnet.helius-rpc.com/?api-key=YOUR_KEY`). Helius provides priority fee estimation and better blockhash handling, which significantly improves transaction success rates. Get a free API key at [helius.dev](https://helius.dev).
-
-**Platform Fee Setup:**
-To collect platform fees, you need to create a token account for the output token and provide it as `fee_account`. The `platform_fee_bps` specifies the fee amount (e.g., 50 = 0.5%).
 
 ### Privy Wallet Address
 
