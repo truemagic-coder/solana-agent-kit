@@ -283,9 +283,9 @@ class TestJupiterUltraGetHoldings:
         import respx
 
         with respx.mock:
-            respx.get(
-                url__startswith="https://api.jup.ag/ultra/v1/holdings/"
-            ).respond(404, text="Wallet not found")
+            respx.get(url__startswith="https://api.jup.ag/ultra/v1/holdings/").respond(
+                404, text="Wallet not found"
+            )
 
             ultra = JupiterUltra(api_key="test-key")
 
