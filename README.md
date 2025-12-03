@@ -365,6 +365,8 @@ config = {
 
 This plugin enables Solana Agent to swap tokens using DFlow's Swap API with Privy delegated wallets. DFlow offers faster swaps compared to Jupiter Ultra with competitive rates and supports platform fees for monetization.
 
+Transactions are signed via Privy and sent via your configured RPC (Helius recommended) for reliable blockhash handling and priority fees.
+
 ```python
 config = {
     "tools": {
@@ -372,6 +374,7 @@ config = {
             "app_id": "your-privy-app-id", # Required - your Privy application ID
             "app_secret": "your-privy-app-secret", # Required - your Privy application secret
             "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "rpc_url": "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY", # Required - Helius recommended for priority fees
             "platform_fee_bps": 50, # Optional - platform fee in basis points (e.g., 50 = 0.5%)
             "fee_account": "your-fee-token-account", # Optional - token account to receive platform fees
             "payer_private_key": "payer-private-key", # Optional - for gasless/sponsored transactions
@@ -384,7 +387,11 @@ config = {
 - **Fast Swaps**: DFlow typically executes faster than Jupiter Ultra
 - **Platform Fees**: Collect fees on swaps (in basis points) paid to your fee account
 - **Privy Delegated Wallets**: Seamless user experience with embedded wallets
+- **Helius Priority Fees**: Uses Helius priority fee estimation for reliable transaction landing
 - **Gasless Transactions**: Optionally sponsor gas fees for users via `payer_private_key`
+
+**RPC URL (Required):**
+Helius RPC is strongly recommended (`https://mainnet.helius-rpc.com/?api-key=YOUR_KEY`). Helius provides priority fee estimation and better blockhash handling, which significantly improves transaction success rates. Get a free API key at [helius.dev](https://helius.dev).
 
 **Platform Fee Setup:**
 To collect platform fees, you need to create a token account for the output token and provide it as `fee_account`. The `platform_fee_bps` specifies the fee amount (e.g., 50 = 0.5%).
