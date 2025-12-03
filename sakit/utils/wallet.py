@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 import httpx
 import nacl.signing
+import logging
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
@@ -10,6 +11,8 @@ from solders.keypair import Keypair
 from solders.message import Message
 from solders.signature import Signature
 from solders.pubkey import Pubkey
+
+logger = logging.getLogger(__name__)
 
 
 class SolanaTransaction:
@@ -110,3 +113,98 @@ class SolanaWalletClient:
             if "error" in result:
                 raise RuntimeError(f"Fee estimation failed: {result['error']}")
             return int(result["result"]["priorityFeeEstimate"])
+
+
+async def send_raw_transaction_with_priority(  # pragma: no cover
+    rpc_url: str,
+    tx_bytes: bytes,
+    skip_preflight: bool = True,
+    max_retries: int = 5,
+) -> Dict[str, any]:
+    """
+    Send a raw transaction to Solana RPC, with Helius priority fee logging if applicable.
+
+    This is the standard way to send pre-signed transactions (e.g., from DFlow, Jupiter)
+    through Helius or any Solana RPC endpoint.
+
+    Args:
+        rpc_url: The RPC endpoint URL (Helius recommended for priority fees)
+        tx_bytes: The serialized signed transaction bytes
+        skip_preflight: Skip preflight simulation (default True for pre-signed txs)
+        max_retries: Number of retries for the RPC call
+
+    Returns:
+        Dict with 'success' and 'signature' on success, or 'error' on failure.
+    """
+    try:
+        client = AsyncClient(rpc_url)
+        try:
+            # Get priority fee estimate if using Helius (for logging)
+            if "helius" in rpc_url.lower():
+                try:
+                    import base64
+
+                    tx_base64 = base64.b64encode(tx_bytes).decode("utf-8")
+                    async with httpx.AsyncClient() as http_client:
+                        payload = {
+                            "jsonrpc": "2.0",
+                            "id": "1",
+                            "method": "getPriorityFeeEstimate",
+                            "params": [
+                                {
+                                    "transaction": tx_base64,
+                                    "options": {"recommended": True},
+                                }
+                            ],
+                        }
+                        response = await http_client.post(rpc_url, json=payload)
+                        if response.status_code == 200:
+                            result = response.json()
+                            if "result" in result:
+                                priority_fee = result["result"].get(
+                                    "priorityFeeEstimate", 0
+                                )
+                                logger.info(
+                                    f"Helius priority fee estimate: {priority_fee}"
+                                )
+                except Exception as fee_error:
+                    logger.debug(f"Could not get priority fee estimate: {fee_error}")
+
+            # Send the transaction
+            result = await client.send_raw_transaction(
+                tx_bytes,
+                opts=TxOpts(
+                    skip_preflight=skip_preflight,
+                    preflight_commitment=Confirmed,
+                    max_retries=max_retries,
+                ),
+            )
+
+            signature = str(result.value)
+            logger.info(f"Transaction sent: {signature}")
+
+            # Confirm the transaction
+            try:
+                confirmation = await client.confirm_transaction(
+                    result.value,
+                    commitment=Confirmed,
+                    sleep_seconds=0.5,
+                    last_valid_block_height=None,
+                )
+                if confirmation.value and confirmation.value[0].err:
+                    return {
+                        "success": False,
+                        "error": f"Transaction failed: {confirmation.value[0].err}",
+                    }
+            except Exception as confirm_error:
+                logger.debug(f"Could not confirm transaction: {confirm_error}")
+                # Still return success since transaction was sent
+
+            return {"success": True, "signature": signature}
+
+        finally:
+            await client.close()
+
+    except Exception as e:
+        logger.error(f"RPC error sending transaction: {e}")
+        return {"success": False, "error": str(e)}
