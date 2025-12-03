@@ -282,82 +282,108 @@ class PrivyDFlowSwapTool(AutoTool):
                 payer_keypair = Keypair.from_base58_string(self._payer_private_key)
                 sponsor = str(payer_keypair.pubkey())
 
-            # Get order from DFlow
-            order_result = await dflow.get_order(
-                input_mint=input_mint,
-                output_mint=output_mint,
-                amount=int(amount),
-                user_public_key=public_key,
-                slippage_bps=slippage_bps if slippage_bps > 0 else None,
-                platform_fee_bps=self._platform_fee_bps,
-                platform_fee_mode="outputMint",
-                fee_account=self._fee_account,
-                referral_account=self._referral_account,
-                sponsor=sponsor,
-            )
+            # Retry logic for blockhash expiration
+            max_retries = 3
+            last_error = None
 
-            if not order_result.success:
-                return {"status": "error", "message": order_result.error}
-
-            if not order_result.transaction:
-                return {
-                    "status": "error",
-                    "message": "No transaction returned from DFlow.",
-                }
-
-            # Sign transaction
-            tx_to_sign = order_result.transaction
-
-            # If gasless, sign with payer first
-            if self._payer_private_key:
-                payer_keypair = Keypair.from_base58_string(self._payer_private_key)
-                tx_bytes = base64.b64decode(order_result.transaction)
-                transaction = VersionedTransaction.from_bytes(tx_bytes)
-                message_bytes = to_bytes_versioned(transaction.message)
-                payer_signature = payer_keypair.sign_message(message_bytes)
-
-                # Create partially signed transaction
-                partially_signed = VersionedTransaction.populate(
-                    transaction.message,
-                    [payer_signature, transaction.signatures[1]],
+            for attempt in range(max_retries):
+                # Get fresh order from DFlow (includes fresh blockhash)
+                order_result = await dflow.get_order(
+                    input_mint=input_mint,
+                    output_mint=output_mint,
+                    amount=int(amount),
+                    user_public_key=public_key,
+                    slippage_bps=slippage_bps if slippage_bps > 0 else None,
+                    platform_fee_bps=self._platform_fee_bps,
+                    platform_fee_mode="outputMint",
+                    fee_account=self._fee_account,
+                    referral_account=self._referral_account,
+                    sponsor=sponsor,
                 )
-                tx_to_sign = base64.b64encode(bytes(partially_signed)).decode("utf-8")
 
-            # Sign and send via Privy (uses signAndSendTransaction RPC method)
-            send_result = await _privy_sign_and_send_transaction(
-                privy_client,
-                wallet_id,
-                tx_to_sign,
-                self._signing_key,
-            )
+                if not order_result.success:
+                    return {"status": "error", "message": order_result.error}
 
-            if not send_result.get("success"):
-                return {
-                    "status": "error",
-                    "message": send_result.get(
-                        "error", "Failed to sign and send transaction via Privy."
-                    ),
-                }
+                if not order_result.transaction:
+                    return {
+                        "status": "error",
+                        "message": "No transaction returned from DFlow.",
+                    }
 
-            signature = send_result.get("hash")
-            if not signature:
-                return {
-                    "status": "error",
-                    "message": "No transaction signature returned from Privy.",
-                }
+                # Sign transaction
+                tx_to_sign = order_result.transaction
 
+                # If gasless, sign with payer first
+                if self._payer_private_key:
+                    payer_keypair = Keypair.from_base58_string(self._payer_private_key)
+                    tx_bytes = base64.b64decode(order_result.transaction)
+                    transaction = VersionedTransaction.from_bytes(tx_bytes)
+                    message_bytes = to_bytes_versioned(transaction.message)
+                    payer_signature = payer_keypair.sign_message(message_bytes)
+
+                    # Create partially signed transaction
+                    partially_signed = VersionedTransaction.populate(
+                        transaction.message,
+                        [payer_signature, transaction.signatures[1]],
+                    )
+                    tx_to_sign = base64.b64encode(bytes(partially_signed)).decode(
+                        "utf-8"
+                    )
+
+                # Sign and send via Privy (uses signAndSendTransaction RPC method)
+                send_result = await _privy_sign_and_send_transaction(
+                    privy_client,
+                    wallet_id,
+                    tx_to_sign,
+                    self._signing_key,
+                )
+
+                if send_result.get("success"):
+                    signature = send_result.get("hash")
+                    if not signature:
+                        return {
+                            "status": "error",
+                            "message": "No transaction signature returned from Privy.",
+                        }
+
+                    return {
+                        "status": "success",
+                        "signature": signature,
+                        "input_amount": order_result.in_amount,
+                        "output_amount": order_result.out_amount,
+                        "min_output_amount": order_result.min_out_amount,
+                        "input_mint": order_result.input_mint,
+                        "output_mint": order_result.output_mint,
+                        "price_impact": order_result.price_impact_pct,
+                        "platform_fee": order_result.platform_fee,
+                        "execution_mode": order_result.execution_mode,
+                        "message": f"Swap successful! Signature: {signature}",
+                    }
+
+                # Check if it's a blockhash error - retry with fresh transaction
+                error_msg = send_result.get("error", "")
+                if (
+                    "blockhash" in error_msg.lower()
+                    or "Blockhash not found" in error_msg
+                ):
+                    last_error = error_msg
+                    logger.warning(
+                        f"Blockhash expired on attempt {attempt + 1}/{max_retries}, retrying with fresh transaction..."
+                    )
+                    continue
+                else:
+                    # Non-blockhash error, don't retry
+                    return {
+                        "status": "error",
+                        "message": send_result.get(
+                            "error", "Failed to sign and send transaction via Privy."
+                        ),
+                    }
+
+            # All retries exhausted
             return {
-                "status": "success",
-                "signature": signature,
-                "input_amount": order_result.in_amount,
-                "output_amount": order_result.out_amount,
-                "min_output_amount": order_result.min_out_amount,
-                "input_mint": order_result.input_mint,
-                "output_mint": order_result.output_mint,
-                "price_impact": order_result.price_impact_pct,
-                "platform_fee": order_result.platform_fee,
-                "execution_mode": order_result.execution_mode,
-                "message": f"Swap successful! Signature: {signature}",
+                "status": "error",
+                "message": f"Transaction failed after {max_retries} attempts. Last error: {last_error}",
             }
 
         except Exception as e:
