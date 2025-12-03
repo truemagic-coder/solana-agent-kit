@@ -7,6 +7,7 @@ canceling, and managing limit orders.
 
 import logging
 import base64
+import time
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 import httpx
@@ -115,6 +116,22 @@ class JupiterTrigger:
         Returns:
             TriggerOrderResponse with transaction to sign
         """
+        # Validate expired_at is in the future if provided
+        if expired_at:
+            try:
+                exp_timestamp = int(expired_at)
+                current_timestamp = int(time.time())
+                if exp_timestamp <= current_timestamp:
+                    return TriggerOrderResponse(
+                        success=False,
+                        error=f"expired_at timestamp ({exp_timestamp}) must be in the future. Current time is {current_timestamp}.",
+                    )
+            except (ValueError, TypeError):
+                return TriggerOrderResponse(
+                    success=False,
+                    error=f"Invalid expired_at value: {expired_at}. Must be a unix timestamp.",
+                )
+
         body = {
             "inputMint": input_mint,
             "outputMint": output_mint,

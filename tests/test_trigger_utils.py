@@ -87,6 +87,9 @@ class TestTriggerCreateOrder:
             "requestId": "req123",
         }
 
+        # Use a future timestamp (year 2030)
+        future_timestamp = "1893456000"
+
         with patch("httpx.AsyncClient") as MockClient:
             mock_instance = AsyncMock()
             mock_response_obj = MagicMock(status_code=200, json=lambda: mock_response)
@@ -101,13 +104,31 @@ class TestTriggerCreateOrder:
                 maker="WalletPubkey123",
                 making_amount="1000000",
                 taking_amount="100000",
-                expired_at="1700000000",
+                expired_at=future_timestamp,
             )
 
             # Verify the call was made with expiredAt in params
             call_args = mock_instance.post.call_args
             payload = call_args.kwargs.get("json") or call_args[1].get("json")
-            assert payload.get("params", {}).get("expiredAt") == "1700000000"
+            assert payload.get("params", {}).get("expiredAt") == future_timestamp
+
+    @pytest.mark.asyncio
+    async def test_create_order_with_past_expiry_fails(self, trigger_client):
+        """Should return error when expired_at is in the past."""
+        # Use a past timestamp (year 2020)
+        past_timestamp = "1577836800"
+
+        result = await trigger_client.create_order(
+            input_mint="So11111111111111111111111111111111111111112",
+            output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            maker="WalletPubkey123",
+            making_amount="1000000",
+            taking_amount="100000",
+            expired_at=past_timestamp,
+        )
+
+        assert result.success is False
+        assert "must be in the future" in result.error
 
     @pytest.mark.asyncio
     async def test_create_order_with_payer(self, trigger_client):

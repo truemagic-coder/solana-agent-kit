@@ -7,6 +7,7 @@ with Privy embedded wallets. Uses the official Privy Python SDK.
 
 import base64
 import logging
+import time
 from typing import Dict, Any, List, Optional
 
 from solana_agent import AutoTool, ToolRegistry
@@ -400,6 +401,22 @@ class PrivyTriggerTool(AutoTool):
                 "status": "error",
                 "message": "Missing required parameters: input_mint, output_mint, making_amount, taking_amount",
             }
+
+        # Validate expired_at is in the future if provided
+        if expired_at:
+            try:
+                exp_timestamp = int(expired_at)
+                current_timestamp = int(time.time())
+                if exp_timestamp <= current_timestamp:
+                    return {
+                        "status": "error",
+                        "message": f"expired_at timestamp ({exp_timestamp}) must be in the future. Current time is {current_timestamp}.",
+                    }
+            except (ValueError, TypeError):
+                return {
+                    "status": "error",
+                    "message": f"Invalid expired_at value: {expired_at}. Must be a unix timestamp.",
+                }
 
         try:
             payer_pubkey = None
