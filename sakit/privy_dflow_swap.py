@@ -153,7 +153,6 @@ async def _privy_sign_transaction(  # pragma: no cover
         body = {
             "method": "signTransaction",
             "params": {"transaction": encoded_tx, "encoding": "base64"},
-            "caip2": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
             "chain_type": "solana",
         }
 
@@ -169,7 +168,6 @@ async def _privy_sign_transaction(  # pragma: no cover
             wallet_id=wallet_id,
             method="signTransaction",
             params={"transaction": encoded_tx, "encoding": "base64"},
-            caip2="solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
             chain_type="solana",
             privy_authorization_signature=auth_signature,
         )
