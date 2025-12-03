@@ -112,7 +112,7 @@ class TestRecurringCreateOrder:
 
     @pytest.mark.asyncio
     async def test_create_order_with_min_max_amounts(self, recurring_client):
-        """Should include minOutAmount and maxOutAmount when provided."""
+        """Should include minPrice and maxPrice when provided."""
         mock_response = {
             "order": "dcaorder123",
             "transaction": "base64encodedtx==",
@@ -140,9 +140,10 @@ class TestRecurringCreateOrder:
 
             call_args = mock_instance.post.call_args
             payload = call_args.kwargs.get("json") or call_args[1].get("json")
-            # min/max amounts are in nested params object
-            assert payload.get("params", {}).get("minOutAmount") == "90000"
-            assert payload.get("params", {}).get("maxOutAmount") == "110000"
+            # minPrice/maxPrice are in nested params.time object (converted to float)
+            time_params = payload.get("params", {}).get("time", {})
+            assert time_params.get("minPrice") == 90000.0
+            assert time_params.get("maxPrice") == 110000.0
 
     @pytest.mark.asyncio
     async def test_create_order_api_error(self, recurring_client):
