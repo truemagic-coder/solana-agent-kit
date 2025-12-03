@@ -182,12 +182,12 @@ async def _privy_sign_and_send_transaction(
         return {"success": False, "error": str(e)}
 
 
-class PrivyDFlowTool(AutoTool):
+class PrivyDFlowSwapTool(AutoTool):
     """Fast token swaps using DFlow API with Privy embedded wallets."""
 
     def __init__(self, registry: Optional[ToolRegistry] = None):
         super().__init__(
-            name="privy_dflow",
+            name="privy_dflow_swap",
             description=(
                 "Fast token swap on Solana using DFlow API with Privy delegated wallets. "
                 "Swaps tokens instantly with competitive rates and low slippage. "
@@ -235,7 +235,7 @@ class PrivyDFlowTool(AutoTool):
 
     def configure(self, config: Dict[str, Any]) -> None:
         super().configure(config)
-        tool_cfg = config.get("tools", {}).get("privy_dflow", {})
+        tool_cfg = config.get("tools", {}).get("privy_dflow_swap", {})
         self._app_id = tool_cfg.get("app_id")
         self._app_secret = tool_cfg.get("app_secret")
         self._signing_key = tool_cfg.get("signing_key")
@@ -367,11 +367,11 @@ class PrivyDFlowTool(AutoTool):
             await privy_client.close()
 
 
-class PrivyDFlowPlugin:
+class PrivyDFlowSwapPlugin:
     """Plugin for fast token swaps using DFlow API with Privy wallets."""
 
     def __init__(self):
-        self.name = "privy_dflow"
+        self.name = "privy_dflow_swap"
         self.config = None
         self.tool_registry = None
         self._tool = None
@@ -384,7 +384,7 @@ class PrivyDFlowPlugin:
 
     def initialize(self, tool_registry: ToolRegistry) -> None:
         self.tool_registry = tool_registry
-        self._tool = PrivyDFlowTool(registry=tool_registry)
+        self._tool = PrivyDFlowSwapTool(registry=tool_registry)
 
     def configure(self, config: Dict[str, Any]) -> None:
         self.config = config
@@ -396,4 +396,4 @@ class PrivyDFlowPlugin:
 
 
 def get_plugin():
-    return PrivyDFlowPlugin()
+    return PrivyDFlowSwapPlugin()
