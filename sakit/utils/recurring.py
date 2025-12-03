@@ -97,31 +97,49 @@ class JupiterRecurring:
             order_count: Total number of orders to execute
             frequency: Time between each order in seconds (as string, e.g., "3600" for hourly)
             payer: Optional payer wallet address for gasless (defaults to user)
-            min_out_amount: Optional minimum output amount per order
-            max_out_amount: Optional maximum output amount per order
+            min_out_amount: Optional minimum output amount per order (as price, not amount)
+            max_out_amount: Optional maximum output amount per order (as price, not amount)
             start_at: Optional start time in unix seconds (as string)
 
         Returns:
             RecurringOrderResponse with transaction to sign
         """
+        # Build the time-based order params per Jupiter API spec
+        time_params: Dict[str, Any] = {
+            "inAmount": int(in_amount),
+            "numberOfOrders": int(order_count),
+            "interval": int(frequency),
+            "minPrice": None,
+            "maxPrice": None,
+            "startAt": None,
+        }
+
+        # Handle optional price bounds
+        if min_out_amount:
+            try:
+                time_params["minPrice"] = float(min_out_amount)
+            except (ValueError, TypeError):
+                pass
+        if max_out_amount:
+            try:
+                time_params["maxPrice"] = float(max_out_amount)
+            except (ValueError, TypeError):
+                pass
+        if start_at:
+            try:
+                time_params["startAt"] = int(start_at)
+            except (ValueError, TypeError):
+                pass
+
         body = {
             "user": user,
             "payer": payer or user,
             "inputMint": input_mint,
             "outputMint": output_mint,
             "params": {
-                "depositAmount": in_amount,
-                "orderCount": order_count,
-                "frequency": frequency,
+                "time": time_params,
             },
         }
-
-        if min_out_amount:
-            body["params"]["minOutAmount"] = min_out_amount
-        if max_out_amount:
-            body["params"]["maxOutAmount"] = max_out_amount
-        if start_at:
-            body["params"]["startAt"] = start_at
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
