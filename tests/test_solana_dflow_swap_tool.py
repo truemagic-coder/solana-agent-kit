@@ -71,6 +71,8 @@ class TestSolanaDFlowSwapToolConfigure:
                     "private_key": "test_private_key",
                     "payer_private_key": "payer_key",
                     "rpc_url": "https://custom-rpc.com",
+                    "platform_fee_bps": 50,
+                    "referral_account": "RefAcct123",
                 }
             }
         }
@@ -80,6 +82,8 @@ class TestSolanaDFlowSwapToolConfigure:
         assert tool._private_key == "test_private_key"
         assert tool._payer_private_key == "payer_key"
         assert tool._rpc_url == "https://custom-rpc.com"
+        assert tool._platform_fee_bps == 50
+        assert tool._referral_account == "RefAcct123"
 
     def test_configure_uses_default_rpc_url(self):
         """Should use default RPC URL when not provided."""
