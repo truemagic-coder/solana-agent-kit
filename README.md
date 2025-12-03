@@ -111,7 +111,6 @@ config = {
             "private_key": "my-private-key", # Required - base58 string
             "platform_fee_bps": 50, # Optional - platform fee in basis points (e.g., 50 = 0.5%)
             "fee_account": "your-fee-token-account", # Optional - token account to receive platform fees
-            "referral_account": "your-referral-account", # Optional - referral account for tracking
             "payer_private_key": "payer-private-key", # Optional - for gasless/sponsored transactions
             "rpc_url": "https://api.mainnet-beta.solana.com", # Optional - RPC URL (defaults to mainnet)
         },
@@ -375,7 +374,6 @@ config = {
             "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
             "platform_fee_bps": 50, # Optional - platform fee in basis points (e.g., 50 = 0.5%)
             "fee_account": "your-fee-token-account", # Optional - token account to receive platform fees
-            "referral_account": "your-referral-account", # Optional - referral account for tracking
             "payer_private_key": "payer-private-key", # Optional - for gasless/sponsored transactions
         },
     },
