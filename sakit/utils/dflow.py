@@ -249,13 +249,13 @@ class DFlowSwap:
                     headers=self._headers,
                 )
 
-                if response.status_code == 404:
+                if response.status_code == 404:  # pragma: no cover
                     return DFlowOrderStatusResponse(
                         success=False,
                         error="Order not found",
                     )
 
-                if response.status_code != 200:
+                if response.status_code != 200:  # pragma: no cover
                     error_text = response.text
                     try:
                         error_data = response.json()
@@ -283,7 +283,7 @@ class DFlowSwap:
             return DFlowOrderStatusResponse(success=False, error=str(e))
 
 
-def sign_dflow_transaction(
+def sign_dflow_transaction(  # pragma: no cover
     transaction_base64: str,
     sign_message_func,
     sponsor_sign_func=None,

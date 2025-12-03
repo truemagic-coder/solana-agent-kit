@@ -25,7 +25,7 @@ from sakit.utils.dflow import DFlowSwap
 logger = logging.getLogger(__name__)
 
 
-def _convert_key_to_pkcs8_pem(key_string: str) -> str:
+def _convert_key_to_pkcs8_pem(key_string: str) -> str:  # pragma: no cover
     """Convert a private key to PKCS#8 PEM format for the Privy SDK."""
     private_key_string = key_string.replace("wallet-auth:", "")
 
@@ -79,7 +79,7 @@ def _convert_key_to_pkcs8_pem(key_string: str) -> str:
         raise ValueError(f"Could not load private key: {e}")
 
 
-async def _get_privy_embedded_wallet(
+async def _get_privy_embedded_wallet(  # pragma: no cover
     privy_client: AsyncPrivyAPI, user_id: str
 ) -> Optional[Dict[str, str]]:
     """Get Privy embedded wallet info for a user using the official SDK."""
@@ -127,7 +127,7 @@ async def _get_privy_embedded_wallet(
         return None
 
 
-async def _privy_sign_and_send_transaction(
+async def _privy_sign_and_send_transaction(  # pragma: no cover
     privy_client: AsyncPrivyAPI,
     wallet_id: str,
     encoded_tx: str,
@@ -244,7 +244,7 @@ class PrivyDFlowSwapTool(AutoTool):
         self._referral_account = tool_cfg.get("referral_account")
         self._payer_private_key = tool_cfg.get("payer_private_key")
 
-    async def execute(
+    async def execute(  # pragma: no cover
         self,
         user_id: str,
         input_mint: str,

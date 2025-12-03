@@ -225,6 +225,394 @@ class TestSolanaDFlowSwapPlugin:
         assert tool._platform_fee_bps == 100
 
 
+class TestSignDFlowTransaction:
+    """Tests for _sign_dflow_transaction function."""
+
+    def test_sign_transaction_without_payer(self):
+        """Should sign transaction with user keypair only."""
+        from sakit.solana_dflow_swap import _sign_dflow_transaction
+
+        # Create a mock transaction that looks valid
+        with (
+            patch("sakit.solana_dflow_swap.VersionedTransaction") as MockVTx,
+            patch("sakit.solana_dflow_swap.to_bytes_versioned") as mock_to_bytes,
+        ):
+            mock_tx_instance = MagicMock()
+            mock_tx_instance.message = MagicMock()
+            MockVTx.from_bytes.return_value = mock_tx_instance
+
+            mock_to_bytes.return_value = b"message_bytes"
+
+            mock_sign_func = MagicMock(return_value=b"user_signature")
+
+            # Create a mock populated transaction
+            mock_signed_tx = MagicMock()
+            mock_signed_tx.__bytes__ = MagicMock(return_value=b"signed_tx_bytes")
+            MockVTx.populate.return_value = mock_signed_tx
+
+            result = _sign_dflow_transaction(
+                transaction_base64="dHJhbnNhY3Rpb24=",  # "transaction" in base64
+                sign_message_func=mock_sign_func,
+            )
+
+            # Verify sign function was called
+            mock_sign_func.assert_called_once_with(b"message_bytes")
+            # Verify populate was called with just user signature
+            MockVTx.populate.assert_called_once()
+
+    def test_sign_transaction_with_payer(self):
+        """Should sign transaction with payer and user keypairs."""
+        from sakit.solana_dflow_swap import _sign_dflow_transaction
+
+        with (
+            patch("sakit.solana_dflow_swap.VersionedTransaction") as MockVTx,
+            patch("sakit.solana_dflow_swap.to_bytes_versioned") as mock_to_bytes,
+        ):
+            mock_tx_instance = MagicMock()
+            mock_tx_instance.message = MagicMock()
+            MockVTx.from_bytes.return_value = mock_tx_instance
+
+            mock_to_bytes.return_value = b"message_bytes"
+
+            mock_user_sign = MagicMock(return_value=b"user_signature")
+            mock_payer_sign = MagicMock(return_value=b"payer_signature")
+
+            mock_signed_tx = MagicMock()
+            mock_signed_tx.__bytes__ = MagicMock(return_value=b"signed_tx_bytes")
+            MockVTx.populate.return_value = mock_signed_tx
+
+            result = _sign_dflow_transaction(
+                transaction_base64="dHJhbnNhY3Rpb24=",
+                sign_message_func=mock_user_sign,
+                payer_sign_func=mock_payer_sign,
+            )
+
+            # Verify both sign functions were called
+            mock_user_sign.assert_called_once_with(b"message_bytes")
+            mock_payer_sign.assert_called_once_with(b"message_bytes")
+
+
+class TestSolanaDFlowSwapToolExecuteAdvanced:
+    """Advanced tests for SolanaDFlowSwapTool execute method."""
+
+    @pytest.mark.asyncio
+    async def test_execute_success_flow(self):
+        """Should complete a successful swap flow."""
+        tool = SolanaDFlowSwapTool()
+        tool._private_key = "5MaiiCavjCmn9Hs1o3eznqDEhRwxo7pXiAYez7keQUviUkauRiTMD8DrESdrNjN8zd9mTmVhRvBJeg5vhyvgrAhG"
+        tool._rpc_url = "https://api.mainnet-beta.solana.com"
+
+        with (
+            patch("sakit.solana_dflow_swap.DFlowSwap") as MockDFlow,
+            patch("sakit.solana_dflow_swap._sign_dflow_transaction") as mock_sign,
+            patch.object(
+                tool, "_send_transaction", new_callable=AsyncMock
+            ) as mock_send,
+        ):
+            # Mock DFlow order response
+            mock_dflow_instance = MagicMock()
+            mock_order_result = MagicMock(
+                success=True,
+                transaction="dHJhbnNhY3Rpb24=",
+                in_amount="1000000000",
+                out_amount="50000000",
+                min_out_amount="49500000",
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                price_impact_pct="0.1",
+                platform_fee="100",
+                execution_mode="direct",
+                error=None,
+            )
+            mock_dflow_instance.get_order = AsyncMock(return_value=mock_order_result)
+            MockDFlow.return_value = mock_dflow_instance
+
+            # Mock signing
+            mock_sign.return_value = "c2lnbmVkX3R4"
+
+            # Mock sending
+            mock_send.return_value = "5abc123def456"
+
+            result = await tool.execute(
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                amount=1000000000,
+            )
+
+            assert result["status"] == "success"
+            assert result["signature"] == "5abc123def456"
+            assert result["input_amount"] == "1000000000"
+            assert result["output_amount"] == "50000000"
+
+    @pytest.mark.asyncio
+    async def test_execute_with_payer_keypair(self):
+        """Should use payer keypair for gasless transactions."""
+        tool = SolanaDFlowSwapTool()
+        tool._private_key = "5MaiiCavjCmn9Hs1o3eznqDEhRwxo7pXiAYez7keQUviUkauRiTMD8DrESdrNjN8zd9mTmVhRvBJeg5vhyvgrAhG"
+        tool._payer_private_key = "5MaiiCavjCmn9Hs1o3eznqDEhRwxo7pXiAYez7keQUviUkauRiTMD8DrESdrNjN8zd9mTmVhRvBJeg5vhyvgrAhG"
+        tool._rpc_url = "https://api.mainnet-beta.solana.com"
+
+        with (
+            patch("sakit.solana_dflow_swap.DFlowSwap") as MockDFlow,
+            patch("sakit.solana_dflow_swap._sign_dflow_transaction") as mock_sign,
+            patch.object(
+                tool, "_send_transaction", new_callable=AsyncMock
+            ) as mock_send,
+        ):
+            mock_dflow_instance = MagicMock()
+            mock_order_result = MagicMock(
+                success=True,
+                transaction="dHJhbnNhY3Rpb24=",
+                in_amount="1000000000",
+                out_amount="50000000",
+                min_out_amount="49500000",
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                price_impact_pct="0.1",
+                platform_fee="100",
+                execution_mode="direct",
+                error=None,
+            )
+            mock_dflow_instance.get_order = AsyncMock(return_value=mock_order_result)
+            MockDFlow.return_value = mock_dflow_instance
+
+            mock_sign.return_value = "c2lnbmVkX3R4"
+            mock_send.return_value = "5abc123def456"
+
+            result = await tool.execute(
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                amount=1000000000,
+            )
+
+            # Should have sponsor set
+            call_kwargs = mock_dflow_instance.get_order.call_args.kwargs
+            assert call_kwargs.get("sponsor") is not None
+
+    @pytest.mark.asyncio
+    async def test_execute_send_transaction_fails(self):
+        """Should return error when send transaction fails."""
+        tool = SolanaDFlowSwapTool()
+        tool._private_key = "5MaiiCavjCmn9Hs1o3eznqDEhRwxo7pXiAYez7keQUviUkauRiTMD8DrESdrNjN8zd9mTmVhRvBJeg5vhyvgrAhG"
+        tool._rpc_url = "https://api.mainnet-beta.solana.com"
+
+        with (
+            patch("sakit.solana_dflow_swap.DFlowSwap") as MockDFlow,
+            patch("sakit.solana_dflow_swap._sign_dflow_transaction") as mock_sign,
+            patch.object(
+                tool, "_send_transaction", new_callable=AsyncMock
+            ) as mock_send,
+        ):
+            mock_dflow_instance = MagicMock()
+            mock_order_result = MagicMock(
+                success=True,
+                transaction="dHJhbnNhY3Rpb24=",
+                error=None,
+            )
+            mock_dflow_instance.get_order = AsyncMock(return_value=mock_order_result)
+            MockDFlow.return_value = mock_dflow_instance
+
+            mock_sign.return_value = "c2lnbmVkX3R4"
+            mock_send.return_value = None  # Simulate send failure
+
+            result = await tool.execute(
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                amount=1000000000,
+            )
+
+            assert result["status"] == "error"
+            assert "failed to send" in result["message"].lower()
+
+    @pytest.mark.asyncio
+    async def test_execute_with_slippage_bps(self):
+        """Should pass slippage_bps when provided."""
+        tool = SolanaDFlowSwapTool()
+        tool._private_key = "5MaiiCavjCmn9Hs1o3eznqDEhRwxo7pXiAYez7keQUviUkauRiTMD8DrESdrNjN8zd9mTmVhRvBJeg5vhyvgrAhG"
+        tool._rpc_url = "https://api.mainnet-beta.solana.com"
+
+        with (
+            patch("sakit.solana_dflow_swap.DFlowSwap") as MockDFlow,
+            patch("sakit.solana_dflow_swap._sign_dflow_transaction") as mock_sign,
+            patch.object(
+                tool, "_send_transaction", new_callable=AsyncMock
+            ) as mock_send,
+        ):
+            mock_dflow_instance = MagicMock()
+            mock_order_result = MagicMock(
+                success=True,
+                transaction="dHJhbnNhY3Rpb24=",
+                in_amount="1000000000",
+                out_amount="50000000",
+                min_out_amount="49500000",
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                price_impact_pct="0.1",
+                platform_fee="100",
+                execution_mode="direct",
+                error=None,
+            )
+            mock_dflow_instance.get_order = AsyncMock(return_value=mock_order_result)
+            MockDFlow.return_value = mock_dflow_instance
+
+            mock_sign.return_value = "c2lnbmVkX3R4"
+            mock_send.return_value = "5abc123def456"
+
+            result = await tool.execute(
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                amount=1000000000,
+                slippage_bps=100,
+            )
+
+            # Verify slippage was passed
+            call_kwargs = mock_dflow_instance.get_order.call_args.kwargs
+            assert call_kwargs.get("slippage_bps") == 100
+
+    @pytest.mark.asyncio
+    async def test_execute_with_platform_fees(self):
+        """Should pass platform fee configuration."""
+        tool = SolanaDFlowSwapTool()
+        tool._private_key = "5MaiiCavjCmn9Hs1o3eznqDEhRwxo7pXiAYez7keQUviUkauRiTMD8DrESdrNjN8zd9mTmVhRvBJeg5vhyvgrAhG"
+        tool._rpc_url = "https://api.mainnet-beta.solana.com"
+        tool._platform_fee_bps = 50
+        tool._fee_account = "FeeAccount123"
+        tool._referral_account = "RefAccount123"
+
+        with (
+            patch("sakit.solana_dflow_swap.DFlowSwap") as MockDFlow,
+            patch("sakit.solana_dflow_swap._sign_dflow_transaction") as mock_sign,
+            patch.object(
+                tool, "_send_transaction", new_callable=AsyncMock
+            ) as mock_send,
+        ):
+            mock_dflow_instance = MagicMock()
+            mock_order_result = MagicMock(
+                success=True,
+                transaction="dHJhbnNhY3Rpb24=",
+                in_amount="1000000000",
+                out_amount="50000000",
+                min_out_amount="49500000",
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                price_impact_pct="0.1",
+                platform_fee="100",
+                execution_mode="direct",
+                error=None,
+            )
+            mock_dflow_instance.get_order = AsyncMock(return_value=mock_order_result)
+            MockDFlow.return_value = mock_dflow_instance
+
+            mock_sign.return_value = "c2lnbmVkX3R4"
+            mock_send.return_value = "5abc123def456"
+
+            result = await tool.execute(
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                amount=1000000000,
+            )
+
+            # Verify fee config was passed
+            call_kwargs = mock_dflow_instance.get_order.call_args.kwargs
+            assert call_kwargs.get("platform_fee_bps") == 50
+            assert call_kwargs.get("fee_account") == "FeeAccount123"
+            assert call_kwargs.get("referral_account") == "RefAccount123"
+
+    @pytest.mark.asyncio
+    async def test_execute_exception_handling(self):
+        """Should handle exceptions gracefully."""
+        tool = SolanaDFlowSwapTool()
+        tool._private_key = "5MaiiCavjCmn9Hs1o3eznqDEhRwxo7pXiAYez7keQUviUkauRiTMD8DrESdrNjN8zd9mTmVhRvBJeg5vhyvgrAhG"
+        tool._rpc_url = "https://api.mainnet-beta.solana.com"
+
+        with patch("sakit.solana_dflow_swap.DFlowSwap") as MockDFlow:
+            mock_dflow_instance = MagicMock()
+            mock_dflow_instance.get_order = AsyncMock(
+                side_effect=Exception("Network error")
+            )
+            MockDFlow.return_value = mock_dflow_instance
+
+            result = await tool.execute(
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                amount=1000000000,
+            )
+
+            assert result["status"] == "error"
+            assert "network error" in result["message"].lower()
+
+
+class TestSendTransaction:
+    """Tests for _send_transaction method."""
+
+    @pytest.mark.asyncio
+    async def test_send_transaction_success(self):
+        """Should return signature on successful send."""
+        tool = SolanaDFlowSwapTool()
+        tool._rpc_url = "https://api.mainnet-beta.solana.com"
+
+        with patch("sakit.solana_dflow_swap.AsyncClient") as MockClient:
+            mock_client_instance = MagicMock()
+            mock_result = MagicMock()
+            mock_result.value = "5abc123def456signature"
+            mock_client_instance.send_raw_transaction = AsyncMock(
+                return_value=mock_result
+            )
+            mock_client_instance.__aenter__ = AsyncMock(
+                return_value=mock_client_instance
+            )
+            mock_client_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_client_instance
+
+            result = await tool._send_transaction("dHJhbnNhY3Rpb24=")
+
+            assert result == "5abc123def456signature"
+
+    @pytest.mark.asyncio
+    async def test_send_transaction_no_value(self):
+        """Should return None when result has no value."""
+        tool = SolanaDFlowSwapTool()
+        tool._rpc_url = "https://api.mainnet-beta.solana.com"
+
+        with patch("sakit.solana_dflow_swap.AsyncClient") as MockClient:
+            mock_client_instance = MagicMock()
+            mock_result = MagicMock()
+            mock_result.value = None
+            mock_client_instance.send_raw_transaction = AsyncMock(
+                return_value=mock_result
+            )
+            mock_client_instance.__aenter__ = AsyncMock(
+                return_value=mock_client_instance
+            )
+            mock_client_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_client_instance
+
+            result = await tool._send_transaction("dHJhbnNhY3Rpb24=")
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_send_transaction_exception(self):
+        """Should return None on exception."""
+        tool = SolanaDFlowSwapTool()
+        tool._rpc_url = "https://api.mainnet-beta.solana.com"
+
+        with patch("sakit.solana_dflow_swap.AsyncClient") as MockClient:
+            mock_client_instance = MagicMock()
+            mock_client_instance.send_raw_transaction = AsyncMock(
+                side_effect=Exception("RPC error")
+            )
+            mock_client_instance.__aenter__ = AsyncMock(
+                return_value=mock_client_instance
+            )
+            mock_client_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_client_instance
+
+            result = await tool._send_transaction("dHJhbnNhY3Rpb24=")
+
+            assert result is None
+
+
 class TestGetPlugin:
     """Tests for get_plugin function."""
 

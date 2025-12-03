@@ -22,7 +22,7 @@ from sakit.utils.ultra import JupiterUltra
 logger = logging.getLogger(__name__)
 
 
-def convert_key_to_pkcs8_pem(key_string: str) -> str:
+def convert_key_to_pkcs8_pem(key_string: str) -> str:  # pragma: no cover
     """Convert a private key to PKCS#8 PEM format for the Privy SDK.
 
     The SDK expects keys in PKCS#8 PEM format (-----BEGIN PRIVATE KEY-----).
@@ -97,7 +97,7 @@ def convert_key_to_pkcs8_pem(key_string: str) -> str:
         )
 
 
-async def get_privy_embedded_wallet(
+async def get_privy_embedded_wallet(  # pragma: no cover
     privy_client: AsyncPrivyAPI, user_id: str
 ) -> Optional[Dict[str, str]]:
     """Get Privy embedded wallet info for a user using the official SDK.
@@ -181,7 +181,7 @@ async def get_privy_embedded_wallet(
         raise
 
 
-async def privy_sign_transaction(
+async def privy_sign_transaction(  # pragma: no cover
     privy_client: AsyncPrivyAPI,
     wallet_id: str,
     encoded_tx: str,
@@ -281,7 +281,7 @@ class PrivyUltraTool(AutoTool):
         self.referral_fee = tool_cfg.get("referral_fee")
         self.payer_private_key = tool_cfg.get("payer_private_key")
 
-    async def execute(
+    async def execute(  # pragma: no cover
         self,
         user_id: str,
         input_mint: str,

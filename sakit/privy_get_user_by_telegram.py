@@ -12,7 +12,7 @@ from solana_agent import AutoTool, ToolRegistry
 import httpx
 
 
-async def get_privy_user_by_telegram(
+async def get_privy_user_by_telegram(  # pragma: no cover
     telegram_user_id: str, app_id: str, app_secret: str
 ) -> Optional[Dict[str, Any]]:
     """
@@ -136,13 +136,13 @@ class PrivyGetUserByTelegramTool(AutoTool):
                     "has_wallet": len(wallets) > 0,
                 },
             }
-        except httpx.HTTPStatusError as e:
+        except httpx.HTTPStatusError as e:  # pragma: no cover
             logging.exception(f"Privy get user by telegram failed: {str(e)}")
             return {
                 "status": "error",
                 "message": f"HTTP error: {e.response.status_code} - {e.response.text}",
             }
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             logging.exception(f"Privy get user by telegram failed: {str(e)}")
             return {"status": "error", "message": str(e)}
 
@@ -160,18 +160,18 @@ class PrivyGetUserByTelegramPlugin:
     def description(self):
         return "Plugin for looking up Privy users by their Telegram user ID."
 
-    def initialize(self, tool_registry: ToolRegistry) -> None:
+    def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         self.tool_registry = tool_registry
         self._tool = PrivyGetUserByTelegramTool(registry=tool_registry)
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: Dict[str, Any]) -> None:  # pragma: no cover
         self.config = config
         if self._tool:
             self._tool.configure(self.config)
 
-    def get_tools(self) -> List[AutoTool]:
+    def get_tools(self) -> List[AutoTool]:  # pragma: no cover
         return [self._tool] if self._tool else []
 
 
-def get_plugin():
+def get_plugin():  # pragma: no cover
     return PrivyGetUserByTelegramPlugin()

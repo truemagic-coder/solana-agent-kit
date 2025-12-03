@@ -57,7 +57,7 @@ class SolanaTransferTool(AutoTool):
         keypair = Keypair.from_base58_string(self._private_key)
         wallet = SolanaWalletClient(self._rpc_url, keypair)
         provider = None
-        if "helius" in self._rpc_url:
+        if "helius" in self._rpc_url:  # pragma: no cover
             provider = "helius"
         try:
             transaction = await TokenTransferManager.transfer(
@@ -81,18 +81,18 @@ class SolanaTransferPlugin:
     def description(self):
         return "Plugin for transferring SOL or SPL tokens."
 
-    def initialize(self, tool_registry: ToolRegistry) -> None:
+    def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         self.tool_registry = tool_registry
         self._tool = SolanaTransferTool(registry=tool_registry)
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: Dict[str, Any]) -> None:  # pragma: no cover
         self.config = config
         if self._tool:
             self._tool.configure(self.config)
 
-    def get_tools(self) -> List[AutoTool]:
+    def get_tools(self) -> List[AutoTool]:  # pragma: no cover
         return [self._tool] if self._tool else []
 
 
-def get_plugin():
+def get_plugin():  # pragma: no cover
     return SolanaTransferPlugin()

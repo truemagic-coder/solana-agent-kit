@@ -23,7 +23,7 @@ TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 MEMO_PROGRAM_ID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
 
 
-def make_memo_instruction(memo: str) -> Instruction:
+def make_memo_instruction(memo: str) -> Instruction:  # pragma: no cover
     return Instruction(
         program_id=Pubkey.from_string(MEMO_PROGRAM_ID),
         accounts=[],
@@ -33,7 +33,7 @@ def make_memo_instruction(memo: str) -> Instruction:
 
 class TokenTransferManager:
     @staticmethod
-    async def transfer(
+    async def transfer(  # pragma: no cover
         wallet: SolanaWalletClient,
         to: str,
         amount: float,

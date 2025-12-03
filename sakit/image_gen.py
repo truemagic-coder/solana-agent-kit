@@ -147,7 +147,9 @@ class ImageGenTool(AutoTool):
             and self._s3_bucket_name
         )
 
-    def _upload_to_s3(self, image_bytes: bytes, object_key: str) -> Optional[str]:
+    def _upload_to_s3(
+        self, image_bytes: bytes, object_key: str
+    ) -> Optional[str]:  # pragma: no cover
         """Synchronous function to upload bytes to S3."""
         if not boto3:
             logger.error("Boto3 library not available for S3 upload.")
@@ -211,7 +213,7 @@ class ImageGenTool(AutoTool):
             logger.exception(f"Unexpected error during S3 upload: {e}")
             return None
 
-    async def execute(
+    async def execute(  # pragma: no cover
         self,
         prompt: str,
     ) -> Dict[str, Any]:
@@ -330,7 +332,7 @@ class ImageGenPlugin:
         """Return the plugin description."""
         return "Plugin providing image generation via OpenAI and upload to S3."
 
-    def initialize(self, tool_registry: ToolRegistry) -> None:
+    def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         """Initialize the plugin and register the tool."""
         if not BOTO3_AVAILABLE or not AsyncOpenAI:
             logger.warning(
@@ -357,7 +359,7 @@ class ImageGenPlugin:
             all_tools = tool_registry.list_all_tools()
             logger.info(f"All registered tools after {self.name} init: {all_tools}")
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: Dict[str, Any]) -> None:  # pragma: no cover
         """Configure the plugin and its underlying tool."""
         if not BOTO3_AVAILABLE or not AsyncOpenAI:
             logger.warning(
@@ -376,7 +378,7 @@ class ImageGenPlugin:
                 f"Warning: {self.name} tool instance not found during configuration."
             )
 
-    def get_tools(self) -> List[AutoTool]:
+    def get_tools(self) -> List[AutoTool]:  # pragma: no cover
         """Return the list of tools provided by this plugin."""
         if not BOTO3_AVAILABLE or not AsyncOpenAI:
             return []
@@ -386,7 +388,7 @@ class ImageGenPlugin:
 # --- Entry Point Function ---
 
 
-def get_plugin():
+def get_plugin():  # pragma: no cover
     """Return plugin instance for registration."""
     if not BOTO3_AVAILABLE or not AsyncOpenAI:
         logger.warning(

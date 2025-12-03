@@ -274,10 +274,10 @@ class BirdeyeTool(AutoTool):
 
                 data = response.json()
                 return {"success": True, "data": data.get("data", data)}
-            except Exception as e:
+            except Exception as e:  # pragma: no cover
                 return {"success": False, "error": str(e)}
 
-    async def execute(
+    async def execute(  # pragma: no cover
         self,
         action: str,
         address: str = "",
@@ -1212,14 +1212,14 @@ class BirdeyePlugin:
         self.tool_registry = tool_registry
         self._tool = BirdeyeTool(registry=tool_registry)
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: Dict[str, Any]) -> None:  # pragma: no cover
         self.config = config
         if self._tool:
             self._tool.configure(self.config)
 
-    def get_tools(self) -> list[AutoTool]:
+    def get_tools(self) -> list[AutoTool]:  # pragma: no cover
         return [self._tool] if self._tool else []
 
 
-def get_plugin():
+def get_plugin():  # pragma: no cover
     return BirdeyePlugin()

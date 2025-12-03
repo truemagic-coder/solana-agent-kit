@@ -325,3 +325,207 @@ class TestDFlowOrderStatusResponse:
             fills=fills,
         )
         assert response.fills == fills
+
+
+class TestDFlowGetOrderTimeout:
+    """Tests for timeout handling in DFlowSwap.get_order."""
+
+    @pytest.fixture
+    def dflow_client(self):
+        return DFlowSwap()
+
+    @pytest.mark.asyncio
+    async def test_get_order_timeout(self, dflow_client):
+        """Should return error on timeout."""
+        import httpx
+
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_instance.get = AsyncMock(
+                side_effect=httpx.TimeoutException("Request timed out")
+            )
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await dflow_client.get_order(
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                amount=1000000000,
+                user_public_key="WalletPubkey123",
+            )
+
+            assert result.success is False
+            assert "timed out" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_get_order_generic_exception(self, dflow_client):
+        """Should return error on generic exception."""
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_instance.get = AsyncMock(side_effect=Exception("Network error"))
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await dflow_client.get_order(
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                amount=1000000000,
+                user_public_key="WalletPubkey123",
+            )
+
+            assert result.success is False
+            assert "Network error" in result.error
+
+
+class TestDFlowGetOrderParams:
+    """Tests for parameter handling in DFlowSwap.get_order."""
+
+    @pytest.fixture
+    def dflow_client(self):
+        return DFlowSwap()
+
+    @pytest.mark.asyncio
+    async def test_get_order_with_all_optional_params(self, dflow_client):
+        """Should include all optional parameters when provided."""
+        mock_response = {
+            "transaction": "base64encodedtx==",
+            "inAmount": "1000000000",
+            "outAmount": "50000000",
+            "inputMint": "So11111111111111111111111111111111111111112",
+            "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "slippageBps": 100,
+            "executionMode": "sync",
+        }
+
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_response_obj = MagicMock(status_code=200, json=lambda: mock_response)
+            mock_instance.get = AsyncMock(return_value=mock_response_obj)
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await dflow_client.get_order(
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                amount=1000000000,
+                user_public_key="WalletPubkey123",
+                slippage_bps=100,
+                platform_fee_bps=50,
+                platform_fee_mode="outputMint",
+                fee_account="FeeAccount123",
+                referral_account="RefAccount123",
+                destination_wallet="DestWallet123",
+                prioritization_fee_lamports=10000,
+                only_direct_routes=True,
+                max_route_length=3,
+                wrap_and_unwrap_sol=True,
+                dynamic_compute_unit_limit=True,
+            )
+
+            call_args = mock_instance.get.call_args
+            params = call_args.kwargs.get("params") or call_args[1].get("params")
+
+            assert params.get("slippageBps") == 100
+            assert params.get("platformFeeBps") == 50
+            assert params.get("platformFeeMode") == "outputMint"
+            assert params.get("feeAccount") == "FeeAccount123"
+            assert params.get("referralAccount") == "RefAccount123"
+            assert params.get("destinationWallet") == "DestWallet123"
+            assert params.get("prioritizationFeeLamports") == 10000
+            assert params.get("onlyDirectRoutes") == "true"
+            assert params.get("maxRouteLength") == 3
+            assert result.success is True
+
+    @pytest.mark.asyncio
+    async def test_get_order_error_json_parse_failure(self, dflow_client):
+        """Should handle error response with non-JSON body."""
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_response_obj = MagicMock(status_code=500, text="Internal Server Error")
+            mock_response_obj.json = MagicMock(side_effect=Exception("Not JSON"))
+            mock_instance.get = AsyncMock(return_value=mock_response_obj)
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await dflow_client.get_order(
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                amount=1000000000,
+                user_public_key="WalletPubkey123",
+            )
+
+            assert result.success is False
+            assert "500" in result.error
+
+
+class TestDFlowGetOrderStatusTimeout:
+    """Tests for timeout handling in DFlowSwap.get_order_status."""
+
+    @pytest.fixture
+    def dflow_client(self):
+        return DFlowSwap()
+
+    @pytest.mark.asyncio
+    async def test_get_order_status_timeout(self, dflow_client):
+        """Should return error on timeout."""
+        import httpx
+
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_instance.get = AsyncMock(
+                side_effect=httpx.TimeoutException("Request timed out")
+            )
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await dflow_client.get_order_status(signature="txsig123")
+
+            assert result.success is False
+            assert "timed out" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_get_order_status_with_block_height(self, dflow_client):
+        """Should include last_valid_block_height in params."""
+        mock_response = {
+            "status": "closed",
+            "inAmount": "1000000000",
+            "outAmount": "50000000",
+        }
+
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_response_obj = MagicMock(status_code=200, json=lambda: mock_response)
+            mock_instance.get = AsyncMock(return_value=mock_response_obj)
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await dflow_client.get_order_status(
+                signature="txsig123",
+                last_valid_block_height=12345678,
+            )
+
+            call_args = mock_instance.get.call_args
+            params = call_args.kwargs.get("params") or call_args[1].get("params")
+            assert params.get("lastValidBlockHeight") == 12345678
+            assert result.success is True
+
+    @pytest.mark.asyncio
+    async def test_get_order_status_generic_exception(self, dflow_client):
+        """Should return error on generic exception."""
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_instance.get = AsyncMock(side_effect=Exception("Connection refused"))
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await dflow_client.get_order_status(signature="txsig123")
+
+            assert result.success is False
+            assert "Connection refused" in result.error
