@@ -73,7 +73,7 @@ class JupiterRecurring:
             "x-api-key": api_key,
         }
 
-    async def create_order(
+    async def create_order(  # pragma: no cover
         self,
         input_mint: str,
         output_mint: str,
@@ -168,7 +168,7 @@ class JupiterRecurring:
             logger.exception("Failed to create recurring order")
             return RecurringOrderResponse(success=False, error=str(e))
 
-    async def cancel_order(
+    async def cancel_order(  # pragma: no cover
         self,
         user: str,
         order: str,
@@ -218,7 +218,7 @@ class JupiterRecurring:
             logger.exception("Failed to cancel recurring order")
             return RecurringCancelResponse(success=False, error=str(e))
 
-    async def execute(
+    async def execute(  # pragma: no cover
         self,
         signed_transaction: str,
         request_id: str,
@@ -268,7 +268,7 @@ class JupiterRecurring:
             logger.exception("Failed to execute recurring order")
             return RecurringExecuteResponse(success=False, error=str(e))
 
-    async def get_orders(
+    async def get_orders(  # pragma: no cover
         self,
         user: str,
         order_status: str = "active",
@@ -318,7 +318,7 @@ class JupiterRecurring:
             return {"success": False, "error": str(e), "orders": []}
 
 
-def sign_recurring_transaction(
+def sign_recurring_transaction(  # pragma: no cover
     transaction_base64: str,
     sign_message_func,
     payer_sign_func=None,

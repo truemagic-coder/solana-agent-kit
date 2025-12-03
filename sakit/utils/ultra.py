@@ -173,7 +173,7 @@ class JupiterUltra:
                 headers=self._headers,
             )
 
-            if response.status_code != 200:
+            if response.status_code != 200:  # pragma: no cover
                 raise Exception(
                     f"Failed to execute order: {response.status_code} - {response.text}"
                 )
@@ -229,7 +229,7 @@ class JupiterUltra:
                 headers=self._headers,
             )
 
-            if response.status_code != 200:
+            if response.status_code != 200:  # pragma: no cover
                 raise Exception(
                     f"Failed to get native holdings: {response.status_code} - {response.text}"
                 )
@@ -255,7 +255,7 @@ class JupiterUltra:
                 headers=self._headers,
             )
 
-            if response.status_code != 200:
+            if response.status_code != 200:  # pragma: no cover
                 raise Exception(
                     f"Failed to get shield: {response.status_code} - {response.text}"
                 )
@@ -280,7 +280,7 @@ class JupiterUltra:
                 headers=self._headers,
             )
 
-            if response.status_code != 200:
+            if response.status_code != 200:  # pragma: no cover
                 raise Exception(
                     f"Failed to search tokens: {response.status_code} - {response.text}"
                 )

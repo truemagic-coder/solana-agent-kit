@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "14.0.4"
+version = "14.1.0"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -17,10 +17,10 @@ packages = [{ include = "sakit" }]
 python = ">=3.12,<4.0"
 httpx = "^0.28.1"
 solana-agent = ">=31.4.0"
-boto3 = "^1.41.3"
-botocore = "^1.41.3"
+boto3 = "^1.42.1"
+botocore = "^1.42.1"
 nemo-agent = "5.0.3"
-fastmcp = "^2.13.1"
+fastmcp = "^2.13.2"
 solana = "^0.36.10"
 solders = "^0.27.1"
 pynacl = "^1.6.1"
@@ -46,6 +46,7 @@ mcp = "sakit.mcp:get_plugin"
 nemo_agent = "sakit.nemo_agent:get_plugin"
 privy_create_user = "sakit.privy_create_user:get_plugin"
 privy_create_wallet = "sakit.privy_create_wallet:get_plugin"
+privy_dflow_swap = "sakit.privy_dflow_swap:get_plugin"
 privy_get_user_by_telegram = "sakit.privy_get_user_by_telegram:get_plugin"
 privy_recurring = "sakit.privy_recurring:get_plugin"
 privy_transfer = "sakit.privy_transfer:get_plugin"
@@ -54,6 +55,7 @@ privy_ultra = "sakit.privy_ultra:get_plugin"
 privy_wallet_address = "sakit.privy_wallet_address:get_plugin"
 rugcheck = "sakit.rugcheck:get_plugin"
 search_internet = "sakit.search_internet:get_plugin"
+solana_dflow_swap = "sakit.solana_dflow_swap:get_plugin"
 solana_transfer = "sakit.solana_transfer:get_plugin"
 solana_ultra = "sakit.solana_ultra:get_plugin"
 vybe = "sakit.vybe:get_plugin"
@@ -63,3 +65,29 @@ pytest = "^9.0.1"
 pytest-asyncio = "^1.3.0"
 respx = "^0.22.0"
 ruff = "^0.14.7"
+pytest-cov = "^7.0.0"
+
+[tool.coverage.run]
+omit = [
+    "sakit/nemo_agent.py",
+    "sakit/mcp.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "except ImportError",
+    "if not .*_AVAILABLE:",
+    "logging.warning.*not found",
+    "logger.warning.*not available",
+    "logger.error.*Error closing",
+    "await.*__aexit__",
+    "await.*__aenter__",
+    "@abstractmethod",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

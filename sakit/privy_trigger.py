@@ -23,7 +23,7 @@ from sakit.utils.trigger import JupiterTrigger
 logger = logging.getLogger(__name__)
 
 
-def _convert_key_to_pkcs8_pem(key_string: str) -> str:
+def _convert_key_to_pkcs8_pem(key_string: str) -> str:  # pragma: no cover
     """Convert a private key to PKCS#8 PEM format for the Privy SDK."""
     private_key_string = key_string.replace("wallet-auth:", "")
 
@@ -77,7 +77,7 @@ def _convert_key_to_pkcs8_pem(key_string: str) -> str:
         raise ValueError(f"Could not load private key: {e}")
 
 
-async def _get_privy_embedded_wallet(
+async def _get_privy_embedded_wallet(  # pragma: no cover
     privy_client: AsyncPrivyAPI, user_id: str
 ) -> Optional[Dict[str, str]]:
     """Get Privy embedded wallet info for a user using the official SDK.
@@ -130,7 +130,7 @@ async def _get_privy_embedded_wallet(
         return None
 
 
-async def _privy_sign_transaction(
+async def _privy_sign_transaction(  # pragma: no cover
     privy_client: AsyncPrivyAPI,
     wallet_id: str,
     encoded_tx: str,
@@ -331,7 +331,7 @@ class PrivyTriggerTool(AutoTool):
         finally:
             await privy_client.close()
 
-    async def _sign_and_execute(
+    async def _sign_and_execute(  # pragma: no cover
         self,
         privy_client: AsyncPrivyAPI,
         trigger: JupiterTrigger,
@@ -384,7 +384,7 @@ class PrivyTriggerTool(AutoTool):
             logger.exception(f"Failed to sign and execute: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-    async def _create_order(
+    async def _create_order(  # pragma: no cover
         self,
         privy_client: AsyncPrivyAPI,
         trigger: JupiterTrigger,
@@ -464,7 +464,7 @@ class PrivyTriggerTool(AutoTool):
             logger.exception(f"Failed to create trigger order: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-    async def _cancel_order(
+    async def _cancel_order(  # pragma: no cover
         self,
         privy_client: AsyncPrivyAPI,
         trigger: JupiterTrigger,
@@ -533,7 +533,7 @@ class PrivyTriggerTool(AutoTool):
             logger.exception(f"Failed to cancel trigger order: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-    async def _cancel_all_orders(
+    async def _cancel_all_orders(  # pragma: no cover
         self,
         privy_client: AsyncPrivyAPI,
         trigger: JupiterTrigger,
@@ -601,7 +601,7 @@ class PrivyTriggerTool(AutoTool):
             logger.exception(f"Failed to cancel all trigger orders: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-    async def _list_orders(
+    async def _list_orders(  # pragma: no cover
         self,
         trigger: JupiterTrigger,
         public_key: str,

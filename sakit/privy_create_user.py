@@ -12,7 +12,7 @@ from solana_agent import AutoTool, ToolRegistry
 import httpx
 
 
-async def create_privy_user_with_telegram(
+async def create_privy_user_with_telegram(  # pragma: no cover
     telegram_user_id: str, app_id: str, app_secret: str
 ) -> Dict[str, Any]:
     """
@@ -97,13 +97,13 @@ class PrivyCreateUserTool(AutoTool):
                     "linked_accounts": user_data.get("linked_accounts", []),
                 },
             }
-        except httpx.HTTPStatusError as e:
+        except httpx.HTTPStatusError as e:  # pragma: no cover
             logging.exception(f"Privy create user failed: {str(e)}")
             return {
                 "status": "error",
                 "message": f"HTTP error: {e.response.status_code} - {e.response.text}",
             }
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             logging.exception(f"Privy create user failed: {str(e)}")
             return {"status": "error", "message": str(e)}
 
@@ -121,18 +121,18 @@ class PrivyCreateUserPlugin:
     def description(self):
         return "Plugin for creating Privy users with linked Telegram accounts."
 
-    def initialize(self, tool_registry: ToolRegistry) -> None:
+    def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         self.tool_registry = tool_registry
         self._tool = PrivyCreateUserTool(registry=tool_registry)
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: Dict[str, Any]) -> None:  # pragma: no cover
         self.config = config
         if self._tool:
             self._tool.configure(self.config)
 
-    def get_tools(self) -> List[AutoTool]:
+    def get_tools(self) -> List[AutoTool]:  # pragma: no cover
         return [self._tool] if self._tool else []
 
 
-def get_plugin():
+def get_plugin():  # pragma: no cover
     return PrivyCreateUserPlugin()

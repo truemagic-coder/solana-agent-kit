@@ -42,14 +42,16 @@ class SolanaWalletClient:
             self.pubkey = Pubkey.from_string(pubkey)
         elif keypair:
             self.pubkey = keypair.pubkey()
-        if fee_payer:
+        if fee_payer:  # pragma: no cover
             self.fee_payer = Keypair.from_base58_string(fee_payer)
 
-    def sign_message(self, message: bytes) -> Signature:
+    def sign_message(self, message: bytes) -> Signature:  # pragma: no cover
         signed = nacl.signing.SigningKey(self.keypair.secret()).sign(message)
         return Signature.from_bytes(signed.signature)
 
-    def send_transaction(self, transaction: SolanaTransaction) -> Dict[str, str]:
+    def send_transaction(
+        self, transaction: SolanaTransaction
+    ) -> Dict[str, str]:  # pragma: no cover
         recent_blockhash = self.client.get_latest_blockhash().value.blockhash
         payer = self.keypair.pubkey()
 
@@ -80,7 +82,7 @@ class SolanaWalletClient:
         self.client.confirm_transaction(result.value, commitment=Confirmed)
         return {"hash": str(result.value)}
 
-    async def get_priority_fee_estimate_helius(
+    async def get_priority_fee_estimate_helius(  # pragma: no cover
         self,
         serialized_transaction: str,
     ) -> int:

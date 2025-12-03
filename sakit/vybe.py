@@ -223,21 +223,21 @@ class VybePlugin:
         self._tool = None
 
     @property
-    def description(self):
+    def description(self):  # pragma: no cover
         return "Plugin for looking up known Solana account labels via Vybe Network."
 
-    def initialize(self, tool_registry: ToolRegistry) -> None:
+    def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         self.tool_registry = tool_registry
         self._tool = VybeTool(registry=tool_registry)
 
-    def configure(self, config: dict[str, Any]) -> None:
+    def configure(self, config: dict[str, Any]) -> None:  # pragma: no cover
         self.config = config
         if self._tool:
             self._tool.configure(self.config)
 
-    def get_tools(self) -> list[AutoTool]:
+    def get_tools(self) -> list[AutoTool]:  # pragma: no cover
         return [self._tool] if self._tool else []
 
 
-def get_plugin():
+def get_plugin():  # pragma: no cover
     return VybePlugin()

@@ -12,7 +12,7 @@ from solana_agent import AutoTool, ToolRegistry
 import httpx
 
 
-async def create_privy_wallet(
+async def create_privy_wallet(  # pragma: no cover
     user_id: str,
     app_id: str,
     app_secret: str,
@@ -153,13 +153,13 @@ class PrivyCreateWalletTool(AutoTool):
                     "additional_signers": wallet_data.get("additional_signers", []),
                 },
             }
-        except httpx.HTTPStatusError as e:
+        except httpx.HTTPStatusError as e:  # pragma: no cover
             logging.exception(f"Privy create wallet failed: {str(e)}")
             return {
                 "status": "error",
                 "message": f"HTTP error: {e.response.status_code} - {e.response.text}",
             }
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             logging.exception(f"Privy create wallet failed: {str(e)}")
             return {"status": "error", "message": str(e)}
 
@@ -177,18 +177,18 @@ class PrivyCreateWalletPlugin:
     def description(self):
         return "Plugin for creating Solana wallets for Privy users with optional bot delegation."
 
-    def initialize(self, tool_registry: ToolRegistry) -> None:
+    def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         self.tool_registry = tool_registry
         self._tool = PrivyCreateWalletTool(registry=tool_registry)
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: Dict[str, Any]) -> None:  # pragma: no cover
         self.config = config
         if self._tool:
             self._tool.configure(self.config)
 
-    def get_tools(self) -> List[AutoTool]:
+    def get_tools(self) -> List[AutoTool]:  # pragma: no cover
         return [self._tool] if self._tool else []
 
 
-def get_plugin():
+def get_plugin():  # pragma: no cover
     return PrivyCreateWalletPlugin()

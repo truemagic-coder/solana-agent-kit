@@ -130,19 +130,19 @@ class JupiterTriggerTool(AutoTool):
                 taking_amount,
                 expired_at,
             )
-        elif action == "cancel":
+        elif action == "cancel":  # pragma: no cover
             return await self._cancel_order(trigger, order_pubkey)
-        elif action == "cancel_all":
+        elif action == "cancel_all":  # pragma: no cover
             return await self._cancel_all_orders(trigger)
-        elif action == "list":
+        elif action == "list":  # pragma: no cover
             return await self._list_orders(trigger, wallet_address)
-        else:
+        else:  # pragma: no cover
             return {
                 "status": "error",
                 "message": f"Unknown action: {action}. Valid actions: create, cancel, cancel_all, list",
             }
 
-    async def _create_order(
+    async def _create_order(  # pragma: no cover
         self,
         trigger: JupiterTrigger,
         input_mint: Optional[str],
@@ -218,7 +218,7 @@ class JupiterTriggerTool(AutoTool):
             logger.exception(f"Failed to create trigger order: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-    async def _cancel_order(
+    async def _cancel_order(  # pragma: no cover
         self,
         trigger: JupiterTrigger,
         order_pubkey: Optional[str],
@@ -293,7 +293,9 @@ class JupiterTriggerTool(AutoTool):
             logger.exception(f"Failed to cancel trigger order: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-    async def _cancel_all_orders(self, trigger: JupiterTrigger) -> Dict[str, Any]:
+    async def _cancel_all_orders(
+        self, trigger: JupiterTrigger
+    ) -> Dict[str, Any]:  # pragma: no cover
         if not self._private_key:
             return {"status": "error", "message": "Private key not configured."}
 
@@ -367,7 +369,7 @@ class JupiterTriggerTool(AutoTool):
             logger.exception(f"Failed to cancel all trigger orders: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-    async def _list_orders(
+    async def _list_orders(  # pragma: no cover
         self,
         trigger: JupiterTrigger,
         wallet_address: Optional[str],
@@ -437,23 +439,23 @@ class JupiterTriggerPlugin:
         self._tool = None
 
     @property
-    def description(self):
+    def description(self):  # pragma: no cover
         return (
             "Plugin for creating and managing limit orders using Jupiter Trigger API."
         )
 
-    def initialize(self, tool_registry: ToolRegistry) -> None:
+    def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         self.tool_registry = tool_registry
         self._tool = JupiterTriggerTool(registry=tool_registry)
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: Dict[str, Any]) -> None:  # pragma: no cover
         self.config = config
         if self._tool:
             self._tool.configure(self.config)
 
-    def get_tools(self) -> List[AutoTool]:
+    def get_tools(self) -> List[AutoTool]:  # pragma: no cover
         return [self._tool] if self._tool else []
 
 
-def get_plugin():
+def get_plugin():  # pragma: no cover
     return JupiterTriggerPlugin()

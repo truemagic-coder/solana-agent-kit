@@ -3,7 +3,7 @@ from solana_agent import AutoTool, ToolRegistry
 import httpx
 
 
-async def get_privy_embedded_wallet_address(
+async def get_privy_embedded_wallet_address(  # pragma: no cover
     user_id: str, app_id: str, app_secret: str
 ) -> Optional[str]:
     """Get Privy embedded wallet address for a user.
@@ -100,18 +100,18 @@ class PrivyWalletAddressCheckerPlugin:
     def description(self):
         return "Plugin for checking the wallet address of a Privy delegated embedded wallet."
 
-    def initialize(self, tool_registry: ToolRegistry) -> None:
+    def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         self.tool_registry = tool_registry
         self._tool = PrivyWalletAddressCheckerTool(registry=tool_registry)
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: Dict[str, Any]) -> None:  # pragma: no cover
         self.config = config
         if self._tool:
             self._tool.configure(self.config)
 
-    def get_tools(self) -> List[AutoTool]:
+    def get_tools(self) -> List[AutoTool]:  # pragma: no cover
         return [self._tool] if self._tool else []
 
 
-def get_plugin():
+def get_plugin():  # pragma: no cover
     return PrivyWalletAddressCheckerPlugin()

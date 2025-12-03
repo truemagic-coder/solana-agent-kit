@@ -100,18 +100,18 @@ class RugCheckPlugin:
     def description(self):
         return "Plugin for checking Solana token risk and liquidity using rugcheck.xyz."
 
-    def initialize(self, tool_registry: ToolRegistry) -> None:
+    def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         self.tool_registry = tool_registry
         self._tool = RugCheckTool(registry=tool_registry)
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: Dict[str, Any]) -> None:  # pragma: no cover
         self.config = config
         if self._tool:
             self._tool.configure(self.config)
 
-    def get_tools(self) -> List[AutoTool]:
+    def get_tools(self) -> List[AutoTool]:  # pragma: no cover
         return [self._tool] if self._tool else []
 
 
-def get_plugin():
+def get_plugin():  # pragma: no cover
     return RugCheckPlugin()

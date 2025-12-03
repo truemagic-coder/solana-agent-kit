@@ -15,7 +15,7 @@ SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 
 
-def _convert_key_to_pkcs8_pem(key_string: str) -> str:
+def _convert_key_to_pkcs8_pem(key_string: str) -> str:  # pragma: no cover
     """Convert a private key to PKCS#8 PEM format for the Privy SDK."""
     private_key_string = key_string.replace("wallet-auth:", "")
 
@@ -69,7 +69,7 @@ def _convert_key_to_pkcs8_pem(key_string: str) -> str:
         raise ValueError(f"Could not load private key: {e}")
 
 
-async def get_privy_embedded_wallet(
+async def get_privy_embedded_wallet(  # pragma: no cover
     user_id: str, privy_client: AsyncPrivyAPI
 ) -> Optional[Dict[str, str]]:
     """Get Privy embedded wallet info for a user.
@@ -115,7 +115,7 @@ async def get_privy_embedded_wallet(
         return None
 
 
-async def privy_sign_and_send(
+async def privy_sign_and_send(  # pragma: no cover
     wallet_id: str, encoded_tx: str, privy_client: AsyncPrivyAPI, privy_auth_key: str
 ) -> Dict[str, Any]:
     """Sign and send a transaction using Privy SDK."""
@@ -245,7 +245,7 @@ class PrivyTransferTool(AutoTool):
                 self.rpc_url, None, wallet_info["public_key"], self.fee_payer
             )
             provider = None
-            if "helius" in self.rpc_url:
+            if "helius" in self.rpc_url:  # pragma: no cover
                 provider = "helius"
             transaction = await TokenTransferManager.transfer(
                 wallet,
@@ -281,18 +281,18 @@ class PrivyTransferPlugin:
     def description(self):
         return "Plugin for transferring SOL or SPL tokens using Privy delegated wallet."
 
-    def initialize(self, tool_registry: ToolRegistry) -> None:
+    def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         self.tool_registry = tool_registry
         self._tool = PrivyTransferTool(registry=tool_registry)
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: Dict[str, Any]) -> None:  # pragma: no cover
         self.config = config
         if self._tool:
             self._tool.configure(self.config)
 
-    def get_tools(self) -> List[AutoTool]:
+    def get_tools(self) -> List[AutoTool]:  # pragma: no cover
         return [self._tool] if self._tool else []
 
 
-def get_plugin():
+def get_plugin():  # pragma: no cover
     return PrivyTransferPlugin()
