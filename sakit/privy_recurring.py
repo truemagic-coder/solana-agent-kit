@@ -295,10 +295,14 @@ class PrivyRecurringTool(AutoTool):
         if not all([self._app_id, self._app_secret, self._signing_key]):
             return {"status": "error", "message": "Privy config missing."}
 
-        # Get user's embedded wallet
-        wallet_info = await _get_privy_embedded_wallet(
-            user_id, self._app_id, self._app_secret
+        # Create Privy client
+        privy_client = AsyncPrivyAPI(
+            app_id=self._app_id,
+            app_secret=self._app_secret,
         )
+
+        # Get user's embedded wallet
+        wallet_info = await _get_privy_embedded_wallet(privy_client, user_id)
         if not wallet_info:
             return {
                 "status": "error",
