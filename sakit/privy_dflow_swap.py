@@ -8,8 +8,9 @@ DFlow offers faster swaps compared to Jupiter Ultra with similar liquidity.
 Transactions are signed via Privy's signTransaction and sent via Helius RPC
 for priority fees and reliable blockhash handling.
 
-Supports platform fee collection via referralAccount - DFlow auto-creates the
-required token accounts to receive fees in the output token.
+Note: Platform fees are not supported. DFlow requires a specific token account
+(ATA) for each output token to collect fees, which is impractical for a
+general-purpose swap tool. Use Jupiter Ultra (privy_ultra) if you need fees.
 """
 
 import base64
@@ -210,8 +211,6 @@ class PrivyDFlowSwapTool(AutoTool):
         self._signing_key: Optional[str] = None
         self._payer_private_key: Optional[str] = None
         self._rpc_url: Optional[str] = None
-        self._platform_fee_bps: Optional[int] = None
-        self._referral_account: Optional[str] = None
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -252,9 +251,6 @@ class PrivyDFlowSwapTool(AutoTool):
         self._payer_private_key = tool_cfg.get("payer_private_key")
         # RPC URL for sending transactions (Helius recommended for priority fees)
         self._rpc_url = tool_cfg.get("rpc_url")
-        # Platform fee configuration (uses referralAccount for auto ATA creation)
-        self._platform_fee_bps = tool_cfg.get("platform_fee_bps")
-        self._referral_account = tool_cfg.get("referral_account")
 
     async def execute(  # pragma: no cover
         self,
@@ -307,8 +303,6 @@ class PrivyDFlowSwapTool(AutoTool):
                     user_public_key=public_key,
                     slippage_bps=slippage_bps if slippage_bps > 0 else None,
                     sponsor=sponsor,
-                    platform_fee_bps=self._platform_fee_bps,
-                    referral_account=self._referral_account,
                 )
 
                 if not order_result.success:

@@ -104,6 +104,8 @@ By default, Jupiter Ultra provides gasless swaps when the user has < 0.01 SOL an
 
 This plugin enables Solana Agent to swap tokens using DFlow's Swap API with a Solana keypair. DFlow offers faster swaps compared to Jupiter Ultra with competitive rates.
 
+**Note:** Platform fees are not supported with DFlow. Use Jupiter Ultra (solana_ultra) if you need to collect fees on swaps.
+
 ```python
 config = {
     "tools": {
@@ -111,8 +113,6 @@ config = {
             "private_key": "my-private-key", # Required - base58 string
             "payer_private_key": "payer-private-key", # Optional - for gasless/sponsored transactions
             "rpc_url": "https://api.mainnet-beta.solana.com", # Optional - RPC URL (defaults to mainnet)
-            "platform_fee_bps": 50, # Optional - fee in basis points (50 = 0.5%)
-            "referral_account": "your-wallet-pubkey", # Optional - wallet to receive fees (DFlow creates ATAs automatically)
         },
     },
 }
@@ -121,7 +121,6 @@ config = {
 **Features:**
 - **Fast Swaps**: DFlow typically executes faster than Jupiter Ultra
 - **Gasless Transactions**: Optionally sponsor gas fees for users via `payer_private_key`
-- **Platform Fees**: Collect fees on swaps via `referral_account` - DFlow auto-creates token accounts
 
 ### Jupiter Trigger
 
@@ -366,6 +365,8 @@ This plugin enables Solana Agent to swap tokens using DFlow's Swap API with Priv
 
 Transactions are signed via Privy and sent via your configured RPC (Helius recommended) for reliable blockhash handling and priority fees.
 
+**Note:** Platform fees are not supported with DFlow. Use Jupiter Ultra (privy_ultra) if you need to collect fees on swaps.
+
 ```python
 config = {
     "tools": {
@@ -375,8 +376,6 @@ config = {
             "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
             "rpc_url": "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY", # Required - Helius recommended for priority fees
             "payer_private_key": "payer-private-key", # Optional - for gasless/sponsored transactions
-            "platform_fee_bps": 50, # Optional - fee in basis points (50 = 0.5%)
-            "referral_account": "your-wallet-pubkey", # Optional - wallet to receive fees (DFlow creates ATAs automatically)
         },
     },
 }
@@ -387,7 +386,6 @@ config = {
 - **Privy Delegated Wallets**: Seamless user experience with embedded wallets
 - **Helius Priority Fees**: Uses Helius priority fee estimation for reliable transaction landing
 - **Gasless Transactions**: Optionally sponsor gas fees for users via `payer_private_key`
-- **Platform Fees**: Collect fees on swaps via `referral_account` - DFlow auto-creates token accounts
 
 **RPC URL (Required):**
 Helius RPC is strongly recommended (`https://mainnet.helius-rpc.com/?api-key=YOUR_KEY`). Helius provides priority fee estimation and better blockhash handling, which significantly improves transaction success rates. Get a free API key at [helius.dev](https://helius.dev).
