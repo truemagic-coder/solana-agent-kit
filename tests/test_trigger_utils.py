@@ -13,47 +13,41 @@ from sakit.utils.trigger import (
     TriggerOrderResponse,
     TriggerExecuteResponse,
     TriggerCancelResponse,
+    JUPITER_TRIGGER_API,
 )
 
 
 @pytest.fixture
-def trigger_lite():
-    """Create a JupiterTrigger client using lite API (no key)."""
-    return JupiterTrigger(api_key=None)
-
-
-@pytest.fixture
-def trigger_pro():
-    """Create a JupiterTrigger client using pro API (with key)."""
+def trigger_client():
+    """Create a JupiterTrigger client with API key."""
     return JupiterTrigger(api_key="test-api-key")
 
 
 class TestJupiterTriggerInit:
     """Test JupiterTrigger initialization."""
 
-    def test_lite_api_url(self, trigger_lite):
-        """Should use lite API when no API key provided."""
-        assert "lite-api.jup.ag" in trigger_lite.base_url
+    def test_api_url(self, trigger_client):
+        """Should use api.jup.ag endpoint."""
+        assert trigger_client.base_url == JUPITER_TRIGGER_API
+        assert "api.jup.ag" in trigger_client.base_url
 
-    def test_pro_api_url(self, trigger_pro):
-        """Should use pro API when API key provided."""
-        assert trigger_pro.base_url.startswith("https://api.jup.ag")
-        assert "lite" not in trigger_pro.base_url
+    def test_api_key_stored(self, trigger_client):
+        """Should store API key."""
+        assert trigger_client.api_key == "test-api-key"
+        assert trigger_client._headers["x-api-key"] == "test-api-key"
 
-    def test_pro_api_key_stored(self, trigger_pro):
-        """Should store API key for pro API."""
-        assert trigger_pro.api_key == "test-api-key"
-
-    def test_lite_no_api_key(self, trigger_lite):
-        """Should have no API key for lite API."""
-        assert trigger_lite.api_key is None
+    def test_custom_base_url(self):
+        """Should use custom base URL when provided."""
+        custom_url = "https://custom.api.com"
+        trigger = JupiterTrigger(api_key="test-key", base_url=custom_url)
+        assert trigger.base_url == custom_url
 
 
 class TestTriggerCreateOrder:
     """Test create_order method."""
 
     @pytest.mark.asyncio
-    async def test_create_order_success(self, trigger_lite):
+    async def test_create_order_success(self, trigger_client):
         """Should return TriggerOrderResponse on successful order creation."""
         mock_response = {
             "order": "order123",
@@ -70,7 +64,7 @@ class TestTriggerCreateOrder:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await trigger_lite.create_order(
+            result = await trigger_client.create_order(
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                 maker="WalletPubkey123",
@@ -85,7 +79,7 @@ class TestTriggerCreateOrder:
             assert result.request_id == "req123"
 
     @pytest.mark.asyncio
-    async def test_create_order_with_expiry(self, trigger_lite):
+    async def test_create_order_with_expiry(self, trigger_client):
         """Should include expiredAt parameter when provided."""
         mock_response = {
             "order": "order123",
@@ -101,7 +95,7 @@ class TestTriggerCreateOrder:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            await trigger_lite.create_order(
+            await trigger_client.create_order(
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                 maker="WalletPubkey123",
@@ -116,7 +110,7 @@ class TestTriggerCreateOrder:
             assert payload.get("params", {}).get("expiredAt") == "1700000000"
 
     @pytest.mark.asyncio
-    async def test_create_order_with_payer(self, trigger_lite):
+    async def test_create_order_with_payer(self, trigger_client):
         """Should include payer parameter for gasless transactions."""
         mock_response = {
             "order": "order123",
@@ -132,7 +126,7 @@ class TestTriggerCreateOrder:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            await trigger_lite.create_order(
+            await trigger_client.create_order(
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                 maker="WalletPubkey123",
@@ -146,7 +140,7 @@ class TestTriggerCreateOrder:
             assert payload.get("payer") == "PayerPubkey123"
 
     @pytest.mark.asyncio
-    async def test_create_order_api_error(self, trigger_lite):
+    async def test_create_order_api_error(self, trigger_client):
         """Should return error response when API returns non-200."""
         with patch("httpx.AsyncClient") as MockClient:
             mock_instance = AsyncMock()
@@ -157,7 +151,7 @@ class TestTriggerCreateOrder:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await trigger_lite.create_order(
+            result = await trigger_client.create_order(
                 input_mint="invalid",
                 output_mint="invalid",
                 maker="invalid",
@@ -174,7 +168,7 @@ class TestTriggerExecute:
     """Test execute method."""
 
     @pytest.mark.asyncio
-    async def test_execute_success(self, trigger_lite):
+    async def test_execute_success(self, trigger_client):
         """Should return TriggerExecuteResponse on successful execution."""
         mock_response = {
             "signature": "txsig123",
@@ -190,7 +184,7 @@ class TestTriggerExecute:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await trigger_lite.execute(
+            result = await trigger_client.execute(
                 signed_transaction="base64signedtx==",
                 request_id="req123",
             )
@@ -200,7 +194,7 @@ class TestTriggerExecute:
             assert result.signature == "txsig123"
 
     @pytest.mark.asyncio
-    async def test_execute_failure(self, trigger_lite):
+    async def test_execute_failure(self, trigger_client):
         """Should handle execution failure."""
         with patch("httpx.AsyncClient") as MockClient:
             mock_instance = AsyncMock()
@@ -211,7 +205,7 @@ class TestTriggerExecute:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await trigger_lite.execute(
+            result = await trigger_client.execute(
                 signed_transaction="base64signedtx==",
                 request_id="req123",
             )
@@ -224,7 +218,7 @@ class TestTriggerCancelOrder:
     """Test cancel_order method."""
 
     @pytest.mark.asyncio
-    async def test_cancel_order_success(self, trigger_lite):
+    async def test_cancel_order_success(self, trigger_client):
         """Should return TriggerCancelResponse on successful cancellation."""
         mock_response = {
             "transaction": "base64canceltx==",
@@ -240,7 +234,7 @@ class TestTriggerCancelOrder:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await trigger_lite.cancel_order(
+            result = await trigger_client.cancel_order(
                 maker="WalletPubkey123",
                 order="order123",
             )
@@ -254,7 +248,7 @@ class TestTriggerCancelOrders:
     """Test cancel_orders (batch) method."""
 
     @pytest.mark.asyncio
-    async def test_cancel_orders_success(self, trigger_lite):
+    async def test_cancel_orders_success(self, trigger_client):
         """Should cancel multiple orders in batch."""
         mock_response = {
             "transactions": ["base64batchcanceltx1==", "base64batchcanceltx2=="],
@@ -270,7 +264,7 @@ class TestTriggerCancelOrders:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await trigger_lite.cancel_orders(
+            result = await trigger_client.cancel_orders(
                 maker="WalletPubkey123",
                 orders=["order1", "order2", "order3"],
             )
@@ -284,7 +278,7 @@ class TestTriggerGetOrders:
     """Test get_orders method."""
 
     @pytest.mark.asyncio
-    async def test_get_orders_active(self, trigger_lite):
+    async def test_get_orders_active(self, trigger_client):
         """Should return active orders for a maker."""
         mock_response = {
             "orders": [
@@ -310,7 +304,7 @@ class TestTriggerGetOrders:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await trigger_lite.get_orders(
+            result = await trigger_client.get_orders(
                 user="WalletPubkey123",
                 order_status="active",
             )
@@ -319,7 +313,7 @@ class TestTriggerGetOrders:
             assert len(result.get("orders", [])) == 1
 
     @pytest.mark.asyncio
-    async def test_get_orders_history(self, trigger_lite):
+    async def test_get_orders_history(self, trigger_client):
         """Should return order history."""
         mock_response = {
             "orders": [
@@ -339,7 +333,7 @@ class TestTriggerGetOrders:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await trigger_lite.get_orders(
+            result = await trigger_client.get_orders(
                 user="WalletPubkey123",
                 order_status="history",
             )
