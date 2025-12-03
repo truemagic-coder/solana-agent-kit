@@ -250,7 +250,7 @@ class TestSignDFlowTransaction:
             mock_signed_tx.__bytes__ = MagicMock(return_value=b"signed_tx_bytes")
             MockVTx.populate.return_value = mock_signed_tx
 
-            result = _sign_dflow_transaction(
+            _sign_dflow_transaction(
                 transaction_base64="dHJhbnNhY3Rpb24=",  # "transaction" in base64
                 sign_message_func=mock_sign_func,
             )
@@ -281,7 +281,7 @@ class TestSignDFlowTransaction:
             mock_signed_tx.__bytes__ = MagicMock(return_value=b"signed_tx_bytes")
             MockVTx.populate.return_value = mock_signed_tx
 
-            result = _sign_dflow_transaction(
+            _sign_dflow_transaction(
                 transaction_base64="dHJhbnNhY3Rpb24=",
                 sign_message_func=mock_user_sign,
                 payer_sign_func=mock_payer_sign,
@@ -379,7 +379,7 @@ class TestSolanaDFlowSwapToolExecuteAdvanced:
             mock_sign.return_value = "c2lnbmVkX3R4"
             mock_send.return_value = "5abc123def456"
 
-            result = await tool.execute(
+            await tool.execute(
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                 amount=1000000000,
@@ -458,7 +458,7 @@ class TestSolanaDFlowSwapToolExecuteAdvanced:
             mock_sign.return_value = "c2lnbmVkX3R4"
             mock_send.return_value = "5abc123def456"
 
-            result = await tool.execute(
+            await tool.execute(
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                 amount=1000000000,
@@ -506,7 +506,7 @@ class TestSolanaDFlowSwapToolExecuteAdvanced:
             mock_sign.return_value = "c2lnbmVkX3R4"
             mock_send.return_value = "5abc123def456"
 
-            result = await tool.execute(
+            await tool.execute(
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                 amount=1000000000,
