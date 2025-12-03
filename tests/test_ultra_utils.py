@@ -14,31 +14,24 @@ from sakit.utils.ultra import (
     UltraOrderResponse,
     UltraExecuteResponse,
     sign_ultra_transaction,
-    JUPITER_ULTRA_API_LITE,
-    JUPITER_ULTRA_API_PRO,
+    JUPITER_ULTRA_API,
 )
 
 
 class TestJupiterUltraInit:
     """Test JupiterUltra initialization."""
 
-    def test_init_without_api_key_uses_lite(self):
-        """Should use lite API when no API key provided."""
-        ultra = JupiterUltra()
-        assert ultra.base_url == JUPITER_ULTRA_API_LITE
-        assert ultra.api_key is None
-
-    def test_init_with_api_key_uses_pro(self):
-        """Should use pro API when API key provided."""
+    def test_init_with_api_key(self):
+        """Should use api.jup.ag and store API key."""
         ultra = JupiterUltra(api_key="test-key")
-        assert ultra.base_url == JUPITER_ULTRA_API_PRO
+        assert ultra.base_url == JUPITER_ULTRA_API
         assert ultra.api_key == "test-key"
         assert ultra._headers["x-api-key"] == "test-key"
 
     def test_init_with_custom_base_url(self):
         """Should use custom base URL when provided."""
         custom_url = "https://custom.api.com"
-        ultra = JupiterUltra(base_url=custom_url)
+        ultra = JupiterUltra(api_key="test-key", base_url=custom_url)
         assert ultra.base_url == custom_url
 
 
@@ -72,7 +65,7 @@ class TestJupiterUltraGetOrder:
             mock_client_instance.__aexit__ = AsyncMock()
             MockClient.return_value = mock_client_instance
 
-            ultra = JupiterUltra()
+            ultra = JupiterUltra(api_key="test-key")
             order = await ultra.get_order(
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
@@ -112,7 +105,7 @@ class TestJupiterUltraGetOrder:
             mock_client_instance.__aexit__ = AsyncMock()
             MockClient.return_value = mock_client_instance
 
-            ultra = JupiterUltra()
+            ultra = JupiterUltra(api_key="test-key")
             order = await ultra.get_order(
                 input_mint="input",
                 output_mint="output",
@@ -153,7 +146,7 @@ class TestJupiterUltraGetOrder:
             mock_client_instance.__aexit__ = AsyncMock()
             MockClient.return_value = mock_client_instance
 
-            ultra = JupiterUltra()
+            ultra = JupiterUltra(api_key="test-key")
             order = await ultra.get_order(
                 input_mint="input",
                 output_mint="output",
@@ -171,11 +164,11 @@ class TestJupiterUltraGetOrder:
         import respx
 
         with respx.mock:
-            respx.get(url__startswith="https://lite-api.jup.ag/ultra/v1/order").respond(
+            respx.get(url__startswith="https://api.jup.ag/ultra/v1/order").respond(
                 400, text="Bad request"
             )
 
-            ultra = JupiterUltra()
+            ultra = JupiterUltra(api_key="test-key")
 
             with pytest.raises(Exception) as exc_info:
                 await ultra.get_order(
@@ -214,7 +207,7 @@ class TestJupiterUltraExecuteOrder:
             mock_client_instance.__aexit__ = AsyncMock()
             MockClient.return_value = mock_client_instance
 
-            ultra = JupiterUltra()
+            ultra = JupiterUltra(api_key="test-key")
             result = await ultra.execute_order(
                 signed_transaction="signedtx",
                 request_id="req-123",
@@ -245,7 +238,7 @@ class TestJupiterUltraExecuteOrder:
             mock_client_instance.__aexit__ = AsyncMock()
             MockClient.return_value = mock_client_instance
 
-            ultra = JupiterUltra()
+            ultra = JupiterUltra(api_key="test-key")
             result = await ultra.execute_order(
                 signed_transaction="signedtx",
                 request_id="req-123",
@@ -278,7 +271,7 @@ class TestJupiterUltraGetHoldings:
             mock_client_instance.__aexit__ = AsyncMock()
             MockClient.return_value = mock_client_instance
 
-            ultra = JupiterUltra()
+            ultra = JupiterUltra(api_key="test-key")
             holdings = await ultra.get_holdings("Wallet123")
 
             assert "nativeBalance" in holdings
@@ -290,11 +283,11 @@ class TestJupiterUltraGetHoldings:
         import respx
 
         with respx.mock:
-            respx.get(
-                url__startswith="https://lite-api.jup.ag/ultra/v1/holdings/"
-            ).respond(404, text="Wallet not found")
+            respx.get(url__startswith="https://api.jup.ag/ultra/v1/holdings/").respond(
+                404, text="Wallet not found"
+            )
 
-            ultra = JupiterUltra()
+            ultra = JupiterUltra(api_key="test-key")
 
             with pytest.raises(Exception) as exc_info:
                 await ultra.get_holdings("InvalidWallet")
@@ -324,7 +317,7 @@ class TestJupiterUltraGetNativeHoldings:
             mock_client_instance.__aexit__ = AsyncMock()
             MockClient.return_value = mock_client_instance
 
-            ultra = JupiterUltra()
+            ultra = JupiterUltra(api_key="test-key")
             native = await ultra.get_native_holdings("Wallet123")
 
             assert "amount" in native
@@ -355,7 +348,7 @@ class TestJupiterUltraGetShield:
             mock_client_instance.__aexit__ = AsyncMock()
             MockClient.return_value = mock_client_instance
 
-            ultra = JupiterUltra()
+            ultra = JupiterUltra(api_key="test-key")
             shield = await ultra.get_shield(["Token123", "Token456"])
 
             assert "warnings" in shield
@@ -382,7 +375,7 @@ class TestJupiterUltraSearchTokens:
             mock_client_instance.__aexit__ = AsyncMock()
             MockClient.return_value = mock_client_instance
 
-            ultra = JupiterUltra()
+            ultra = JupiterUltra(api_key="test-key")
             tokens = await ultra.search_tokens("TEST")
 
             assert len(tokens) == 1

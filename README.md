@@ -73,7 +73,7 @@ config = {
     "tools": {
         "solana_ultra": {
             "private_key": "my-private-key", # Required - base58 string - please use env vars to store the key as it is very confidential
-            "jupiter_api_key": "my-jupiter-api-key", # Optional but recommended - get free key at jup.ag for dynamic rate limits (starts at 5 RPS, scales with usage)
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag (60 req/min on free tier)
             "referral_account": "my-referral-account", # Optional - your Jupiter referral account public key for collecting fees
             "referral_fee": 50, # Optional - fee in basis points (50-255 bps, e.g., 50 = 0.5%). Jupiter takes 20% of this fee.
             "payer_private_key": "payer-private-key", # Optional - base58 private key for gasless transactions (integrator pays gas)
@@ -88,10 +88,9 @@ config = {
 - **Transaction Landing**: Jupiter handles retries and transaction confirmation
 - **Referral Fees**: Optionally collect integrator fees (50-255 bps) via your Jupiter referral account
 - **Integrator Gas Payer**: Optionally pay for gas on behalf of users for truly gasless swaps
-- **Dynamic Rate Limits**: With API key, rate limits scale automatically with your usage (free)
 
-**API Key (Recommended):**
-Get a free Jupiter API key at [jup.ag](https://jup.ag) for dynamic rate limits. Without a key, you use the lite API with lower limits. With a key, you start at 5 RPS and it scales automatically at no cost.
+**API Key (Required):**
+Get a free Jupiter API key at [portal.jup.ag](https://portal.jup.ag). The free tier provides 60 requests per minute. The lite API (no key) was deprecated on December 31, 2025.
 
 **Setting up Referral Account:**
 To collect fees, you need a Jupiter referral account. Create one at [referral.jup.ag](https://referral.jup.ag/). Jupiter takes 20% of the referral fee you set. You also need to create token accounts for the tokens you want to collect fees in.
@@ -108,7 +107,7 @@ config = {
     "tools": {
         "jupiter_trigger": {
             "private_key": "my-private-key", # Required - base58 string
-            "jupiter_api_key": "my-jupiter-api-key", # Optional - for pro API with higher rate limits
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
             "referral_account": "my-referral-account", # Optional - for collecting fees
             "referral_fee": 50, # Optional - fee in basis points (50-255 bps)
             "payer_private_key": "payer-private-key", # Optional - for gasless transactions
@@ -139,7 +138,7 @@ config = {
     "tools": {
         "jupiter_recurring": {
             "private_key": "my-private-key", # Required - base58 string
-            "jupiter_api_key": "my-jupiter-api-key", # Optional - for pro API with higher rate limits
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
             "payer_private_key": "payer-private-key", # Optional - for gasless transactions
         },
     },
@@ -173,7 +172,9 @@ This plugin enables Solana Agent to get token holdings with USD values for any w
 ```python
 config = {
     "tools": {
-        "jupiter_holdings": {}, # No configuration required
+        "jupiter_holdings": {
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
+        },
     },
     "agents": [
         {
@@ -198,7 +199,9 @@ This plugin enables Solana Agent to get security warnings and risk information f
 ```python
 config = {
     "tools": {
-        "jupiter_shield": {}, # No configuration required
+        "jupiter_shield": {
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
+        },
     },
     "agents": [
         {
@@ -223,7 +226,9 @@ This plugin enables Solana Agent to search for Solana tokens by symbol, name, or
 ```python
 config = {
     "tools": {
-        "jupiter_token_search": {}, # No configuration required
+        "jupiter_token_search": {
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
+        },
     },
     "agents": [
         {
@@ -271,7 +276,7 @@ config = {
             "app_id": "your-privy-app-id", # Required - your Privy application ID
             "app_secret": "your-privy-app-secret", # Required - your Privy application secret
             "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
-            "jupiter_api_key": "my-jupiter-api-key", # Optional but recommended - get free key at jup.ag for dynamic rate limits
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
             "referral_account": "my-referral-account", # Optional - your Jupiter referral account public key for collecting fees
             "referral_fee": 50, # Optional - fee in basis points (50-255 bps, e.g., 50 = 0.5%). Jupiter takes 20% of this fee.
             "payer_private_key": "payer-private-key", # Optional - base58 private key for gasless transactions (integrator pays gas)
@@ -285,7 +290,6 @@ config = {
 - **Privy Delegated Wallets**: Use Privy's embedded wallets with delegation for seamless user experience
 - **Referral Fees**: Optionally collect integrator fees (50-255 bps) via your Jupiter referral account
 - **Integrator Gas Payer**: Optionally pay for gas on behalf of users for truly gasless swaps
-- **Dynamic Rate Limits**: With API key, rate limits scale automatically with your usage (free)
 
 ### Privy Trigger
 
@@ -298,7 +302,7 @@ config = {
             "app_id": "your-privy-app-id", # Required - your Privy application ID
             "app_secret": "your-privy-app-secret", # Required - your Privy application secret
             "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
-            "jupiter_api_key": "my-jupiter-api-key", # Optional - for pro API with higher rate limits
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
             "referral_account": "my-referral-account", # Optional - for collecting fees
             "referral_fee": 50, # Optional - fee in basis points (50-255 bps)
             "payer_private_key": "payer-private-key", # Optional - for gasless transactions
@@ -320,7 +324,7 @@ config = {
             "app_id": "your-privy-app-id", # Required - your Privy application ID
             "app_secret": "your-privy-app-secret", # Required - your Privy application secret
             "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
-            "jupiter_api_key": "my-jupiter-api-key", # Optional - for pro API with higher rate limits
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
             "payer_private_key": "payer-private-key", # Optional - for gasless transactions
         },
     },

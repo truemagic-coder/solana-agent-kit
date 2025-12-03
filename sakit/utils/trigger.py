@@ -16,9 +16,8 @@ from solders.message import to_bytes_versioned  # type: ignore
 
 logger = logging.getLogger(__name__)
 
-# Use lite API for no-key access, main API for keyed access with dynamic rate limits
-JUPITER_TRIGGER_API_LITE = "https://lite-api.jup.ag/trigger/v1"
-JUPITER_TRIGGER_API_PRO = "https://api.jup.ag/trigger/v1"
+# Jupiter Trigger API base URL (API key required, free tier available at portal.jup.ag)
+JUPITER_TRIGGER_API = "https://api.jup.ag/trigger/v1"
 
 
 @dataclass
@@ -70,25 +69,20 @@ class TriggerCancelMultipleResponse:
 class JupiterTrigger:
     """Jupiter Trigger API client for limit orders."""
 
-    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
+    def __init__(self, api_key: str, base_url: Optional[str] = None):
         """
         Initialize Jupiter Trigger client.
 
         Args:
-            api_key: Optional Jupiter API key for dynamic rate limits
-            base_url: Optional custom base URL (auto-selects based on api_key if not provided)
+            api_key: Jupiter API key (required, get free key at portal.jup.ag)
+            base_url: Optional custom base URL (defaults to api.jup.ag)
         """
-        if base_url:
-            self.base_url = base_url
-        elif api_key:
-            self.base_url = JUPITER_TRIGGER_API_PRO
-        else:
-            self.base_url = JUPITER_TRIGGER_API_LITE
-
+        self.base_url = base_url or JUPITER_TRIGGER_API
         self.api_key = api_key
-        self._headers = {"Content-Type": "application/json"}
-        if api_key:
-            self._headers["x-api-key"] = api_key
+        self._headers = {
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+        }
 
     async def create_order(
         self,

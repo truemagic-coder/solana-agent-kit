@@ -13,47 +13,41 @@ from sakit.utils.recurring import (
     RecurringOrderResponse,
     RecurringExecuteResponse,
     RecurringCancelResponse,
+    JUPITER_RECURRING_API,
 )
 
 
 @pytest.fixture
-def recurring_lite():
-    """Create a JupiterRecurring client using lite API (no key)."""
-    return JupiterRecurring(api_key=None)
-
-
-@pytest.fixture
-def recurring_pro():
-    """Create a JupiterRecurring client using pro API (with key)."""
+def recurring_client():
+    """Create a JupiterRecurring client with API key."""
     return JupiterRecurring(api_key="test-api-key")
 
 
 class TestJupiterRecurringInit:
     """Test JupiterRecurring initialization."""
 
-    def test_lite_api_url(self, recurring_lite):
-        """Should use lite API when no API key provided."""
-        assert "lite-api.jup.ag" in recurring_lite.base_url
+    def test_api_url(self, recurring_client):
+        """Should use api.jup.ag endpoint."""
+        assert recurring_client.base_url == JUPITER_RECURRING_API
+        assert "api.jup.ag" in recurring_client.base_url
 
-    def test_pro_api_url(self, recurring_pro):
-        """Should use pro API when API key provided."""
-        assert recurring_pro.base_url.startswith("https://api.jup.ag")
-        assert "lite" not in recurring_pro.base_url
+    def test_api_key_stored(self, recurring_client):
+        """Should store API key."""
+        assert recurring_client.api_key == "test-api-key"
+        assert recurring_client._headers["x-api-key"] == "test-api-key"
 
-    def test_pro_api_key_stored(self, recurring_pro):
-        """Should store API key for pro API."""
-        assert recurring_pro.api_key == "test-api-key"
-
-    def test_lite_no_api_key(self, recurring_lite):
-        """Should have no API key for lite API."""
-        assert recurring_lite.api_key is None
+    def test_custom_base_url(self):
+        """Should use custom base URL when provided."""
+        custom_url = "https://custom.api.com"
+        recurring = JupiterRecurring(api_key="test-key", base_url=custom_url)
+        assert recurring.base_url == custom_url
 
 
 class TestRecurringCreateOrder:
     """Test create_order method."""
 
     @pytest.mark.asyncio
-    async def test_create_time_order_success(self, recurring_lite):
+    async def test_create_time_order_success(self, recurring_client):
         """Should return RecurringOrderResponse on successful order creation."""
         mock_response = {
             "order": "dcaorder123",
@@ -70,7 +64,7 @@ class TestRecurringCreateOrder:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await recurring_lite.create_order(
+            result = await recurring_client.create_order(
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                 user="WalletPubkey123",
@@ -86,7 +80,7 @@ class TestRecurringCreateOrder:
             assert result.request_id == "req123"
 
     @pytest.mark.asyncio
-    async def test_create_order_with_payer(self, recurring_lite):
+    async def test_create_order_with_payer(self, recurring_client):
         """Should include payer parameter for gasless transactions."""
         mock_response = {
             "order": "dcaorder123",
@@ -102,7 +96,7 @@ class TestRecurringCreateOrder:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            await recurring_lite.create_order(
+            await recurring_client.create_order(
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                 user="WalletPubkey123",
@@ -117,7 +111,7 @@ class TestRecurringCreateOrder:
             assert payload.get("payer") == "PayerPubkey123"
 
     @pytest.mark.asyncio
-    async def test_create_order_with_min_max_amounts(self, recurring_lite):
+    async def test_create_order_with_min_max_amounts(self, recurring_client):
         """Should include minOutAmount and maxOutAmount when provided."""
         mock_response = {
             "order": "dcaorder123",
@@ -133,7 +127,7 @@ class TestRecurringCreateOrder:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            await recurring_lite.create_order(
+            await recurring_client.create_order(
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                 user="WalletPubkey123",
@@ -151,7 +145,7 @@ class TestRecurringCreateOrder:
             assert payload.get("params", {}).get("maxOutAmount") == "110000"
 
     @pytest.mark.asyncio
-    async def test_create_order_api_error(self, recurring_lite):
+    async def test_create_order_api_error(self, recurring_client):
         """Should return error response when API returns non-200."""
         with patch("httpx.AsyncClient") as MockClient:
             mock_instance = AsyncMock()
@@ -162,7 +156,7 @@ class TestRecurringCreateOrder:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await recurring_lite.create_order(
+            result = await recurring_client.create_order(
                 input_mint="invalid",
                 output_mint="invalid",
                 user="invalid",
@@ -180,7 +174,7 @@ class TestRecurringExecute:
     """Test execute method."""
 
     @pytest.mark.asyncio
-    async def test_execute_success(self, recurring_lite):
+    async def test_execute_success(self, recurring_client):
         """Should return RecurringExecuteResponse on successful execution."""
         mock_response = {
             "signature": "txsig123",
@@ -196,7 +190,7 @@ class TestRecurringExecute:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await recurring_lite.execute(
+            result = await recurring_client.execute(
                 signed_transaction="base64signedtx==",
                 request_id="req123",
             )
@@ -206,7 +200,7 @@ class TestRecurringExecute:
             assert result.signature == "txsig123"
 
     @pytest.mark.asyncio
-    async def test_execute_failure(self, recurring_lite):
+    async def test_execute_failure(self, recurring_client):
         """Should handle execution failure."""
         with patch("httpx.AsyncClient") as MockClient:
             mock_instance = AsyncMock()
@@ -217,7 +211,7 @@ class TestRecurringExecute:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await recurring_lite.execute(
+            result = await recurring_client.execute(
                 signed_transaction="base64signedtx==",
                 request_id="req123",
             )
@@ -230,7 +224,7 @@ class TestRecurringCancelOrder:
     """Test cancel_order method."""
 
     @pytest.mark.asyncio
-    async def test_cancel_order_success(self, recurring_lite):
+    async def test_cancel_order_success(self, recurring_client):
         """Should return RecurringCancelResponse on successful cancellation."""
         mock_response = {
             "transaction": "base64canceltx==",
@@ -246,7 +240,7 @@ class TestRecurringCancelOrder:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await recurring_lite.cancel_order(
+            result = await recurring_client.cancel_order(
                 user="WalletPubkey123",
                 order="dcaorder123",
             )
@@ -260,7 +254,7 @@ class TestRecurringGetOrders:
     """Test get_orders method."""
 
     @pytest.mark.asyncio
-    async def test_get_orders_active(self, recurring_lite):
+    async def test_get_orders_active(self, recurring_client):
         """Should return active DCA orders for a user."""
         mock_response = {
             "orders": [
@@ -286,7 +280,7 @@ class TestRecurringGetOrders:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await recurring_lite.get_orders(
+            result = await recurring_client.get_orders(
                 user="WalletPubkey123",
                 order_status="active",
             )
@@ -299,7 +293,7 @@ class TestRecurringGetOrders:
             assert order.get("executedCount") == 3
 
     @pytest.mark.asyncio
-    async def test_get_orders_api_error(self, recurring_lite):
+    async def test_get_orders_api_error(self, recurring_client):
         """Should handle API errors gracefully."""
         with patch("httpx.AsyncClient") as MockClient:
             mock_instance = AsyncMock()
@@ -310,7 +304,7 @@ class TestRecurringGetOrders:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = mock_instance
 
-            result = await recurring_lite.get_orders(
+            result = await recurring_client.get_orders(
                 user="WalletPubkey123",
                 order_status="active",
             )

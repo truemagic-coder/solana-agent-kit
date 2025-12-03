@@ -16,9 +16,8 @@ from solders.message import to_bytes_versioned
 
 logger = logging.getLogger(__name__)
 
-# Use lite API for no-key access, main API for keyed access with dynamic rate limits
-JUPITER_ULTRA_API_LITE = "https://lite-api.jup.ag/ultra/v1"
-JUPITER_ULTRA_API_PRO = "https://api.jup.ag/ultra/v1"
+# Jupiter Ultra API base URL (API key required, free tier available at portal.jup.ag)
+JUPITER_ULTRA_API = "https://api.jup.ag/ultra/v1"
 
 
 @dataclass
@@ -54,26 +53,20 @@ class UltraExecuteResponse:
 class JupiterUltra:
     """Jupiter Ultra API client."""
 
-    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
+    def __init__(self, api_key: str, base_url: Optional[str] = None):
         """
         Initialize Jupiter Ultra client.
 
         Args:
-            api_key: Optional Jupiter API key for dynamic rate limits (get free key at jup.ag)
-            base_url: Optional custom base URL (auto-selects based on api_key if not provided)
+            api_key: Jupiter API key (required, get free key at portal.jup.ag)
+            base_url: Optional custom base URL (defaults to api.jup.ag)
         """
-        # Use Pro API with dynamic rate limits if API key provided, otherwise use Lite API
-        if base_url:
-            self.base_url = base_url
-        elif api_key:
-            self.base_url = JUPITER_ULTRA_API_PRO
-        else:
-            self.base_url = JUPITER_ULTRA_API_LITE
-
+        self.base_url = base_url or JUPITER_ULTRA_API
         self.api_key = api_key
-        self._headers = {"Content-Type": "application/json"}
-        if api_key:
-            self._headers["x-api-key"] = api_key
+        self._headers = {
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+        }
 
     async def get_order(
         self,
