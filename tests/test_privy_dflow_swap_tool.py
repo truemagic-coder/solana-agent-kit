@@ -67,8 +67,6 @@ class TestPrivyDFlowSwapToolConfigure:
                     "signing_key": "test_signing_key",
                     "payer_private_key": "payer_key",
                     "rpc_url": "https://custom-rpc.com",
-                    "platform_fee_bps": 50,
-                    "referral_account": "RefAcct123",
                 }
             }
         }
@@ -80,8 +78,6 @@ class TestPrivyDFlowSwapToolConfigure:
         assert tool._signing_key == "test_signing_key"
         assert tool._payer_private_key == "payer_key"
         assert tool._rpc_url == "https://custom-rpc.com"
-        assert tool._platform_fee_bps == 50
-        assert tool._referral_account == "RefAcct123"
 
 
 class TestPrivyDFlowSwapToolExecute:

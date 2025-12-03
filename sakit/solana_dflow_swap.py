@@ -3,8 +3,9 @@
 Enables fast token swaps using DFlow's Swap API with a Solana keypair.
 DFlow offers faster swaps compared to Jupiter Ultra with similar liquidity.
 
-Supports platform fee collection via referralAccount - DFlow auto-creates the
-required token accounts to receive fees in the output token.
+Note: Platform fees are not supported. DFlow requires a specific token account
+(ATA) for each output token to collect fees, which is impractical for a
+general-purpose swap tool. Use Jupiter Ultra (solana_ultra) if you need fees.
 """
 
 import base64
@@ -80,8 +81,6 @@ class SolanaDFlowSwapTool(AutoTool):
         self._private_key: Optional[str] = None
         self._payer_private_key: Optional[str] = None
         self._rpc_url: Optional[str] = None
-        self._platform_fee_bps: Optional[int] = None
-        self._referral_account: Optional[str] = None
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -115,9 +114,6 @@ class SolanaDFlowSwapTool(AutoTool):
         self._private_key = tool_cfg.get("private_key")
         self._payer_private_key = tool_cfg.get("payer_private_key")
         self._rpc_url = tool_cfg.get("rpc_url") or DEFAULT_RPC_URL
-        # Platform fee configuration (uses referralAccount for auto ATA creation)
-        self._platform_fee_bps = tool_cfg.get("platform_fee_bps")
-        self._referral_account = tool_cfg.get("referral_account")
 
     async def execute(
         self,
@@ -151,8 +147,6 @@ class SolanaDFlowSwapTool(AutoTool):
                 user_public_key=user_pubkey,
                 slippage_bps=slippage_bps if slippage_bps > 0 else None,
                 sponsor=sponsor,
-                platform_fee_bps=self._platform_fee_bps,
-                referral_account=self._referral_account,
             )
 
             if not order_result.success:
