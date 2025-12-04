@@ -415,7 +415,8 @@ class PrivyTriggerTool(AutoTool):
             send_result = await send_raw_transaction_with_priority(
                 rpc_url=self._rpc_url,
                 tx_bytes=tx_bytes,
-                skip_confirmation=False,  # Now we can wait - blockhash is from our RPC
+                skip_preflight=False,  # Run preflight to catch signature/signer errors
+                skip_confirmation=False,  # Wait for confirmation - blockhash is from our RPC
                 confirm_timeout=30.0,
             )
 
