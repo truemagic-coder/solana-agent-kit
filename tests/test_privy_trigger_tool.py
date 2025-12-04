@@ -34,6 +34,7 @@ def privy_trigger_tool():
                     "app_secret": "test-app-secret",
                     "signing_key": f"wallet-auth:{TEST_EC_KEY_SEC1}",
                     "jupiter_api_key": "test-api-key",
+                    "rpc_url": "https://mainnet.helius-rpc.com/?api-key=test",
                 }
             }
         }
@@ -437,6 +438,11 @@ class TestPrivyTriggerToolCreateAction:
         mock_create_result.request_id = "req-123"
         mock_create_result.order = "order-pubkey-123"
 
+        # Valid base64 that decodes to some bytes (for base64.b64decode to work)
+        mock_signed_tx = (
+            "dGVzdC1zaWduZWQtdHJhbnNhY3Rpb24="  # "test-signed-transaction" in base64
+        )
+
         with (
             patch(
                 "sakit.privy_trigger._get_privy_embedded_wallet",
@@ -447,16 +453,28 @@ class TestPrivyTriggerToolCreateAction:
             patch(
                 "sakit.privy_trigger._privy_sign_transaction",
                 new_callable=AsyncMock,
-                return_value="signed-tx-base64",
+                return_value=mock_signed_tx,
+            ),
+            patch(
+                "sakit.privy_trigger.get_fresh_blockhash",
+                new_callable=AsyncMock,
+                return_value={
+                    "blockhash": "FreshBlockhash123",
+                    "lastValidBlockHeight": 12345,
+                },
+            ),
+            patch(
+                "sakit.privy_trigger.replace_blockhash_in_transaction",
+                return_value="tx-with-new-blockhash-base64",
+            ),
+            patch(
+                "sakit.privy_trigger.send_raw_transaction_with_priority",
+                new_callable=AsyncMock,
+                return_value={"success": True, "signature": "tx-sig-456"},
             ),
         ):
             mock_instance = MockTrigger.return_value
             mock_instance.create_order = AsyncMock(return_value=mock_create_result)
-
-            mock_exec_result = MagicMock()
-            mock_exec_result.success = True
-            mock_exec_result.signature = "tx-sig-456"
-            mock_instance.execute = AsyncMock(return_value=mock_exec_result)
 
             result = await privy_trigger_tool.execute(
                 user_id="did:privy:user123",
@@ -627,7 +645,24 @@ class TestPrivyTriggerToolCancelAction:
             patch(
                 "sakit.privy_trigger._privy_sign_transaction",
                 new_callable=AsyncMock,
-                return_value="signed-cancel-tx-base64",
+                return_value="dGVzdC1zaWduZWQtdHJhbnNhY3Rpb24=",  # valid base64
+            ),
+            patch(
+                "sakit.privy_trigger.get_fresh_blockhash",
+                new_callable=AsyncMock,
+                return_value={
+                    "blockhash": "FreshBlockhash123",
+                    "lastValidBlockHeight": 12345,
+                },
+            ),
+            patch(
+                "sakit.privy_trigger.replace_blockhash_in_transaction",
+                return_value="tx-with-new-blockhash-base64",
+            ),
+            patch(
+                "sakit.privy_trigger.send_raw_transaction_with_priority",
+                new_callable=AsyncMock,
+                return_value={"success": True, "signature": "cancel-sig-789"},
             ),
         ):
             mock_instance = MockTrigger.return_value
@@ -638,11 +673,6 @@ class TestPrivyTriggerToolCancelAction:
                 }
             )
             mock_instance.cancel_order = AsyncMock(return_value=mock_cancel_result)
-
-            mock_exec_result = MagicMock()
-            mock_exec_result.success = True
-            mock_exec_result.signature = "cancel-sig-789"
-            mock_instance.execute = AsyncMock(return_value=mock_exec_result)
 
             result = await privy_trigger_tool.execute(
                 user_id="did:privy:user123",
@@ -711,7 +741,24 @@ class TestPrivyTriggerToolCancelAllAction:
             patch(
                 "sakit.privy_trigger._privy_sign_transaction",
                 new_callable=AsyncMock,
-                return_value="signed-tx",
+                return_value="dGVzdC1zaWduZWQtdHJhbnNhY3Rpb24=",  # valid base64
+            ),
+            patch(
+                "sakit.privy_trigger.get_fresh_blockhash",
+                new_callable=AsyncMock,
+                return_value={
+                    "blockhash": "FreshBlockhash123",
+                    "lastValidBlockHeight": 12345,
+                },
+            ),
+            patch(
+                "sakit.privy_trigger.replace_blockhash_in_transaction",
+                return_value="tx-with-new-blockhash-base64",
+            ),
+            patch(
+                "sakit.privy_trigger.send_raw_transaction_with_priority",
+                new_callable=AsyncMock,
+                return_value={"success": True, "signature": "sig-123"},
             ),
         ):
             mock_instance = MockTrigger.return_value
@@ -722,11 +769,6 @@ class TestPrivyTriggerToolCancelAllAction:
                 }
             )
             mock_instance.cancel_orders = AsyncMock(return_value=mock_cancel_result)
-
-            mock_exec_result = MagicMock()
-            mock_exec_result.success = True
-            mock_exec_result.signature = "sig-123"
-            mock_instance.execute = AsyncMock(return_value=mock_exec_result)
 
             result = await privy_trigger_tool.execute(
                 user_id="did:privy:user123",

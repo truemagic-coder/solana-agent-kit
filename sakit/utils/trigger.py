@@ -13,7 +13,8 @@ from dataclasses import dataclass, field
 import httpx
 
 from solders.transaction import VersionedTransaction  # type: ignore
-from solders.message import to_bytes_versioned  # type: ignore
+from solders.message import to_bytes_versioned, MessageV0  # type: ignore
+from solders.hash import Hash  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -289,6 +290,7 @@ class JupiterTrigger:
         self,
         signed_transaction: str,
         request_id: str,
+        max_retries: int = 3,
     ) -> TriggerExecuteResponse:
         """
         Execute a signed trigger order transaction.
@@ -296,44 +298,74 @@ class JupiterTrigger:
         Args:
             signed_transaction: Base64 encoded signed transaction
             request_id: Request ID from create/cancel response
+            max_retries: Number of retries on 504 timeout (default 3)
 
         Returns:
             TriggerExecuteResponse with execution result
         """
+        import asyncio
+
         payload = {
             "signedTransaction": signed_transaction,
             "requestId": request_id,
         }
 
-        try:
-            # Use longer timeout for execute - Jupiter waits for tx confirmation
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/execute",
-                    json=payload,
-                    headers=self._headers,
-                )
-
-                if response.status_code != 200:
-                    return TriggerExecuteResponse(
-                        success=False,
-                        error=f"Failed to execute trigger order: {response.status_code} - {response.text}",
+        last_error = None
+        for attempt in range(max_retries + 1):
+            try:
+                # Use longer timeout for execute - Jupiter waits for tx confirmation
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    response = await client.post(
+                        f"{self.base_url}/execute",
+                        json=payload,
+                        headers=self._headers,
                     )
 
-                data = response.json()
-                status = data.get("status", "")
+                    # Retry on 504 Gateway Timeout
+                    if response.status_code == 504:
+                        last_error = f"504 Gateway Timeout (attempt {attempt + 1}/{max_retries + 1})"
+                        logger.warning(f"Jupiter execute timed out: {last_error}")
+                        if attempt < max_retries:
+                            await asyncio.sleep(2**attempt)  # Exponential backoff
+                            continue
+                        return TriggerExecuteResponse(
+                            success=False,
+                            error=f"Jupiter execute endpoint timed out after {max_retries + 1} attempts",
+                        )
 
-                return TriggerExecuteResponse(
-                    success=status.lower() == "success",
-                    status=status,
-                    signature=data.get("signature"),
-                    error=data.get("error"),
-                    code=data.get("code", 0),
-                    raw_response=data,
+                    if response.status_code != 200:
+                        return TriggerExecuteResponse(
+                            success=False,
+                            error=f"Failed to execute trigger order: {response.status_code} - {response.text}",
+                        )
+
+                    data = response.json()
+                    status = data.get("status", "")
+
+                    return TriggerExecuteResponse(
+                        success=status.lower() == "success",
+                        status=status,
+                        signature=data.get("signature"),
+                        error=data.get("error"),
+                        code=data.get("code", 0),
+                        raw_response=data,
+                    )
+            except httpx.TimeoutException as e:
+                last_error = (
+                    f"Timeout: {str(e)} (attempt {attempt + 1}/{max_retries + 1})"
                 )
-        except Exception as e:
-            logger.exception("Failed to execute trigger order")
-            return TriggerExecuteResponse(success=False, error=str(e))
+                logger.warning(f"Jupiter execute request timed out: {last_error}")
+                if attempt < max_retries:
+                    await asyncio.sleep(2**attempt)
+                    continue
+            except Exception as e:
+                logger.exception("Failed to execute trigger order")
+                return TriggerExecuteResponse(success=False, error=str(e))
+
+        return TriggerExecuteResponse(
+            success=False,
+            error=last_error or "Failed after all retries",
+        )
 
     async def get_orders(  # pragma: no cover
         self,
@@ -391,6 +423,87 @@ class JupiterTrigger:
         except Exception as e:
             logger.exception("Failed to get trigger orders")
             return {"success": False, "error": str(e), "orders": []}
+
+
+def replace_blockhash_in_transaction(  # pragma: no cover
+    transaction_base64: str,
+    new_blockhash: str,
+) -> str:
+    """
+    Replace the blockhash in a versioned transaction with a fresh one.
+
+    This is necessary when the transaction was created by an external service
+    (like Jupiter) using their RPC, but we need to send it via a different RPC.
+    The blockhash must be recent and recognized by the sending RPC.
+
+    Args:
+        transaction_base64: Base64 encoded unsigned transaction
+        new_blockhash: Fresh blockhash string from our RPC
+
+    Returns:
+        Base64 encoded transaction with replaced blockhash (still unsigned)
+    """
+    transaction_bytes = base64.b64decode(transaction_base64)
+    transaction = VersionedTransaction.from_bytes(transaction_bytes)
+
+    # Get the message and replace blockhash
+    old_message = transaction.message
+
+    # Create new message with updated blockhash
+    new_message = MessageV0(
+        header=old_message.header,
+        account_keys=old_message.account_keys,
+        recent_blockhash=Hash.from_string(new_blockhash),
+        instructions=old_message.instructions,
+        address_table_lookups=old_message.address_table_lookups,
+    )
+
+    # Create new unsigned transaction with new message
+    # Use default signatures (all zeros) since it's unsigned
+    new_transaction = VersionedTransaction.populate(
+        new_message,
+        transaction.signatures,  # Keep placeholder signatures
+    )
+
+    return base64.b64encode(bytes(new_transaction)).decode("utf-8")
+
+
+async def get_fresh_blockhash(rpc_url: str) -> dict:  # pragma: no cover
+    """
+    Get a fresh blockhash from the RPC.
+
+    Args:
+        rpc_url: The RPC endpoint URL
+
+    Returns:
+        Dict with 'blockhash' and 'lastValidBlockHeight' on success,
+        or 'error' on failure.
+    """
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getLatestBlockhash",
+        "params": [{"commitment": "confirmed"}],
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(rpc_url, json=payload)
+            if response.status_code != 200:
+                return {"error": f"RPC error: {response.status_code}"}
+
+            data = response.json()
+            if "error" in data:
+                return {"error": f"RPC error: {data['error']}"}
+
+            result = data.get("result", {}).get("value", {})
+            return {
+                "blockhash": result.get("blockhash"),
+                "lastValidBlockHeight": result.get("lastValidBlockHeight"),
+            }
+    except Exception as e:
+        logger.exception("Failed to get fresh blockhash")
+        return {"error": str(e)}
 
 
 def sign_trigger_transaction(  # pragma: no cover

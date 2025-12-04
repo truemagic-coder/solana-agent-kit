@@ -18,7 +18,11 @@ from solders.keypair import Keypair  # type: ignore
 from solders.transaction import VersionedTransaction  # type: ignore
 from solders.message import to_bytes_versioned  # type: ignore
 
-from sakit.utils.trigger import JupiterTrigger
+from sakit.utils.trigger import (
+    JupiterTrigger,
+    replace_blockhash_in_transaction,
+    get_fresh_blockhash,
+)
 from sakit.utils.wallet import send_raw_transaction_with_priority
 
 logger = logging.getLogger(__name__)
@@ -342,14 +346,45 @@ class PrivyTriggerTool(AutoTool):
         transaction_base64: str,
         request_id: str,
     ) -> Dict[str, Any]:
-        """Sign with payer (if configured) and Privy, then execute."""
-        try:
-            tx_to_sign = transaction_base64
+        """
+        Replace blockhash, sign with payer (if configured) and Privy, then send.
 
-            # If payer is configured, sign with payer first
+        Jupiter's /execute endpoint always times out with 504, so we:
+        1. Get a fresh blockhash from our RPC
+        2. Replace the blockhash in Jupiter's transaction
+        3. Sign with our keys
+        4. Send directly via our RPC
+        """
+        try:
+            # RPC URL is required - Jupiter's execute doesn't work
+            if not self._rpc_url:
+                return {
+                    "status": "error",
+                    "message": "rpc_url must be configured for trigger orders. Jupiter's execute endpoint is broken.",
+                }
+
+            # Step 1: Get fresh blockhash from our RPC
+            blockhash_result = await get_fresh_blockhash(self._rpc_url)
+            if "error" in blockhash_result:
+                return {
+                    "status": "error",
+                    "message": f"Failed to get blockhash: {blockhash_result['error']}",
+                }
+
+            fresh_blockhash = blockhash_result["blockhash"]
+            logger.info(f"Got fresh blockhash: {fresh_blockhash}")
+
+            # Step 2: Replace blockhash in the transaction
+            tx_with_new_blockhash = replace_blockhash_in_transaction(
+                transaction_base64, fresh_blockhash
+            )
+
+            tx_to_sign = tx_with_new_blockhash
+
+            # Step 3: If payer is configured, sign with payer first
             if self._payer_private_key:
                 payer_keypair = Keypair.from_base58_string(self._payer_private_key)
-                tx_bytes = base64.b64decode(transaction_base64)
+                tx_bytes = base64.b64decode(tx_with_new_blockhash)
                 transaction = VersionedTransaction.from_bytes(tx_bytes)
                 message_bytes = to_bytes_versioned(transaction.message)
                 payer_signature = payer_keypair.sign_message(message_bytes)
@@ -361,7 +396,7 @@ class PrivyTriggerTool(AutoTool):
                 )
                 tx_to_sign = base64.b64encode(bytes(partially_signed)).decode("utf-8")
 
-            # Sign with Privy using the official SDK
+            # Step 4: Sign with Privy using the official SDK
             signed_tx = await _privy_sign_transaction(
                 privy_client,
                 wallet_id,
@@ -375,28 +410,25 @@ class PrivyTriggerTool(AutoTool):
                     "message": "Failed to sign transaction via Privy.",
                 }
 
-            # Send via RPC or fallback to Jupiter execute
-            if self._rpc_url:
-                # Use configured RPC (Helius recommended) instead of Jupiter's execute endpoint
-                tx_bytes = base64.b64decode(signed_tx)
-                send_result = await send_raw_transaction_with_priority(
-                    rpc_url=self._rpc_url,
-                    tx_bytes=tx_bytes,
-                )
-                if not send_result.get("success"):
-                    return {
-                        "status": "error",
-                        "message": send_result.get(
-                            "error", "Failed to send transaction"
-                        ),
-                    }
-                return {"status": "success", "signature": send_result.get("signature")}
-            else:
-                # Fallback to Jupiter execute if no RPC configured
-                exec_result = await trigger.execute(signed_tx, request_id)
-                if not exec_result.success:
-                    return {"status": "error", "message": exec_result.error}
-                return {"status": "success", "signature": exec_result.signature}
+            # Step 5: Send via our RPC
+            tx_bytes = base64.b64decode(signed_tx)
+            send_result = await send_raw_transaction_with_priority(
+                rpc_url=self._rpc_url,
+                tx_bytes=tx_bytes,
+                skip_confirmation=False,  # Now we can wait - blockhash is from our RPC
+                confirm_timeout=30.0,
+            )
+
+            if not send_result.get("success"):
+                return {
+                    "status": "error",
+                    "message": send_result.get("error", "Failed to send transaction"),
+                }
+
+            return {
+                "status": "success",
+                "signature": send_result.get("signature"),
+            }
 
         except Exception as e:
             logger.exception(f"Failed to sign and execute: {str(e)}")
