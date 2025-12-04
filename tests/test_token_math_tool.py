@@ -619,6 +619,128 @@ class TestTokenMathToolExecuteErrorHandling:
         )
         assert result["status"] == "error"
 
+    @pytest.mark.asyncio
+    async def test_usd_to_tokens_missing_params(self, math_tool):
+        """Should return error when usd_to_tokens params missing."""
+        result = await math_tool.execute(
+            action="usd_to_tokens",
+            usd_amount="10",
+            token_price_usd="",  # Missing
+            decimals=0,
+            human_amount="",
+            smallest_units="",
+            input_price_usd="",
+            input_decimals=0,
+            output_price_usd="",
+            output_decimals=0,
+            price_change_percentage="0",
+        )
+        assert result["status"] == "error"
+        assert "missing" in result["message"].lower()
+
+    @pytest.mark.asyncio
+    async def test_to_smallest_units_missing_params(self, math_tool):
+        """Should return error when to_smallest_units params missing."""
+        result = await math_tool.execute(
+            action="to_smallest_units",
+            usd_amount="",
+            token_price_usd="",
+            decimals=0,  # Missing (0 is falsy)
+            human_amount="0.07",
+            smallest_units="",
+            input_price_usd="",
+            input_decimals=0,
+            output_price_usd="",
+            output_decimals=0,
+            price_change_percentage="0",
+        )
+        assert result["status"] == "error"
+        assert "missing" in result["message"].lower()
+
+    @pytest.mark.asyncio
+    async def test_to_human_missing_params(self, math_tool):
+        """Should return error when to_human params missing."""
+        result = await math_tool.execute(
+            action="to_human",
+            usd_amount="",
+            token_price_usd="",
+            decimals=0,  # Missing (0 is falsy)
+            human_amount="",
+            smallest_units="70000000",
+            input_price_usd="",
+            input_decimals=0,
+            output_price_usd="",
+            output_decimals=0,
+            price_change_percentage="0",
+        )
+        assert result["status"] == "error"
+        assert "missing" in result["message"].lower()
+
+
+class TestTokenAmountToUsdErrors:
+    """Test token_amount_to_usd error handling."""
+
+    def test_invalid_token_amount(self):
+        """Should raise error for invalid token amount."""
+        with pytest.raises(ValueError) as exc_info:
+            token_amount_to_usd("not_a_number", "140")
+        assert "invalid" in str(exc_info.value).lower()
+
+    def test_invalid_price(self):
+        """Should raise error for invalid price."""
+        with pytest.raises(ValueError) as exc_info:
+            token_amount_to_usd("0.07", "invalid_price")
+        assert "invalid" in str(exc_info.value).lower()
+
+
+class TestApplyPercentageChangeErrors:
+    """Test apply_percentage_change error handling."""
+
+    def test_invalid_amount(self):
+        """Should raise error for invalid amount."""
+        with pytest.raises(ValueError) as exc_info:
+            apply_percentage_change("not_a_number", "10")
+        assert "invalid" in str(exc_info.value).lower()
+
+    def test_invalid_percentage(self):
+        """Should raise error for invalid percentage."""
+        with pytest.raises(ValueError) as exc_info:
+            apply_percentage_change("100", "not_a_number")
+        assert "invalid" in str(exc_info.value).lower()
+
+
+class TestTokenMathToolExecuteGenericException:
+    """Test generic exception handling in execute method."""
+
+    @pytest.mark.asyncio
+    async def test_generic_exception_handling(self, math_tool, monkeypatch):
+        """Should catch and return generic exceptions."""
+        import sakit.token_math as token_math_module
+
+        # Patch calculate_swap_amount to raise a generic exception
+        def raise_runtime_error(*args, **kwargs):
+            raise RuntimeError("Unexpected internal error")
+
+        monkeypatch.setattr(
+            token_math_module, "calculate_swap_amount", raise_runtime_error
+        )
+
+        result = await math_tool.execute(
+            action="swap",
+            usd_amount="10",
+            token_price_usd="140",
+            decimals=9,
+            human_amount="",
+            smallest_units="",
+            input_price_usd="",
+            input_decimals=0,
+            output_price_usd="",
+            output_decimals=0,
+            price_change_percentage="0",
+        )
+        assert result["status"] == "error"
+        assert "calculation error" in result["message"].lower()
+
 
 # =============================================================================
 # Plugin Tests
@@ -644,7 +766,12 @@ class TestTokenMathPlugin:
     def test_plugin_get_tools_empty_before_init(self):
         """Should return empty list before initialization."""
         plugin = TokenMathPlugin()
-        assert plugin.get_tools() == []
+        # _tool is None before initialize() is called
+        assert plugin._tool is None
+        # This should take the else branch in get_tools()
+        result = plugin.get_tools()
+        assert result == []
+        assert isinstance(result, list)
 
     def test_plugin_initialize(self):
         """Should initialize tool on registry."""
@@ -669,6 +796,14 @@ class TestTokenMathPlugin:
         # Should not raise
         plugin.configure({})
         assert plugin.config == {}
+
+    def test_plugin_configure_before_init(self):
+        """Should handle configure before initialize (no _tool yet)."""
+        plugin = TokenMathPlugin()
+        assert plugin._tool is None
+        # This should take the else branch (if self._tool: is False)
+        plugin.configure({"some": "config"})
+        assert plugin.config == {"some": "config"}
 
 
 class TestGetPlugin:
