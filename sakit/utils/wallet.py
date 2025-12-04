@@ -120,6 +120,8 @@ async def send_raw_transaction_with_priority(  # pragma: no cover
     tx_bytes: bytes,
     skip_preflight: bool = True,
     max_retries: int = 5,
+    confirm_timeout: float = 30.0,
+    skip_confirmation: bool = False,
 ) -> Dict[str, any]:
     """
     Send a raw transaction to Solana RPC, with Helius priority fee logging if applicable.
@@ -132,10 +134,14 @@ async def send_raw_transaction_with_priority(  # pragma: no cover
         tx_bytes: The serialized signed transaction bytes
         skip_preflight: Skip preflight simulation (default True for pre-signed txs)
         max_retries: Number of retries for the RPC call
+        confirm_timeout: Max seconds to wait for confirmation (default 30s)
+        skip_confirmation: Skip waiting for confirmation entirely (default False)
 
     Returns:
         Dict with 'success' and 'signature' on success, or 'error' on failure.
     """
+    import asyncio
+
     try:
         client = AsyncClient(rpc_url)
         try:
@@ -183,19 +189,32 @@ async def send_raw_transaction_with_priority(  # pragma: no cover
             signature = str(result.value)
             logger.info(f"Transaction sent: {signature}")
 
-            # Confirm the transaction
+            # Skip confirmation if requested (useful for pre-signed txs with external blockhashes)
+            if skip_confirmation:
+                return {"success": True, "signature": signature}
+
+            # Confirm the transaction with timeout
             try:
-                confirmation = await client.confirm_transaction(
-                    result.value,
-                    commitment=Confirmed,
-                    sleep_seconds=0.5,
-                    last_valid_block_height=None,
+                confirmation = await asyncio.wait_for(
+                    client.confirm_transaction(
+                        result.value,
+                        commitment=Confirmed,
+                        sleep_seconds=0.5,
+                        last_valid_block_height=None,
+                    ),
+                    timeout=confirm_timeout,
                 )
                 if confirmation.value and confirmation.value[0].err:
                     return {
                         "success": False,
                         "error": f"Transaction failed: {confirmation.value[0].err}",
                     }
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"Transaction confirmation timed out after {confirm_timeout}s. "
+                    f"Transaction may still land. Signature: {signature}"
+                )
+                # Return success anyway - tx was sent, just not confirmed in time
             except Exception as confirm_error:
                 logger.debug(f"Could not confirm transaction: {confirm_error}")
                 # Still return success since transaction was sent
