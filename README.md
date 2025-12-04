@@ -327,6 +327,7 @@ config = {
             "app_secret": "your-privy-app-secret", # Required - your Privy application secret
             "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
             "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
+            "rpc_url": "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY", # Recommended - Helius RPC for reliable tx sending
             "referral_account": "my-referral-account", # Optional - for collecting fees
             "referral_fee": 50, # Optional - fee in basis points (50-255 bps)
             "payer_private_key": "payer-private-key", # Optional - for gasless transactions
@@ -334,6 +335,9 @@ config = {
     },
 }
 ```
+
+**RPC URL (Recommended):**
+If configured, transactions are sent directly via RPC instead of Jupiter's execute endpoint, which can timeout. Helius RPC is recommended for reliable transaction landing.
 
 **Actions:** Same as Jupiter Trigger (create, cancel, cancel_all, list)
 
