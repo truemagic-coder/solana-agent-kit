@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "14.1.12"
+version = "14.2.0"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -58,6 +58,7 @@ search_internet = "sakit.search_internet:get_plugin"
 solana_dflow_swap = "sakit.solana_dflow_swap:get_plugin"
 solana_transfer = "sakit.solana_transfer:get_plugin"
 solana_ultra = "sakit.solana_ultra:get_plugin"
+token_math = "sakit.token_math:get_plugin"
 vybe = "sakit.vybe:get_plugin"
 
 [tool.poetry.group.dev.dependencies]
