@@ -80,32 +80,39 @@ async def get_privy_embedded_wallet(  # pragma: no cover
     """
     try:
         user = await privy_client.users.get(user_id)
-        data = user.model_dump() if hasattr(user, "model_dump") else user.__dict__
+        linked_accounts = user.linked_accounts or []
 
         # First, try to find embedded wallet with delegation
-        for acct in data.get("linked_accounts", []):
-            if acct.get("connector_type") == "embedded" and acct.get("delegated"):
-                wallet_id = acct.get("id")
-                # Use 'address' field if 'public_key' is null (common for API-created wallets)
-                address = acct.get("address") or acct.get("public_key")
+        for acct in linked_accounts:
+            if getattr(acct, "connector_type", None) == "embedded" and getattr(
+                acct, "delegated", False
+            ):
+                wallet_id = getattr(acct, "id", None)
+                address = getattr(acct, "address", None) or getattr(
+                    acct, "public_key", None
+                )
                 if wallet_id and address:
                     return {"wallet_id": wallet_id, "public_key": address}
 
         # Then, try to find bot-first wallet (API-created via privy_create_wallet)
-        # These have type == "wallet" and include chain_type
-        for acct in data.get("linked_accounts", []):
-            acct_type = acct.get("type", "")
-            # Check for Solana embedded wallets created via API
-            if acct_type == "wallet" and acct.get("chain_type") == "solana":
-                wallet_id = acct.get("id")
-                # API wallets use "address" field, SDK wallets use "public_key"
-                address = acct.get("address") or acct.get("public_key")
+        for acct in linked_accounts:
+            acct_type = getattr(acct, "type", "")
+            if acct_type == "wallet" and getattr(acct, "chain_type", None) == "solana":
+                wallet_id = getattr(acct, "id", None)
+                address = getattr(acct, "address", None) or getattr(
+                    acct, "public_key", None
+                )
                 if wallet_id and address:
                     return {"wallet_id": wallet_id, "public_key": address}
-            # Also check for solana_embedded_wallet type
-            if "solana" in acct_type.lower() and "embedded" in acct_type.lower():
-                wallet_id = acct.get("id")
-                address = acct.get("address") or acct.get("public_key")
+            if (
+                acct_type
+                and "solana" in acct_type.lower()
+                and "embedded" in acct_type.lower()
+            ):
+                wallet_id = getattr(acct, "id", None)
+                address = getattr(acct, "address", None) or getattr(
+                    acct, "public_key", None
+                )
                 if wallet_id and address:
                     return {"wallet_id": wallet_id, "public_key": address}
 
