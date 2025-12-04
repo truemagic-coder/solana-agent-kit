@@ -15,6 +15,7 @@ from privy import AsyncPrivyAPI
 from privy.lib.authorization_signatures import get_authorization_signature
 from cryptography.hazmat.primitives import serialization
 from solders.keypair import Keypair  # type: ignore
+from solders.pubkey import Pubkey  # type: ignore
 from solders.transaction import VersionedTransaction  # type: ignore
 from solders.message import to_bytes_versioned  # type: ignore
 
@@ -26,6 +27,39 @@ from sakit.utils.trigger import (
 from sakit.utils.wallet import send_raw_transaction_with_priority
 
 logger = logging.getLogger(__name__)
+
+# Jupiter Referral Program ID
+JUPITER_REFERRAL_PROGRAM_ID = Pubkey.from_string(
+    "REFER4ZgmyYx9c6He5XfaTMiGfdLwRnkV4RPp9t9iF3"
+)
+
+
+def _derive_referral_token_account(
+    referral_account: str, token_mint: str
+) -> str:  # pragma: no cover
+    """
+    Derive the referral token account PDA for a specific token mint.
+
+    Jupiter Trigger requires a token-specific referral account, not the main
+    referral account. This derives the correct PDA using the Jupiter Referral
+    Program seeds: ["referral_ata", referral_account, mint]
+
+    Args:
+        referral_account: The main Jupiter referral account pubkey
+        token_mint: The token mint address to derive the account for
+
+    Returns:
+        The derived referral token account pubkey as a string
+    """
+    referral_pubkey = Pubkey.from_string(referral_account)
+    mint_pubkey = Pubkey.from_string(token_mint)
+
+    referral_token_account, _ = Pubkey.find_program_address(
+        [b"referral_ata", bytes(referral_pubkey), bytes(mint_pubkey)],
+        JUPITER_REFERRAL_PROGRAM_ID,
+    )
+
+    return str(referral_token_account)
 
 
 def _convert_key_to_pkcs8_pem(key_string: str) -> str:  # pragma: no cover
@@ -501,6 +535,16 @@ class PrivyTriggerTool(AutoTool):
                 payer_keypair = Keypair.from_base58_string(self._payer_private_key)
                 payer_pubkey = str(payer_keypair.pubkey())
 
+            # Derive the referral token account for the output mint if referral is configured
+            fee_account = None
+            if self._referral_account and output_mint:
+                fee_account = _derive_referral_token_account(
+                    self._referral_account, output_mint
+                )
+                logger.info(
+                    f"Derived referral token account for {output_mint}: {fee_account}"
+                )
+
             result = await trigger.create_order(
                 input_mint=input_mint,
                 output_mint=output_mint,
@@ -510,7 +554,7 @@ class PrivyTriggerTool(AutoTool):
                 payer=payer_pubkey,
                 expired_at=expired_at,
                 fee_bps=self._referral_fee,
-                fee_account=self._referral_account,
+                fee_account=fee_account,
             )
 
             if not result.success:
