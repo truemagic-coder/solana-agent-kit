@@ -38,7 +38,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * MCP - Interface with MCP web servers
 * Image Generation - Generate images with OpenAI, Grok, or Gemini with uploading to S3 compatible storage
 * Nemo Agent - Generate Python projects with Nemo Agent with uploading to S3 compatible storage
-* Token Math - Reliable token amount calculations for swaps and limit orders (LLMs are bad at math!)
+* Token Math - Reliable token amount calculations for swaps, limit orders, and transfers (LLMs are bad at math!)
 
 ## 📦 Installation
 
@@ -838,7 +838,7 @@ config = {
 
 ### Token Math
 
-This plugin provides reliable token amount calculations for swaps and limit orders. **LLMs are notoriously bad at math** - they drop zeros, mess up decimal conversions, and hallucinate calculations. This tool does the math reliably so your agent doesn't lose user money.
+This plugin provides reliable token amount calculations for swaps, limit orders, and transfers. **LLMs are notoriously bad at math** - they drop zeros, mess up decimal conversions, and hallucinate calculations. This tool does the math reliably so your agent doesn't lose the user money.
 
 No config is needed - it's pure math with no external dependencies.
 
