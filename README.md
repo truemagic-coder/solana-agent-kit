@@ -848,14 +848,19 @@ config = {
         {
             "name": "trading_agent",
             "instructions": """
-                ALWAYS use the token_math tool BEFORE calling privy_ultra or privy_trigger!
+                ALWAYS use the token_math tool BEFORE calling privy_ultra, privy_transfer, or privy_trigger!
                 
-                For swaps:
+                For swaps (privy_ultra):
                 1. Get token price and decimals from Birdeye
                 2. Call token_math action="swap" with usd_amount, token_price_usd, decimals
                 3. Use the returned smallest_units as the amount for privy_ultra
                 
-                For limit orders:
+                For transfers (privy_transfer):
+                1. Get token price from Birdeye
+                2. Call token_math action="transfer" with usd_amount, token_price_usd
+                3. Use the returned amount for privy_transfer
+                
+                For limit orders (privy_trigger):
                 1. Get prices and decimals for BOTH tokens from Birdeye
                 2. Call token_math action="limit_order" with all params
                 3. Use the returned making_amount and taking_amount for privy_trigger
@@ -863,7 +868,7 @@ config = {
                 NEVER calculate amounts yourself - use token_math!
             """,
             "specialization": "Solana trading",
-            "tools": ["token_math", "birdeye", "privy_ultra", "privy_trigger"],
+            "tools": ["token_math", "birdeye", "privy_ultra", "privy_transfer", "privy_trigger"],
         }
     ]
 }
@@ -874,6 +879,10 @@ config = {
 - `swap` - Calculate smallest units for a swap given USD amount
   - Params: `usd_amount`, `token_price_usd`, `decimals`
   - Returns: `smallest_units` (use this for privy_ultra amount)
+
+- `transfer` - Calculate human-readable token amount for transfers
+  - Params: `usd_amount`, `token_price_usd`
+  - Returns: `amount` (human-readable, use this for privy_transfer amount)
 
 - `limit_order` - Calculate making_amount and taking_amount for limit orders
   - Params: `usd_amount`, `input_price_usd`, `input_decimals`, `output_price_usd`, `output_decimals`, `price_change_percentage`
@@ -890,7 +899,7 @@ config = {
 
 - `usd_to_tokens` - Calculate token amount from USD value
   - Params: `usd_amount`, `token_price_usd`
-  - Returns: `token_amount` (human readable, for privy_transfer)
+  - Returns: `token_amount` (human readable)
 
 **Example - Limit Order:**
 ```
