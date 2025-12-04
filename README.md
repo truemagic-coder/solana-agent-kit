@@ -38,6 +38,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * MCP - Interface with MCP web servers
 * Image Generation - Generate images with OpenAI, Grok, or Gemini with uploading to S3 compatible storage
 * Nemo Agent - Generate Python projects with Nemo Agent with uploading to S3 compatible storage
+* Token Math - Reliable token amount calculations for swaps and limit orders (LLMs are bad at math!)
 
 ## 📦 Installation
 
@@ -833,6 +834,83 @@ config = {
         }
     ]
 }
+```
+
+### Token Math
+
+This plugin provides reliable token amount calculations for swaps and limit orders. **LLMs are notoriously bad at math** - they drop zeros, mess up decimal conversions, and hallucinate calculations. This tool does the math reliably so your agent doesn't lose user money.
+
+No config is needed - it's pure math with no external dependencies.
+
+```python
+config = {
+    "agents": [
+        {
+            "name": "trading_agent",
+            "instructions": """
+                ALWAYS use the token_math tool BEFORE calling privy_ultra or privy_trigger!
+                
+                For swaps:
+                1. Get token price and decimals from Birdeye
+                2. Call token_math action="swap" with usd_amount, token_price_usd, decimals
+                3. Use the returned smallest_units as the amount for privy_ultra
+                
+                For limit orders:
+                1. Get prices and decimals for BOTH tokens from Birdeye
+                2. Call token_math action="limit_order" with all params
+                3. Use the returned making_amount and taking_amount for privy_trigger
+                
+                NEVER calculate amounts yourself - use token_math!
+            """,
+            "specialization": "Solana trading",
+            "tools": ["token_math", "birdeye", "privy_ultra", "privy_trigger"],
+        }
+    ]
+}
+```
+
+**Actions:**
+
+- `swap` - Calculate smallest units for a swap given USD amount
+  - Params: `usd_amount`, `token_price_usd`, `decimals`
+  - Returns: `smallest_units` (use this for privy_ultra amount)
+
+- `limit_order` - Calculate making_amount and taking_amount for limit orders
+  - Params: `usd_amount`, `input_price_usd`, `input_decimals`, `output_price_usd`, `output_decimals`, `price_change_percentage`
+  - Returns: `making_amount`, `taking_amount` (use these for privy_trigger)
+  - `price_change_percentage`: Use "-0.5" for 0.5% lower (buy the dip), "10" for 10% higher (sell high)
+
+- `to_smallest_units` - Convert human amount to smallest units
+  - Params: `human_amount`, `decimals`
+  - Returns: `smallest_units`
+
+- `to_human` - Convert smallest units to human readable
+  - Params: `smallest_units`, `decimals`
+  - Returns: `human_amount`
+
+- `usd_to_tokens` - Calculate token amount from USD value
+  - Params: `usd_amount`, `token_price_usd`
+  - Returns: `token_amount` (human readable, for privy_transfer)
+
+**Example - Limit Order:**
+```
+User: "limit buy BONK when price drops 0.5% with $10 of SOL"
+
+1. Birdeye: SOL price=$140, decimals=9, BONK price=$0.00001, decimals=5
+
+2. token_math action="limit_order":
+   - usd_amount="10"
+   - input_price_usd="140" (SOL)
+   - input_decimals=9
+   - output_price_usd="0.00001" (BONK)
+   - output_decimals=5
+   - price_change_percentage="-0.5"
+   
+   Returns:
+   - making_amount="71428571" (SOL in lamports)
+   - taking_amount="100502512562" (BONK in smallest units)
+
+3. privy_trigger with those exact amounts
 ```
 
 ## 🧩 Plugin Development
