@@ -177,6 +177,7 @@ async def send_raw_transaction_with_priority(  # pragma: no cover
                     logger.debug(f"Could not get priority fee estimate: {fee_error}")
 
             # Send the transaction
+            logger.info(f"Sending transaction with skip_preflight={skip_preflight}")
             result = await client.send_raw_transaction(
                 tx_bytes,
                 opts=TxOpts(
