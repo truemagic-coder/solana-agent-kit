@@ -389,12 +389,38 @@ class PrivyTriggerTool(AutoTool):
                 message_bytes = to_bytes_versioned(transaction.message)
                 payer_signature = payer_keypair.sign_message(message_bytes)
 
-                # Create partially signed transaction
-                partially_signed = VersionedTransaction.populate(
-                    transaction.message,
-                    [payer_signature, transaction.signatures[1]],
-                )
-                tx_to_sign = base64.b64encode(bytes(partially_signed)).decode("utf-8")
+                # Find the payer's position in the account keys
+                # The first N accounts (where N = num_required_signatures) are signers
+                payer_pubkey = payer_keypair.pubkey()
+                num_signers = transaction.message.header.num_required_signatures
+                account_keys = transaction.message.account_keys
+
+                payer_index = None
+                for i in range(num_signers):
+                    if account_keys[i] == payer_pubkey:
+                        payer_index = i
+                        break
+
+                if payer_index is None:
+                    logger.warning(
+                        f"Payer pubkey {payer_pubkey} not found in signers. "
+                        f"Signers: {[str(account_keys[i]) for i in range(num_signers)]}"
+                    )
+                    # Payer not in transaction - this might be a non-gasless transaction
+                    # Just pass through to Privy signing
+                else:
+                    # Create signature list with payer signature in correct position
+                    new_signatures = list(transaction.signatures)
+                    new_signatures[payer_index] = payer_signature
+                    logger.info(f"Payer signed at index {payer_index}")
+
+                    partially_signed = VersionedTransaction.populate(
+                        transaction.message,
+                        new_signatures,
+                    )
+                    tx_to_sign = base64.b64encode(bytes(partially_signed)).decode(
+                        "utf-8"
+                    )
 
             # Step 4: Sign with Privy using the official SDK
             signed_tx = await _privy_sign_transaction(
