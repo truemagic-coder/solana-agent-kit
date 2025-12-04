@@ -418,7 +418,9 @@ class PrivyTriggerTool(AutoTool):
                         transaction.message,
                         new_signatures,
                     )
-                    tx_to_sign = base64.b64encode(bytes(partially_signed)).decode("utf-8")
+                    tx_to_sign = base64.b64encode(bytes(partially_signed)).decode(
+                        "utf-8"
+                    )
 
             # Step 4: Sign with Privy using the official SDK
             signed_tx = await _privy_sign_transaction(
