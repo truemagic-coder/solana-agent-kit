@@ -318,6 +318,24 @@ class TestPrivyTriggerToolConfigure:
         assert privy_trigger_tool_with_payer._referral_account == "RefAcct123"
         assert privy_trigger_tool_with_payer._referral_fee == 50
 
+    def test_configure_stores_rpc_url(self):
+        """Should store RPC URL from config for direct transaction sending."""
+        tool = PrivyTriggerTool()
+        tool.configure(
+            {
+                "tools": {
+                    "privy_trigger": {
+                        "app_id": "test-app-id",
+                        "app_secret": "test-app-secret",
+                        "signing_key": f"wallet-auth:{TEST_EC_KEY_SEC1}",
+                        "jupiter_api_key": "test-api-key",
+                        "rpc_url": "https://mainnet.helius-rpc.com/?api-key=test",
+                    }
+                }
+            }
+        )
+        assert tool._rpc_url == "https://mainnet.helius-rpc.com/?api-key=test"
+
     def test_configure_with_empty_config(self):
         """Should handle empty config gracefully."""
         tool = PrivyTriggerTool()

@@ -19,6 +19,7 @@ from solders.transaction import VersionedTransaction  # type: ignore
 from solders.message import to_bytes_versioned  # type: ignore
 
 from sakit.utils.trigger import JupiterTrigger
+from sakit.utils.wallet import send_raw_transaction_with_priority
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +193,7 @@ class PrivyTriggerTool(AutoTool):
         self._referral_account: Optional[str] = None
         self._referral_fee: Optional[int] = None
         self._payer_private_key: Optional[str] = None
+        self._rpc_url: Optional[str] = None
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -265,6 +267,7 @@ class PrivyTriggerTool(AutoTool):
         self._referral_account = tool_cfg.get("referral_account")
         self._referral_fee = tool_cfg.get("referral_fee")
         self._payer_private_key = tool_cfg.get("payer_private_key")
+        self._rpc_url = tool_cfg.get("rpc_url")
 
     async def execute(
         self,
@@ -372,13 +375,28 @@ class PrivyTriggerTool(AutoTool):
                     "message": "Failed to sign transaction via Privy.",
                 }
 
-            # Execute
-            exec_result = await trigger.execute(signed_tx, request_id)
-
-            if not exec_result.success:
-                return {"status": "error", "message": exec_result.error}
-
-            return {"status": "success", "signature": exec_result.signature}
+            # Send via RPC or fallback to Jupiter execute
+            if self._rpc_url:
+                # Use configured RPC (Helius recommended) instead of Jupiter's execute endpoint
+                tx_bytes = base64.b64decode(signed_tx)
+                send_result = await send_raw_transaction_with_priority(
+                    rpc_url=self._rpc_url,
+                    tx_bytes=tx_bytes,
+                )
+                if not send_result.get("success"):
+                    return {
+                        "status": "error",
+                        "message": send_result.get(
+                            "error", "Failed to send transaction"
+                        ),
+                    }
+                return {"status": "success", "signature": send_result.get("signature")}
+            else:
+                # Fallback to Jupiter execute if no RPC configured
+                exec_result = await trigger.execute(signed_tx, request_id)
+                if not exec_result.success:
+                    return {"status": "error", "message": exec_result.error}
+                return {"status": "success", "signature": exec_result.signature}
 
         except Exception as e:
             logger.exception(f"Failed to sign and execute: {str(e)}")
