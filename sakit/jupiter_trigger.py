@@ -2,17 +2,63 @@
 Jupiter Trigger (Limit Order) tool for Solana Agent Kit.
 
 Enables creating, canceling, and managing limit orders using Jupiter Trigger API.
+
+NOTE: We bypass Jupiter's /execute endpoint and send transactions directly via
+our RPC (Helius). This is because Jupiter's execute can have reliability issues.
+This matches the pattern used in privy_trigger.py.
 """
 
+import base64
 import logging
 from typing import Dict, Any, List, Optional
 
 from solana_agent import AutoTool, ToolRegistry
 from solders.keypair import Keypair  # type: ignore
+from solders.pubkey import Pubkey  # type: ignore
+from solders.transaction import VersionedTransaction  # type: ignore
+from solders.message import to_bytes_versioned  # type: ignore
 
-from sakit.utils.trigger import JupiterTrigger, sign_trigger_transaction
+from sakit.utils.trigger import (
+    JupiterTrigger,
+    replace_blockhash_in_transaction,
+    get_fresh_blockhash,
+)
+from sakit.utils.wallet import send_raw_transaction_with_priority
 
 logger = logging.getLogger(__name__)
+
+# Jupiter Referral Program ID
+JUPITER_REFERRAL_PROGRAM_ID = Pubkey.from_string(
+    "REFER4ZgmyYx9c6He5XfaTMiGfdLwRnkV4RPp9t9iF3"
+)
+
+
+def _derive_referral_token_account(
+    referral_account: str, token_mint: str
+) -> str:  # pragma: no cover
+    """
+    Derive the referral token account PDA for a specific token mint.
+
+    Jupiter Trigger requires a token-specific referral account, not the main
+    referral account. This derives the correct PDA using the Jupiter Referral
+    Program seeds: ["referral_ata", referral_account, mint]
+
+    Args:
+        referral_account: The main Jupiter referral account pubkey
+        token_mint: The token mint address to derive the account for
+
+    Returns:
+        The derived referral token account pubkey as a string
+    """
+    referral_pubkey = Pubkey.from_string(referral_account)
+    mint_pubkey = Pubkey.from_string(token_mint)
+
+    referral_token_account, _ = Pubkey.find_program_address(
+        [b"referral_ata", bytes(referral_pubkey), bytes(mint_pubkey)],
+        JUPITER_REFERRAL_PROGRAM_ID,
+    )
+
+    return str(referral_token_account)
 
 
 class JupiterTriggerTool(AutoTool):
@@ -34,6 +80,7 @@ class JupiterTriggerTool(AutoTool):
         self._referral_account: Optional[str] = None
         self._referral_fee: Optional[int] = None
         self._payer_private_key: Optional[str] = None
+        self._rpc_url: Optional[str] = None
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -106,6 +153,69 @@ class JupiterTriggerTool(AutoTool):
         self._referral_account = tool_cfg.get("referral_account")
         self._referral_fee = tool_cfg.get("referral_fee")
         self._payer_private_key = tool_cfg.get("payer_private_key")
+        self._rpc_url = tool_cfg.get("rpc_url")
+
+    async def _sign_and_execute(
+        self,
+        transaction_base64: str,
+        keypair: Keypair,
+        payer_keypair: Optional[Keypair] = None,
+    ) -> Dict[str, Any]:
+        """
+        Sign a trigger transaction and send it via RPC.
+
+        We bypass Jupiter's /execute endpoint and send directly via our RPC
+        (Helius) because Jupiter's execute can have reliability issues (504 timeouts).
+
+        Args:
+            transaction_base64: Base64-encoded transaction from Jupiter
+            keypair: The user's keypair for signing
+            payer_keypair: Optional payer keypair for gasless transactions
+
+        Returns:
+            Dict with 'success', 'signature', and optionally 'error'
+        """
+        if not self._rpc_url:
+            return {"success": False, "error": "rpc_url not configured"}
+
+        try:
+            # Decode the transaction
+            tx_bytes = base64.b64decode(transaction_base64)
+            tx = VersionedTransaction.from_bytes(tx_bytes)
+
+            # Get fresh blockhash and replace
+            fresh_blockhash = await get_fresh_blockhash(self._rpc_url)
+            tx = replace_blockhash_in_transaction(tx, fresh_blockhash)
+
+            # Serialize message for signing
+            msg_bytes = to_bytes_versioned(tx.message)
+
+            # Sign with keypair
+            signature = keypair.sign_message(msg_bytes)
+            all_signatures = [signature]
+
+            # Sign with payer if provided (for gasless)
+            if payer_keypair:
+                payer_sig = payer_keypair.sign_message(msg_bytes)
+                all_signatures.append(payer_sig)
+
+            # Reconstruct transaction with signatures
+            signed_tx = VersionedTransaction.populate(tx.message, all_signatures)
+
+            # Serialize and send
+            serialized = bytes(signed_tx)
+            tx_base64 = base64.b64encode(serialized).decode("utf-8")
+
+            sig = await send_raw_transaction_with_priority(
+                rpc_url=self._rpc_url,
+                serialized_tx=tx_base64,
+            )
+
+            return {"success": True, "signature": sig}
+
+        except Exception as e:
+            logger.exception(f"Failed to sign and execute transaction: {str(e)}")
+            return {"success": False, "error": str(e)}
 
     async def execute(
         self,
@@ -193,24 +303,21 @@ class JupiterTriggerTool(AutoTool):
                     "message": "No transaction returned from Jupiter.",
                 }
 
-            # Sign the transaction
-            signed_tx = sign_trigger_transaction(
+            # Sign and execute via RPC (bypassing Jupiter's /execute endpoint)
+            exec_result = await self._sign_and_execute(
                 transaction_base64=result.transaction,
-                sign_message_func=keypair.sign_message,
-                payer_sign_func=payer_keypair.sign_message if payer_keypair else None,
+                keypair=keypair,
+                payer_keypair=payer_keypair,
             )
 
-            # Execute
-            exec_result = await trigger.execute(signed_tx, result.request_id)
-
-            if not exec_result.success:
-                return {"status": "error", "message": exec_result.error}
+            if not exec_result.get("success"):
+                return {"status": "error", "message": exec_result.get("error", "Unknown error")}
 
             return {
                 "status": "success",
                 "action": "create",
                 "order_pubkey": result.order,
-                "signature": exec_result.signature,
+                "signature": exec_result.get("signature"),
                 "message": f"Limit order created. Order pubkey: {result.order}",
             }
 
@@ -270,22 +377,21 @@ class JupiterTriggerTool(AutoTool):
                     "message": "No transaction returned from Jupiter.",
                 }
 
-            signed_tx = sign_trigger_transaction(
+            # Sign and execute via RPC (bypassing Jupiter's /execute endpoint)
+            exec_result = await self._sign_and_execute(
                 transaction_base64=result.transaction,
-                sign_message_func=keypair.sign_message,
-                payer_sign_func=payer_keypair.sign_message if payer_keypair else None,
+                keypair=keypair,
+                payer_keypair=payer_keypair,
             )
 
-            exec_result = await trigger.execute(signed_tx, result.request_id)
-
-            if not exec_result.success:
-                return {"status": "error", "message": exec_result.error}
+            if not exec_result.get("success"):
+                return {"status": "error", "message": exec_result.get("error", "Unknown error")}
 
             return {
                 "status": "success",
                 "action": "cancel",
                 "order_pubkey": order_pubkey,
-                "signature": exec_result.signature,
+                "signature": exec_result.get("signature"),
                 "message": f"Order {order_pubkey} cancelled.",
             }
 
@@ -343,19 +449,16 @@ class JupiterTriggerTool(AutoTool):
                     "message": "No transactions returned from Jupiter.",
                 }
 
-            # Sign and execute each transaction batch
+            # Sign and execute each transaction batch via RPC
             signatures = []
             for tx_base64 in result.transactions:
-                signed_tx = sign_trigger_transaction(
+                exec_result = await self._sign_and_execute(
                     transaction_base64=tx_base64,
-                    sign_message_func=keypair.sign_message,
-                    payer_sign_func=payer_keypair.sign_message
-                    if payer_keypair
-                    else None,
+                    keypair=keypair,
+                    payer_keypair=payer_keypair,
                 )
-                exec_result = await trigger.execute(signed_tx, result.request_id)
-                if exec_result.success and exec_result.signature:
-                    signatures.append(exec_result.signature)
+                if exec_result.get("success") and exec_result.get("signature"):
+                    signatures.append(exec_result.get("signature"))
 
             return {
                 "status": "success",

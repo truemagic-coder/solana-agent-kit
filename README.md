@@ -131,12 +131,15 @@ config = {
 
 This plugin enables Solana Agent to create, cancel, and manage limit orders using Jupiter's Trigger API. It's a smart tool that handles the full lifecycle of limit orders with a single action parameter.
 
+Transactions are sent directly via your RPC (Helius recommended) instead of Jupiter's `/execute` endpoint for improved reliability.
+
 ```python
 config = {
     "tools": {
         "jupiter_trigger": {
             "private_key": "my-private-key", # Required - base58 string
             "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
+            "rpc_url": "https://mainnet.helius-rpc.com/?api-key=xxx", # Required - Helius RPC URL for transaction sending
             "referral_account": "my-referral-account", # Optional - for collecting fees
             "referral_fee": 50, # Optional - fee in basis points (50-255 bps)
             "payer_private_key": "payer-private-key", # Optional - for gasless transactions
