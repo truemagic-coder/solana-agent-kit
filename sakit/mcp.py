@@ -40,7 +40,7 @@ class MCPTool(AutoTool):
         self._llm_api_key: Optional[str] = None
         self._llm_base_url: Optional[str] = None
         self._llm_model: Optional[str] = None
-        
+
         super().__init__(
             name="mcp",
             description="Executes tasks using connected MCP servers (e.g., Zapier actions) via fastmcp. Provide a natural language query describing the task.",
