@@ -19,6 +19,7 @@ from sakit.token_math import (
     apply_percentage_change,
     calculate_swap_amount,
     calculate_limit_order_amounts,
+    calculate_limit_order_info,
 )
 
 
@@ -279,6 +280,104 @@ class TestCalculateLimitOrderAmounts:
         assert taking < 71428571  # Less than at current price
 
 
+class TestCalculateLimitOrderInfo:
+    """Test calculate_limit_order_info function."""
+
+    def test_order_at_current_price(self):
+        """Should calculate info for order at current market price."""
+        # Order: sell 0.036 SOL for 521714 BONK
+        result = calculate_limit_order_info(
+            making_amount="0.036001982",
+            taking_amount="521714.66282",
+            input_price_usd="139",  # Current SOL price
+            output_price_usd="0.0000096",  # Current BONK price
+        )
+        # making_usd = 0.036 * 139 = ~$5
+        assert float(result["making_usd"]) == pytest.approx(5.00, rel=0.01)
+        # trigger_price = making_usd / taking_amount = $5 / 521714 = ~$0.00000958
+        trigger_price = float(result["trigger_price_usd"])
+        assert trigger_price == pytest.approx(0.00000958, rel=0.01)
+        # Current price is $0.0000096, trigger is ~$0.00000958
+        # Order wants to buy at LOWER price, so should NOT fill now
+        assert result["should_fill_now"] is False
+
+    def test_order_should_fill(self):
+        """Should detect when order should fill (price dropped to trigger)."""
+        result = calculate_limit_order_info(
+            making_amount="0.036",
+            taking_amount="521714",
+            input_price_usd="139",  # SOL price
+            output_price_usd="0.0000090",  # BONK price dropped below trigger
+        )
+        # trigger_price = $5 / 521714 = ~$0.00000958
+        # Current price = $0.0000090 which is BELOW trigger
+        # Order should fill now!
+        assert result["should_fill_now"] is True
+
+    def test_price_difference_calculation(self):
+        """Should calculate price difference correctly."""
+        result = calculate_limit_order_info(
+            making_amount="0.07",  # ~$10 at $140/SOL
+            taking_amount="1000000",  # 1M BONK
+            input_price_usd="140",
+            output_price_usd="0.00001",  # Current BONK price
+        )
+        # trigger_price = (0.07 * 140) / 1000000 = $0.0000098 per BONK
+        trigger_price = float(result["trigger_price_usd"])
+        assert trigger_price == pytest.approx(0.0000098, rel=0.01)
+        # price_diff = (trigger - current) / current * 100
+        # = (0.0000098 - 0.00001) / 0.00001 * 100 = -2%
+        price_diff = float(result["price_difference_percent"])
+        assert price_diff == pytest.approx(-2.0, rel=0.1)
+
+    def test_usd_values(self):
+        """Should calculate USD values correctly."""
+        result = calculate_limit_order_info(
+            making_amount="1",  # 1 SOL
+            taking_amount="10000",  # 10,000 USDC
+            input_price_usd="140",
+            output_price_usd="1",  # USDC
+        )
+        # making_usd = 1 * 140 = $140
+        assert result["making_usd"] == "140"
+        # taking_usd_at_current = 10000 * 1 = $10,000
+        assert result["taking_usd_at_current"] == "10000"
+        # trigger_price = $140 / 10000 = $0.014 per USDC
+        assert float(result["trigger_price_usd"]) == pytest.approx(0.014, rel=0.001)
+
+    def test_zero_taking_amount(self):
+        """Should handle zero taking amount (edge case)."""
+        result = calculate_limit_order_info(
+            making_amount="1",
+            taking_amount="0",  # Zero output
+            input_price_usd="140",
+            output_price_usd="1",
+        )
+        # trigger_price should be 0 when taking is 0
+        assert result["trigger_price_usd"] == "0"
+
+    def test_zero_output_price(self):
+        """Should handle zero output price (edge case)."""
+        result = calculate_limit_order_info(
+            making_amount="1",
+            taking_amount="1000",
+            input_price_usd="140",
+            output_price_usd="0",  # Zero price
+        )
+        # price_diff should be 0 when output_price is 0
+        assert result["price_difference_percent"] == "0"
+
+    def test_invalid_amounts(self):
+        """Should raise error for invalid amounts."""
+        with pytest.raises(ValueError):
+            calculate_limit_order_info(
+                making_amount="invalid",
+                taking_amount="100",
+                input_price_usd="140",
+                output_price_usd="1",
+            )
+
+
 # =============================================================================
 # Integration Tests for Tool
 # =============================================================================
@@ -482,6 +581,77 @@ class TestTokenMathToolExecuteLimitOrder:
             output_price_usd="",  # Missing
             output_decimals=0,  # Missing
             price_change_percentage="0",
+        )
+        assert result["status"] == "error"
+
+
+class TestTokenMathToolExecuteLimitOrderInfo:
+    """Test 'limit_order_info' action."""
+
+    @pytest.mark.asyncio
+    async def test_limit_order_info_success(self, math_tool):
+        """Should calculate order info correctly."""
+        result = await math_tool.execute(
+            action="limit_order_info",
+            usd_amount="",
+            token_price_usd="",
+            decimals=0,
+            human_amount="",
+            smallest_units="",
+            input_price_usd="139",  # SOL current price
+            input_decimals=0,
+            output_price_usd="0.0000096",  # BONK current price
+            output_decimals=0,
+            price_change_percentage="0",
+            making_amount="0.036",  # Selling 0.036 SOL
+            taking_amount="521714",  # Buying 521k BONK
+        )
+        assert result["status"] == "success"
+        assert result["action"] == "limit_order_info"
+        # Check USD values
+        assert float(result["making_usd"]) == pytest.approx(5.0, rel=0.01)
+        # Check trigger price
+        assert "trigger_price_usd" in result
+        assert "should_fill_now" in result
+
+    @pytest.mark.asyncio
+    async def test_limit_order_info_should_fill(self, math_tool):
+        """Should detect when order should fill."""
+        result = await math_tool.execute(
+            action="limit_order_info",
+            usd_amount="",
+            token_price_usd="",
+            decimals=0,
+            human_amount="",
+            smallest_units="",
+            input_price_usd="139",
+            input_decimals=0,
+            output_price_usd="0.0000090",  # Price dropped below trigger
+            output_decimals=0,
+            price_change_percentage="0",
+            making_amount="0.036",
+            taking_amount="521714",
+        )
+        assert result["status"] == "success"
+        assert result["should_fill_now"] is True
+
+    @pytest.mark.asyncio
+    async def test_limit_order_info_missing_params(self, math_tool):
+        """Should return error when params missing."""
+        result = await math_tool.execute(
+            action="limit_order_info",
+            usd_amount="",
+            token_price_usd="",
+            decimals=0,
+            human_amount="",
+            smallest_units="",
+            input_price_usd="",  # Missing
+            input_decimals=0,
+            output_price_usd="",  # Missing
+            output_decimals=0,
+            price_change_percentage="0",
+            making_amount="",  # Missing
+            taking_amount="",  # Missing
         )
         assert result["status"] == "error"
 
