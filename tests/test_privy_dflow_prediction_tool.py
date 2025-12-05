@@ -503,12 +503,13 @@ class TestPositionsAction:
     async def test_positions_missing_privy_config(
         self, privy_prediction_tool_no_config
     ):
-        """Positions without Privy config should return error."""
+        """Positions without config should return error (rpc_url checked first)."""
         result = await privy_prediction_tool_no_config.execute(
             action="positions", privy_user_id="did:privy:test"
         )
         assert result["status"] == "error"
-        assert "app_id" in result["message"] or "app_secret" in result["message"]
+        # rpc_url is checked first in the new implementation
+        assert "rpc_url" in result["message"] or "not configured" in result["message"]
 
 
 # =============================================================================
@@ -1197,8 +1198,8 @@ class TestPositionsSuccessfulExecution:
     """Test successful positions action."""
 
     @pytest.mark.asyncio
-    async def test_positions_with_wallet_found(self, privy_prediction_tool):
-        """Positions should succeed when wallet is found."""
+    async def test_positions_with_positions_found(self, privy_prediction_tool):
+        """Positions should return actual positions when found."""
         with patch(
             "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
             new_callable=AsyncMock,
@@ -1208,21 +1209,100 @@ class TestPositionsSuccessfulExecution:
                 "public_key": "TestPublicKey123",
             }
             with patch.object(
-                DFlowPredictionClient, "get_outcome_mints", new_callable=AsyncMock
-            ) as mock_mints:
-                mock_mints.return_value = [
-                    {"mint": "Mint1", "ticker": "TEST-YES"},
-                    {"mint": "Mint2", "ticker": "TEST-NO"},
-                    {"mint": "Mint3", "ticker": "ANOTHER-YES"},
-                ]
+                DFlowPredictionClient, "get_positions", new_callable=AsyncMock
+            ) as mock_positions:
+                mock_positions.return_value = {
+                    "status": "success",
+                    "wallet": "TestPublicKey123",
+                    "position_count": 2,
+                    "positions": [
+                        {
+                            "mint": "Mint1",
+                            "ticker": "PRES-2028-HARRIS",
+                            "side": "YES",
+                            "amount": "1000000",
+                            "ui_amount": 1.0,
+                            "decimals": 6,
+                        },
+                        {
+                            "mint": "Mint2",
+                            "ticker": "BTC-100K-2025",
+                            "side": "NO",
+                            "amount": "5000000",
+                            "ui_amount": 5.0,
+                            "decimals": 6,
+                        },
+                    ],
+                    "hint": "Each position represents outcome tokens.",
+                }
                 result = await privy_prediction_tool.execute(
                     action="positions",
                     privy_user_id="did:privy:test",
                 )
                 assert result["status"] == "success"
-                assert result["user_wallet"] == "TestPublicKey123"
-                assert result["outcome_mint_count"] == 3
-                assert "hint" in result
+                assert result["wallet"] == "TestPublicKey123"
+                assert result["position_count"] == 2
+                assert len(result["positions"]) == 2
+                assert result["positions"][0]["ticker"] == "PRES-2028-HARRIS"
+                assert result["positions"][0]["side"] == "YES"
+                mock_positions.assert_called_once_with(
+                    wallet_address="TestPublicKey123",
+                    rpc_url="https://mainnet.helius-rpc.com/?api-key=test-key",
+                )
+
+    @pytest.mark.asyncio
+    async def test_positions_with_no_positions(self, privy_prediction_tool):
+        """Positions should return empty list when no positions."""
+        with patch(
+            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
+            new_callable=AsyncMock,
+        ) as mock_wallet:
+            mock_wallet.return_value = {
+                "wallet_id": "test-wallet-id",
+                "public_key": "TestPublicKey123",
+            }
+            with patch.object(
+                DFlowPredictionClient, "get_positions", new_callable=AsyncMock
+            ) as mock_positions:
+                mock_positions.return_value = {
+                    "status": "success",
+                    "wallet": "TestPublicKey123",
+                    "position_count": 0,
+                    "positions": [],
+                    "hint": "No prediction market positions found.",
+                }
+                result = await privy_prediction_tool.execute(
+                    action="positions",
+                    privy_user_id="did:privy:test",
+                )
+                assert result["status"] == "success"
+                assert result["position_count"] == 0
+                assert result["positions"] == []
+
+    @pytest.mark.asyncio
+    async def test_positions_rpc_error(self, privy_prediction_tool):
+        """Positions should return error when RPC fails."""
+        with patch(
+            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
+            new_callable=AsyncMock,
+        ) as mock_wallet:
+            mock_wallet.return_value = {
+                "wallet_id": "test-wallet-id",
+                "public_key": "TestPublicKey123",
+            }
+            with patch.object(
+                DFlowPredictionClient, "get_positions", new_callable=AsyncMock
+            ) as mock_positions:
+                mock_positions.return_value = {
+                    "status": "error",
+                    "message": "Failed to query token accounts: RPC error: 503",
+                }
+                result = await privy_prediction_tool.execute(
+                    action="positions",
+                    privy_user_id="did:privy:test",
+                )
+                assert result["status"] == "error"
+                assert "RPC error" in result["message"]
 
     @pytest.mark.asyncio
     async def test_positions_missing_user_id(self, privy_prediction_tool):
@@ -1232,9 +1312,54 @@ class TestPositionsSuccessfulExecution:
         assert "privy_user_id is required" in result["message"]
 
     @pytest.mark.asyncio
+    async def test_positions_missing_rpc_url(self, privy_prediction_tool_no_config):
+        """Positions without rpc_url should return error."""
+        # This fixture has app_id/secret not configured, need one with only rpc missing
+        tool = PrivyDFlowPredictionTool()
+        tool.configure(
+            {
+                "tools": {
+                    "privy_dflow_prediction": {
+                        "app_id": "test-app-id",
+                        "app_secret": "test-app-secret",
+                        # No rpc_url
+                    }
+                }
+            }
+        )
+        result = await tool.execute(
+            action="positions",
+            privy_user_id="did:privy:test",
+        )
+        assert result["status"] == "error"
+        assert "rpc_url must be configured" in result["message"]
+
+    @pytest.mark.asyncio
     async def test_positions_missing_config(self, privy_prediction_tool_no_config):
-        """Positions without Privy config should return error."""
+        """Positions without config should return error (rpc_url checked first)."""
         result = await privy_prediction_tool_no_config.execute(
+            action="positions",
+            privy_user_id="did:privy:test",
+        )
+        assert result["status"] == "error"
+        # rpc_url is checked first in the new implementation
+        assert "rpc_url" in result["message"] or "not configured" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_positions_missing_privy_credentials(self):
+        """Positions with rpc_url but missing Privy credentials should error."""
+        tool = PrivyDFlowPredictionTool()
+        tool.configure(
+            {
+                "tools": {
+                    "privy_dflow_prediction": {
+                        "rpc_url": "https://api.mainnet-beta.solana.com",
+                        # No app_id or app_secret
+                    }
+                }
+            }
+        )
+        result = await tool.execute(
             action="positions",
             privy_user_id="did:privy:test",
         )

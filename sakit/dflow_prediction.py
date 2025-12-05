@@ -537,26 +537,25 @@ class DFlowPredictionTool(AutoTool):
 
             elif action == "positions":
                 # For positions, we need to check the user's token balances
-                # This requires querying on-chain data for outcome token holdings
                 if not self._private_key:
                     return {"status": "error", "message": "private_key not configured"}
+
+                if not self._rpc_url:
+                    return {
+                        "status": "error",
+                        "message": "rpc_url must be configured to query positions",
+                    }
 
                 keypair = Keypair.from_base58_string(self._private_key)
                 user_pubkey = str(keypair.pubkey())
 
-                # Get all outcome mints to identify which tokens are prediction outcomes
-                outcome_mints = await client.get_outcome_mints()
+                # Query positions via RPC + DFlow outcome mints
+                positions_result = await client.get_positions(
+                    wallet_address=user_pubkey,
+                    rpc_url=self._rpc_url,
+                )
 
-                return {
-                    "status": "success",
-                    "message": "Position tracking requires on-chain token balance queries. "
-                    "Use a wallet tool to check balances for outcome token mints.",
-                    "user_wallet": user_pubkey,
-                    "outcome_mint_count": len(outcome_mints)
-                    if isinstance(outcome_mints, list)
-                    else "see data",
-                    "hint": "Query token balances for mints from outcome_mints to find positions.",
-                }
+                return positions_result
 
             else:
                 return {"status": "error", "message": f"Unknown action: {action}"}

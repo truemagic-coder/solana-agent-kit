@@ -832,11 +832,17 @@ class PrivyDFlowPredictionTool(AutoTool):
                     }
 
             elif action == "positions":
-                # For positions, we need the user's wallet address
+                # For positions, we need the user's wallet address and RPC
                 if not privy_user_id:
                     return {
                         "status": "error",
                         "message": "privy_user_id is required for positions action",
+                    }
+
+                if not self._rpc_url:
+                    return {
+                        "status": "error",
+                        "message": "rpc_url must be configured to query positions",
                     }
 
                 # Validate Privy configuration
@@ -857,19 +863,13 @@ class PrivyDFlowPredictionTool(AutoTool):
 
                 wallet_address = wallet["public_key"]
 
-                # Get all outcome mints to identify which tokens are prediction outcomes
-                outcome_mints = await client.get_outcome_mints()
+                # Query positions via RPC + DFlow outcome mints
+                positions_result = await client.get_positions(
+                    wallet_address=wallet_address,
+                    rpc_url=self._rpc_url,
+                )
 
-                return {
-                    "status": "success",
-                    "message": "Position tracking requires on-chain token balance queries. "
-                    "Use a wallet tool to check balances for outcome token mints.",
-                    "user_wallet": wallet_address,
-                    "outcome_mint_count": len(outcome_mints)
-                    if isinstance(outcome_mints, list)
-                    else "see data",
-                    "hint": "Query token balances for mints from outcome_mints to find positions.",
-                }
+                return positions_result
 
             else:
                 return {"status": "error", "message": f"Unknown action: {action}"}
