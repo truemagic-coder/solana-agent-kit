@@ -218,7 +218,7 @@ class PrivyDFlowSwapTool(AutoTool):
             "properties": {
                 "user_id": {
                     "type": "string",
-                    "description": "Privy user id (did) for the delegated wallet.",
+                    "description": "Privy user id (DID like 'did:privy:xxx'). Get this from privy_get_user_by_telegram's 'result.user_id' field. REQUIRED.",
                 },
                 "input_mint": {
                     "type": "string",

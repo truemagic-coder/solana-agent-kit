@@ -83,7 +83,11 @@ class PrivyGetUserByTelegramTool(AutoTool):
     def __init__(self, registry: Optional[ToolRegistry] = None):
         super().__init__(
             name="privy_get_user_by_telegram",
-            description="Look up an existing Privy user by their Telegram user ID. Returns user info and linked wallets.",
+            description=(
+                "Look up an existing Privy user by their Telegram user ID. "
+                "Returns user info including 'user_id' (the Privy DID like 'did:privy:xxx') and linked wallets. "
+                "IMPORTANT: Extract 'result.user_id' from the response and pass it to other privy_* tools."
+            ),
             registry=registry,
         )
         self.app_id = None
