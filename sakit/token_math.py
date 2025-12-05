@@ -213,6 +213,68 @@ def calculate_limit_order_amounts(
     }
 
 
+def calculate_limit_order_info(
+    making_amount: str,
+    taking_amount: str,
+    input_price_usd: str,
+    output_price_usd: str,
+) -> Dict[str, str]:
+    """
+    Calculate display info for a limit order from its amounts.
+
+    Use this when listing orders to show USD values and trigger prices.
+
+    Args:
+        making_amount: Human-readable amount of input token being sold
+        taking_amount: Human-readable amount of output token to receive
+        input_price_usd: Current market price of input token in USD
+        output_price_usd: Current market price of output token in USD
+
+    Returns:
+        Dict with USD values and trigger price info
+    """
+    try:
+        making = Decimal(str(making_amount))
+        taking = Decimal(str(taking_amount))
+        input_price = Decimal(str(input_price_usd))
+        output_price = Decimal(str(output_price_usd))
+
+        # Calculate USD values at current prices
+        making_usd = making * input_price
+        taking_usd_at_current = taking * output_price
+
+        # Calculate the trigger price (price per output token the order expects)
+        # trigger_price = making_usd / taking_amount
+        if taking > 0:
+            trigger_price = making_usd / taking
+        else:
+            trigger_price = Decimal("0")
+
+        # Calculate price difference from current market
+        if output_price > 0:
+            price_diff_pct = ((trigger_price - output_price) / output_price) * 100
+        else:
+            price_diff_pct = Decimal("0")
+
+        # Determine if order should fill (for buy orders, trigger >= current means fill)
+        # For a buy order: you want to buy when price drops TO trigger_price
+        # Order fills when current_price <= trigger_price
+        will_fill = output_price <= trigger_price
+
+        return {
+            "making_amount": str(making),
+            "taking_amount": str(taking),
+            "making_usd": str(making_usd),
+            "taking_usd_at_current": str(taking_usd_at_current),
+            "trigger_price_usd": str(trigger_price),
+            "current_output_price_usd": str(output_price),
+            "price_difference_percent": str(price_diff_pct),
+            "should_fill_now": will_fill,
+        }
+    except (InvalidOperation, ValueError) as e:
+        raise ValueError(f"Invalid limit order info calculation: {e}")
+
+
 class TokenMathTool(AutoTool):
     """
     Reliable token math calculations for swaps, transfers, and limit orders.
@@ -229,6 +291,7 @@ class TokenMathTool(AutoTool):
                 "Actions: 'swap' (for privy_ultra - returns smallest_units), "
                 "'transfer' (for privy_transfer - returns human-readable amount), "
                 "'limit_order' (for privy_trigger - returns making_amount and taking_amount), "
+                "'limit_order_info' (for displaying order list - calculates trigger price and USD values), "
                 "'to_smallest_units', 'to_human', 'usd_to_tokens'. "
                 "ALWAYS use this tool for any calculation - never do math yourself!"
             ),
@@ -245,6 +308,7 @@ class TokenMathTool(AutoTool):
                         "swap",
                         "transfer",
                         "limit_order",
+                        "limit_order_info",
                         "to_smallest_units",
                         "to_human",
                         "usd_to_tokens",
@@ -254,6 +318,7 @@ class TokenMathTool(AutoTool):
                         "'swap' - For privy_ultra: calculate smallest_units from USD amount, "
                         "'transfer' - For privy_transfer: calculate human-readable token amount from USD, "
                         "'limit_order' - For privy_trigger: calculate making_amount and taking_amount, "
+                        "'limit_order_info' - For displaying orders: calculate trigger price and USD values from order amounts, "
                         "'to_smallest_units' - Convert human amount to smallest units, "
                         "'to_human' - Convert smallest units to human readable, "
                         "'usd_to_tokens' - Calculate token amount from USD value"
@@ -289,7 +354,7 @@ class TokenMathTool(AutoTool):
                 },
                 "output_price_usd": {
                     "type": "string",
-                    "description": "Output token price in USD (for 'limit_order'). Get from Birdeye. Pass empty string if not needed.",
+                    "description": "Output token price in USD (for 'limit_order', 'limit_order_info'). Get from Birdeye. Pass empty string if not needed.",
                 },
                 "output_decimals": {
                     "type": "integer",
@@ -298,6 +363,14 @@ class TokenMathTool(AutoTool):
                 "price_change_percentage": {
                     "type": "string",
                     "description": "Price change percentage for limit order (for 'limit_order'). E.g., '-0.5' for 0.5% lower (buy dip), '10' for 10% higher (sell high). Pass '0' for current price.",
+                },
+                "making_amount": {
+                    "type": "string",
+                    "description": "Human-readable amount of input token being sold (for 'limit_order_info'). From order's makingAmount field. Pass empty string if not needed.",
+                },
+                "taking_amount": {
+                    "type": "string",
+                    "description": "Human-readable amount of output token to receive (for 'limit_order_info'). From order's takingAmount field. Pass empty string if not needed.",
                 },
             },
             "required": [
@@ -312,6 +385,8 @@ class TokenMathTool(AutoTool):
                 "output_price_usd",
                 "output_decimals",
                 "price_change_percentage",
+                "making_amount",
+                "taking_amount",
             ],
             "additionalProperties": False,
         }
@@ -333,6 +408,8 @@ class TokenMathTool(AutoTool):
         output_price_usd: str = "",
         output_decimals: int = 0,
         price_change_percentage: str = "0",
+        making_amount: str = "",
+        taking_amount: str = "",
     ) -> Dict[str, Any]:
         """Execute the math calculation."""
         action = action.lower().strip()
@@ -449,10 +526,41 @@ class TokenMathTool(AutoTool):
                     "message": f"${usd_amount} at price ${token_price_usd} = {result} tokens",
                 }
 
+            elif action == "limit_order_info":
+                # Calculate display info for a limit order from its amounts
+                if not all(
+                    [making_amount, taking_amount, input_price_usd, output_price_usd]
+                ):
+                    return {
+                        "status": "error",
+                        "message": "Missing required params for 'limit_order_info': making_amount, taking_amount, input_price_usd, output_price_usd",
+                    }
+                result = calculate_limit_order_info(
+                    making_amount=making_amount,
+                    taking_amount=taking_amount,
+                    input_price_usd=input_price_usd,
+                    output_price_usd=output_price_usd,
+                )
+                return {
+                    "status": "success",
+                    "action": "limit_order_info",
+                    "making_amount": result["making_amount"],
+                    "taking_amount": result["taking_amount"],
+                    "making_usd": result["making_usd"],
+                    "taking_usd_at_current": result["taking_usd_at_current"],
+                    "trigger_price_usd": result["trigger_price_usd"],
+                    "current_output_price_usd": result["current_output_price_usd"],
+                    "price_difference_percent": result["price_difference_percent"],
+                    "should_fill_now": result["should_fill_now"],
+                    "message": f"Order: sell {result['making_amount']} (${result['making_usd']}) for {result['taking_amount']} tokens. "
+                    f"Trigger price: ${result['trigger_price_usd']}, Current price: ${result['current_output_price_usd']} "
+                    f"({result['price_difference_percent']}% diff). Will fill now: {result['should_fill_now']}",
+                }
+
             else:
                 return {
                     "status": "error",
-                    "message": f"Unknown action: {action}. Valid: swap, limit_order, to_smallest_units, to_human, usd_to_tokens",
+                    "message": f"Unknown action: {action}. Valid: swap, transfer, limit_order, limit_order_info, to_smallest_units, to_human, usd_to_tokens",
                 }
 
         except ValueError as e:

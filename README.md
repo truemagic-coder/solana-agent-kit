@@ -889,6 +889,11 @@ config = {
   - Returns: `making_amount`, `taking_amount` (use these for privy_trigger)
   - `price_change_percentage`: Use "-0.5" for 0.5% lower (buy the dip), "10" for 10% higher (sell high)
 
+- `limit_order_info` - Calculate trigger price and USD values for displaying order info
+  - Params: `making_amount`, `taking_amount`, `input_price_usd`, `output_price_usd`
+  - Returns: `making_usd`, `taking_usd_at_current`, `trigger_price_usd`, `current_output_price_usd`, `price_difference_percent`, `should_fill_now`
+  - Use this when listing orders to show meaningful price info to users
+
 - `to_smallest_units` - Convert human amount to smallest units
   - Params: `human_amount`, `decimals`
   - Returns: `smallest_units`
