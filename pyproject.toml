@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "15.1.0"
+version = "15.1.1"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -36,6 +36,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.plugins."solana_agent.plugins"]
 birdeye = "sakit.birdeye:get_plugin"
+dflow_prediction = "sakit.dflow_prediction:get_plugin"
 image_gen = "sakit.image_gen:get_plugin"
 jupiter_holdings = "sakit.jupiter_holdings:get_plugin"
 jupiter_recurring = "sakit.jupiter_recurring:get_plugin"
@@ -46,6 +47,7 @@ mcp = "sakit.mcp:get_plugin"
 nemo_agent = "sakit.nemo_agent:get_plugin"
 privy_create_user = "sakit.privy_create_user:get_plugin"
 privy_create_wallet = "sakit.privy_create_wallet:get_plugin"
+privy_dflow_prediction = "sakit.privy_dflow_prediction:get_plugin"
 privy_dflow_swap = "sakit.privy_dflow_swap:get_plugin"
 privy_get_user_by_telegram = "sakit.privy_get_user_by_telegram:get_plugin"
 privy_recurring = "sakit.privy_recurring:get_plugin"
