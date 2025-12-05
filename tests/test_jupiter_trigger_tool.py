@@ -115,7 +115,9 @@ class TestJupiterTriggerToolConfigure:
 
     def test_configure_stores_rpc_url(self, trigger_tool):
         """Should store RPC URL for direct transaction sending."""
-        assert trigger_tool._rpc_url == "https://mainnet.helius-rpc.com/?api-key=test-key"
+        assert (
+            trigger_tool._rpc_url == "https://mainnet.helius-rpc.com/?api-key=test-key"
+        )
 
     def test_configure_stores_payer_key(self, trigger_tool_with_payer):
         """Should store payer private key for gasless."""
@@ -450,8 +452,12 @@ class TestJupiterTriggerToolSignAndExecute:
             patch("sakit.jupiter_trigger.VersionedTransaction") as MockTx,
             patch("sakit.jupiter_trigger.to_bytes_versioned") as mock_to_bytes,
             patch("sakit.jupiter_trigger.get_fresh_blockhash") as mock_blockhash,
-            patch("sakit.jupiter_trigger.replace_blockhash_in_transaction") as mock_replace,
-            patch("sakit.jupiter_trigger.send_raw_transaction_with_priority") as mock_send,
+            patch(
+                "sakit.jupiter_trigger.replace_blockhash_in_transaction"
+            ) as mock_replace,
+            patch(
+                "sakit.jupiter_trigger.send_raw_transaction_with_priority"
+            ) as mock_send,
         ):
             mock_base64.b64decode.return_value = mock_tx_bytes
             mock_base64.b64encode.return_value.decode.return_value = "signed_tx_base64"
@@ -489,8 +495,12 @@ class TestJupiterTriggerToolSignAndExecute:
             patch("sakit.jupiter_trigger.VersionedTransaction") as MockTx,
             patch("sakit.jupiter_trigger.to_bytes_versioned") as mock_to_bytes,
             patch("sakit.jupiter_trigger.get_fresh_blockhash") as mock_blockhash,
-            patch("sakit.jupiter_trigger.replace_blockhash_in_transaction") as mock_replace,
-            patch("sakit.jupiter_trigger.send_raw_transaction_with_priority") as mock_send,
+            patch(
+                "sakit.jupiter_trigger.replace_blockhash_in_transaction"
+            ) as mock_replace,
+            patch(
+                "sakit.jupiter_trigger.send_raw_transaction_with_priority"
+            ) as mock_send,
         ):
             mock_base64.b64decode.return_value = b"tx_bytes"
             mock_base64.b64encode.return_value.decode.return_value = "signed_tx_base64"

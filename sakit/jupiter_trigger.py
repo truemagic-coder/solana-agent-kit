@@ -311,7 +311,10 @@ class JupiterTriggerTool(AutoTool):
             )
 
             if not exec_result.get("success"):
-                return {"status": "error", "message": exec_result.get("error", "Unknown error")}
+                return {
+                    "status": "error",
+                    "message": exec_result.get("error", "Unknown error"),
+                }
 
             return {
                 "status": "success",
@@ -385,7 +388,10 @@ class JupiterTriggerTool(AutoTool):
             )
 
             if not exec_result.get("success"):
-                return {"status": "error", "message": exec_result.get("error", "Unknown error")}
+                return {
+                    "status": "error",
+                    "message": exec_result.get("error", "Unknown error"),
+                }
 
             return {
                 "status": "success",
