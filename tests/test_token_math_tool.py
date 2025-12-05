@@ -244,40 +244,43 @@ class TestCalculateLimitOrderAmounts:
         assert result["taking_amount"] == "100000000000"
 
     def test_limit_order_buy_the_dip(self):
-        """Should calculate limit order for buying at lower price."""
+        """Should calculate limit order for buying the dip (get more output by waiting)."""
         result = calculate_limit_order_amounts(
             input_usd_amount="10",
             input_price_usd="140",  # SOL
             input_decimals=9,
             output_price_usd="0.00001",  # BONK
             output_decimals=5,
-            price_change_percentage="-0.5",  # Buy when 0.5% lower
+            price_change_percentage="0.5",  # Want 0.5% MORE output (buy the dip)
         )
         # making_amount unchanged
         assert result["making_amount"] == "71428571"
-        # taking_amount: at 0.995 price, get MORE tokens
-        # $10 / $0.00000995 * 10^5 = 100,502,512,562 (rounded down)
+        # taking_amount: with +0.5%, we're asking for MORE output (1.005x)
+        # $10 * 1.005 / $0.00001 * 10^5 = 100,500,000,000
         taking = int(result["taking_amount"])
         assert taking > 100000000000  # More than at current price
         assert taking < 101000000000  # But not too much more
 
     def test_limit_order_sell_high(self):
-        """Should calculate limit order for selling at higher price."""
+        """Should calculate limit order for selling at higher price (get more output)."""
         result = calculate_limit_order_amounts(
             input_usd_amount="10",
             input_price_usd="0.00001",  # BONK
             input_decimals=5,
             output_price_usd="140",  # SOL
             output_decimals=9,
-            price_change_percentage="10",  # Sell when SOL is 10% higher
+            price_change_percentage="5",  # Want 5% MORE output (sell high)
         )
-        # At 10% higher SOL price ($154), get LESS SOL for same USD
+        # making: $10 / $0.00001 * 10^5 = 100,000,000,000
         making = int(result["making_amount"])
-        # $10 / $0.00001 * 10^5 = 100,000,000,000
         assert making == 100000000000
-        # taking: $10 / $154 * 10^9 = 64,935,064 (less SOL)
+        # taking: $10 * 1.05 / $140 * 10^9 = 75,000,000 (5% more SOL than current)
         taking = int(result["taking_amount"])
-        assert taking < 71428571  # Less than at current price
+        # Current would be $10 / $140 * 10^9 = 71,428,571
+        assert (
+            taking > 71428571
+        )  # More than at current price (we're asking for premium)
+        assert taking < 80000000  # Reasonable upper bound
 
 
 class TestCalculateLimitOrderInfo:
@@ -1084,7 +1087,7 @@ class TestRealWorldScenarios:
     async def test_scenario_limit_buy_bonk_with_10_dollars_sol(self, math_tool):
         """
         Scenario: "limit buy BONK when price drops 0.5% with $10 of SOL"
-        From the agent config example.
+        User wants 0.5% MORE BONK than current market (buy the dip).
         """
         # From Birdeye: SOL price=$140, decimals=9, BONK price=$0.00001, decimals=5
         result = await math_tool.execute(
@@ -1098,7 +1101,7 @@ class TestRealWorldScenarios:
             input_decimals=9,
             output_price_usd="0.00001",  # BONK
             output_decimals=5,
-            price_change_percentage="-0.5",  # 0.5% lower
+            price_change_percentage="0.5",  # Want 0.5% MORE output (buy the dip)
         )
         assert result["status"] == "success"
 
@@ -1108,12 +1111,13 @@ class TestRealWorldScenarios:
         assert making == 71428571
 
         # Verify taking_amount (BONK to receive)
-        # Target price = $0.00001 * 0.995 = $0.00000995
-        # $10 / $0.00000995 = 1,005,025.125... BONK
-        # In smallest units: 1,005,025.125 * 100,000 = 100,502,512,562
+        # With +0.5%, we want 0.5% more BONK
+        # Current: $10 / $0.00001 = 1,000,000 BONK
+        # With +0.5%: 1,000,000 * 1.005 = 1,005,000 BONK
+        # In smallest units: 1,005,000 * 100,000 = 100,500,000,000
         taking = int(result["taking_amount"])
         # Should be around 100.5 billion (12 digits)
-        assert len(str(taking)) == 12  # Verify digit count matches agent example
+        assert len(str(taking)) == 12  # Verify digit count
         assert taking > 100000000000  # More than at current price
 
     @pytest.mark.asyncio
