@@ -5,7 +5,7 @@ from solana_agent import AutoTool, ToolRegistry
 from privy import AsyncPrivyAPI
 from privy.lib.authorization_signatures import get_authorization_signature
 from cryptography.hazmat.primitives import serialization
-from sakit.utils.wallet import SolanaWalletClient
+from sakit.utils.wallet import SolanaWalletClient, sanitize_privy_user_id
 from sakit.utils.transfer import TokenTransferManager
 
 logger = logging.getLogger(__name__)
@@ -226,6 +226,9 @@ class PrivyTransferTool(AutoTool):
         mint: str,
         memo: str = "",
     ) -> Dict[str, Any]:
+        # Sanitize user_id to handle LLM formatting errors
+        user_id = sanitize_privy_user_id(user_id) or user_id
+
         if not all(
             [
                 self.app_id,
