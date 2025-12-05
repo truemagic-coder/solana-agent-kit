@@ -444,6 +444,7 @@ class DFlowPredictionTool(AutoTool):
                         "amount_in": f"{amount} USDC",
                         "tokens_received": result.out_amount,
                         "signature": result.signature,
+                        "tx_signature": result.signature,
                         "execution_mode": result.execution_mode,
                         "safety": safety,
                     }
@@ -524,6 +525,7 @@ class DFlowPredictionTool(AutoTool):
                         "tokens_sold": f"{amount} {side.upper()}",
                         "usdc_received": result.out_amount,
                         "signature": result.signature,
+                        "tx_signature": result.signature,
                         "execution_mode": result.execution_mode,
                     }
                 else:

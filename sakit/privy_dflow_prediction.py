@@ -701,6 +701,7 @@ class PrivyDFlowPredictionTool(AutoTool):
                         "amount_in": f"{amount} USDC",
                         "tokens_received": result.out_amount,
                         "signature": result.signature,
+                        "tx_signature": result.signature,
                         "execution_mode": result.execution_mode,
                         "wallet": wallet_address,
                         "safety": safety,
@@ -813,6 +814,7 @@ class PrivyDFlowPredictionTool(AutoTool):
                         "tokens_sold": f"{amount} {side.upper()}",
                         "usdc_received": result.out_amount,
                         "signature": result.signature,
+                        "tx_signature": result.signature,
                         "execution_mode": result.execution_mode,
                         "wallet": wallet_address,
                     }

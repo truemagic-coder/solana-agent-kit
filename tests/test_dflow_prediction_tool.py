@@ -258,6 +258,64 @@ class TestSafetyScoring:
         assert result.score == "MEDIUM"
         assert result.recommendation == "CAUTION"
 
+    def test_kalshi_market_with_clear_date_gets_high_score(self):
+        """Kalshi markets (KX prefix) with clear resolution date should get HIGH score."""
+        market = {
+            "ticker": "KXTRUMPOUT-26-TRUMP",
+            "volume": 500,  # Would normally be low
+            "liquidity": 100,  # Would normally be low
+            "closeTime": int(time.time()) + 86400 * 30,  # 30 days from now
+            "rulesPrimary": "short",  # Would normally trigger warning
+        }
+        result = calculate_safety_score(market)
+        assert result.score == "HIGH"
+        assert result.recommendation == "PROCEED"
+        assert len(result.warnings) == 0
+
+    def test_polymarket_with_clear_date_gets_high_score(self):
+        """Polymarket (POLY prefix) with clear resolution date should get HIGH score."""
+        market = {
+            "ticker": "POLY-ELECTION-2024",
+            "volume": 500,
+            "liquidity": 100,
+            "expirationTime": int(time.time()) + 86400 * 30,
+            "rulesPrimary": "short",
+        }
+        result = calculate_safety_score(market)
+        assert result.score == "HIGH"
+        assert result.recommendation == "PROCEED"
+
+    def test_verified_platform_without_date_still_checks_other_factors(self):
+        """Verified platform without clear date should still check other factors."""
+        market = {
+            "ticker": "KXSOMETHING",
+            "volume": 500,  # Low volume
+            "liquidity": 100,  # Low liquidity
+            # No closeTime or expirationTime
+            "rulesPrimary": "short",
+        }
+        result = calculate_safety_score(market)
+        # Without clear date, should not auto-pass
+        assert result.score != "HIGH" or len(result.warnings) > 0
+
+    def test_objective_category_with_date_gets_boost(self):
+        """Objective category (e.g., politics) with clear date should get score boost."""
+        # This market would normally be MEDIUM but gets boosted
+        market = {
+            "ticker": "SOMEMARKET",
+            "category": "politics",
+            "volume": 5000,  # Moderate volume (-10)
+            "liquidity": 1500,  # Moderate liquidity (-10)
+            "closeTime": int(time.time()) + 86400 * 30,  # Has clear date
+            "rulesPrimary": "x" * 100,  # Clear rules
+            "seriesTicker": "UNKNOWN-SERIES",  # Unknown series (-15)
+            # Without boost: 100 - 10 - 10 - 15 = 65 (MEDIUM)
+            # With boost: 65 + 15 = 80 (HIGH)
+        }
+        result = calculate_safety_score(market)
+        assert result.score == "HIGH"
+        assert result.recommendation == "PROCEED"
+
 
 # =============================================================================
 # TOOL SCHEMA TESTS
@@ -898,6 +956,79 @@ class TestDFlowPredictionClient:
         assert "safety" in result[0]
         assert result[0]["safety"]["score"] in ["HIGH", "MEDIUM", "LOW"]
         assert "safety" in result[1]
+
+    def test_add_safety_scores_with_resolution_date_int(self):
+        """Resolution date should be formatted from int timestamp."""
+        client = DFlowPredictionClient()
+
+        items = [
+            {
+                "ticker": "A",
+                "volume": 50000,
+                "liquidity": 10000,
+                "rulesPrimary": "x" * 100,
+                "closeTime": 1735689600,  # 2025-01-01 00:00:00 UTC
+            },
+        ]
+
+        result = client._add_safety_scores(items)
+        assert "resolution_date" in result[0]
+        assert "2025-01-01" in result[0]["resolution_date"]
+        assert "UTC" in result[0]["resolution_date"]
+
+    def test_add_safety_scores_with_resolution_date_string(self):
+        """Resolution date should handle string date."""
+        client = DFlowPredictionClient()
+
+        items = [
+            {
+                "ticker": "A",
+                "volume": 50000,
+                "liquidity": 10000,
+                "rulesPrimary": "x" * 100,
+                "closeTime": "2025-01-01T00:00:00Z",  # String format
+            },
+        ]
+
+        result = client._add_safety_scores(items)
+        assert "resolution_date" in result[0]
+        assert result[0]["resolution_date"] == "2025-01-01T00:00:00Z"
+
+    def test_add_safety_scores_no_resolution_date(self):
+        """Items without resolution date should not have resolution_date field."""
+        client = DFlowPredictionClient()
+
+        items = [
+            {
+                "ticker": "A",
+                "volume": 50000,
+                "liquidity": 10000,
+                "rulesPrimary": "x" * 100,
+                # No closeTime, expirationTime, or endDate
+            },
+        ]
+
+        result = client._add_safety_scores(items)
+        assert "resolution_date" not in result[0]
+
+    def test_add_safety_scores_with_invalid_timestamp(self):
+        """Invalid timestamp should fallback to string representation."""
+        client = DFlowPredictionClient()
+
+        items = [
+            {
+                "ticker": "A",
+                "volume": 50000,
+                "liquidity": 10000,
+                "rulesPrimary": "x" * 100,
+                "closeTime": -99999999999999,  # Invalid timestamp
+            },
+        ]
+
+        result = client._add_safety_scores(items)
+        assert "resolution_date" in result[0]
+        # Should fallback to string of the invalid value
+        assert "-99999999999999" in result[0]["resolution_date"]
 
 
 # =============================================================================

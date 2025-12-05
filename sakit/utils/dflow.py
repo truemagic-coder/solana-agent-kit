@@ -34,6 +34,7 @@ DFLOW_API_URL = "https://quote-api.dflow.net"
 DFLOW_METADATA_API = "https://prediction-markets-api.dflow.net/api/v1"
 
 # Known verified series for safety scoring
+# These are well-established markets with clear resolution criteria
 KNOWN_SERIES = {
     "US-POLITICS",
     "US-ELECTIONS",
@@ -45,6 +46,22 @@ KNOWN_SERIES = {
     "CRYPTO",
     "FED",
     "ECONOMICS",
+}
+
+# Series prefixes that indicate verified/safe markets (e.g., Kalshi markets)
+SAFE_SERIES_PREFIXES = {
+    "KX",  # Kalshi Exchange - regulated, clear resolution
+    "POLY",  # Polymarket - established platform
+}
+
+# Categories that have objectively verifiable outcomes (binary, date-bound)
+OBJECTIVE_CATEGORIES = {
+    "politics",
+    "elections",
+    "sports",
+    "fed",
+    "economics",
+    "crypto-price",
 }
 
 # Default quality filters
@@ -424,16 +441,49 @@ def calculate_safety_score(
     score_points = 100
     now = current_time or int(time.time())
 
-    # Age check
+    # Get market identifiers
+    ticker = market.get("ticker", "") or ""
+    series_ticker = market.get("seriesTicker") or market.get("series_ticker", "") or ""
+    category = (market.get("category", "") or "").lower()
+
+    # Check if this is a verified/regulated market (Kalshi, Polymarket, etc.)
+    is_verified_platform = any(
+        ticker.upper().startswith(prefix) or series_ticker.upper().startswith(prefix)
+        for prefix in SAFE_SERIES_PREFIXES
+    )
+
+    # Check if this is a known established series
+    is_known_series = any(
+        series_ticker.upper().startswith(known) for known in KNOWN_SERIES
+    )
+
+    # Check if the market has objectively verifiable outcomes
+    has_clear_resolution_date = bool(
+        market.get("closeTime") or market.get("expirationTime") or market.get("endDate")
+    )
+    is_objective_category = category in OBJECTIVE_CATEGORIES
+
+    # Verified platforms with clear dates are HIGH safety - skip other checks
+    if is_verified_platform and has_clear_resolution_date:
+        # These are regulated markets with binary outcomes and set dates
+        return SafetyResult("HIGH", [], "PROCEED")
+
+    # Known series with clear dates also get a boost
+    if is_known_series and has_clear_resolution_date:
+        return SafetyResult("HIGH", [], "PROCEED")
+
+    # Age check - less strict for verified platforms
     created_at = market.get("createdAt") or market.get("openTime")
     if created_at:
         age_hours = (now - created_at) / 3600
         if age_hours < 24:
-            warnings.append("New market (< 24 hours old)")
-            score_points -= 30
+            if not is_verified_platform:
+                warnings.append("New market (< 24 hours old)")
+                score_points -= 30
         elif age_hours < 168:  # 7 days
-            warnings.append("Young market (< 7 days old)")
-            score_points -= 15
+            if not is_verified_platform:
+                warnings.append("Young market (< 7 days old)")
+                score_points -= 15
 
     # Volume check
     volume = market.get("volume", 0)
@@ -461,21 +511,20 @@ def calculate_safety_score(
             warnings.append("No trades in 24 hours")
             score_points -= 20
 
-    # Series verification
-    series_ticker = market.get("seriesTicker") or market.get("series_ticker", "")
-    # Check if any known series is a prefix of the series ticker
-    is_known_series = any(
-        series_ticker.upper().startswith(known) for known in KNOWN_SERIES
-    )
-    if not is_known_series and series_ticker:
+    # Series verification - only penalize if not verified platform
+    if not is_known_series and not is_verified_platform and series_ticker:
         warnings.append("Unknown/unverified series")
         score_points -= 15
 
-    # Resolution clarity check
+    # Resolution clarity check - verified platforms have clear rules by default
     rules = market.get("rulesPrimary", "")
-    if not rules or len(rules) < 50:
+    if not is_verified_platform and (not rules or len(rules) < 50):
         warnings.append("Unclear resolution criteria")
         score_points -= 20
+
+    # Boost for objective categories with clear dates
+    if is_objective_category and has_clear_resolution_date:
+        score_points += 15
 
     # Calculate final score
     if score_points >= 70:
@@ -547,12 +596,32 @@ class DFlowPredictionClient:
         items: List[Dict[str, Any]],
         trades_by_ticker: Optional[Dict[str, List[Dict[str, Any]]]] = None,
     ) -> List[Dict[str, Any]]:
-        """Add safety scores to markets/events."""
+        """Add safety scores and formatted resolution dates to markets/events."""
+        from datetime import datetime
+
         for item in items:
             ticker = item.get("ticker", "")
             trades = trades_by_ticker.get(ticker) if trades_by_ticker else None
             safety = calculate_safety_score(item, trades)
             item["safety"] = safety.to_dict()
+
+            # Add human-readable resolution date
+            close_time = (
+                item.get("closeTime")
+                or item.get("expirationTime")
+                or item.get("endDate")
+            )
+            if close_time:
+                try:
+                    if isinstance(close_time, (int, float)):
+                        from datetime import timezone
+
+                        dt = datetime.fromtimestamp(close_time, tz=timezone.utc)
+                        item["resolution_date"] = dt.strftime("%Y-%m-%d %H:%M UTC")
+                    else:
+                        item["resolution_date"] = str(close_time)
+                except Exception:
+                    item["resolution_date"] = str(close_time)
         return items
 
     # =========================================================================
