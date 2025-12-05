@@ -42,6 +42,12 @@ class TestOpenAIStrictCompliance:
 
         assert self._check_schema_compliance(BirdeyeTool, "birdeye")
 
+    def test_dflow_prediction_compliance(self):
+        """Test dflow_prediction tool is OpenAI strict compliant."""
+        from sakit.dflow_prediction import DFlowPredictionTool
+
+        assert self._check_schema_compliance(DFlowPredictionTool, "dflow_prediction")
+
     def test_image_gen_compliance(self):
         """Test image_gen tool is OpenAI strict compliant."""
         from sakit.image_gen import ImageGenTool
@@ -104,6 +110,14 @@ class TestOpenAIStrictCompliance:
 
         assert self._check_schema_compliance(
             PrivyCreateWalletTool, "privy_create_wallet"
+        )
+
+    def test_privy_dflow_prediction_compliance(self):
+        """Test privy_dflow_prediction tool is OpenAI strict compliant."""
+        from sakit.privy_dflow_prediction import PrivyDFlowPredictionTool
+
+        assert self._check_schema_compliance(
+            PrivyDFlowPredictionTool, "privy_dflow_prediction"
         )
 
     def test_privy_get_user_by_telegram_compliance(self):
