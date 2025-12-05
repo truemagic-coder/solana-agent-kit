@@ -1016,9 +1016,30 @@ class DFlowPredictionClient:
             )
 
             if response.status_code != 200:
-                raise Exception(
-                    f"Get order failed: {response.status_code} - {response.text}"
-                )
+                error_text = response.text
+                try:
+                    error_data = response.json()
+                    error_code = error_data.get("code", "")
+                    error_msg = error_data.get("msg", error_text)
+
+                    # Provide helpful message for "Route not found" errors
+                    if error_code == "route_not_found":
+                        raise Exception(
+                            "No trading route available for this prediction market. "
+                            "The DFlow Prediction Markets API currently requires an API key "
+                            "which is being rolled out gradually. Without an API key, all "
+                            "prediction market orders will fail with 'route not found'. "
+                            "Contact DFlow via Discord to request API key access. "
+                            "See: https://pond.dflow.net/concepts/prediction/prediction-markets"
+                        )
+                    else:
+                        raise Exception(
+                            f"Get order failed: {response.status_code} - {error_msg}"
+                        )
+                except ValueError:
+                    raise Exception(
+                        f"Get order failed: {response.status_code} - {error_text}"
+                    )
 
             return response.json()
 
