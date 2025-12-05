@@ -3,6 +3,10 @@ Jupiter Ultra swap tool for Privy embedded wallets.
 
 Enables swapping tokens using Jupiter Ultra API via Privy delegated wallets.
 Uses the official Privy Python SDK for wallet operations.
+
+NOTE: We bypass Jupiter's /execute endpoint and send transactions directly via
+our RPC (Helius). This is because Jupiter's execute can have reliability issues.
+This matches the pattern used in privy_trigger.py.
 """
 
 import base64
@@ -18,6 +22,8 @@ from solders.transaction import VersionedTransaction
 from solders.message import to_bytes_versioned
 
 from sakit.utils.ultra import JupiterUltra
+from sakit.utils.trigger import replace_blockhash_in_transaction, get_fresh_blockhash
+from sakit.utils.wallet import send_raw_transaction_with_priority
 
 logger = logging.getLogger(__name__)
 
@@ -229,6 +235,51 @@ async def privy_sign_transaction(  # pragma: no cover
     }
 
 
+async def _privy_sign_transaction(  # pragma: no cover
+    privy_client: AsyncPrivyAPI,
+    wallet_id: str,
+    encoded_tx: str,
+    signing_key: str,
+) -> Optional[str]:
+    """Sign a Solana transaction via Privy using the official SDK.
+
+    Returns just the signed transaction string (or None on failure).
+    Used by _sign_and_execute method.
+    """
+    try:
+        # Convert the key to PKCS#8 format expected by the SDK
+        pkcs8_key = convert_key_to_pkcs8_pem(signing_key)
+
+        # IMPORTANT: The body must match exactly what the SDK sends to the API
+        url = f"https://api.privy.io/v1/wallets/{wallet_id}/rpc"
+        body = {
+            "method": "signTransaction",
+            "params": {"transaction": encoded_tx, "encoding": "base64"},
+            "chain_type": "solana",
+        }
+
+        auth_signature = get_authorization_signature(
+            url=url,
+            body=body,
+            method="POST",
+            app_id=privy_client.app_id,
+            private_key=pkcs8_key,
+        )
+
+        result = await privy_client.wallets.rpc(
+            wallet_id=wallet_id,
+            method="signTransaction",
+            params={"transaction": encoded_tx, "encoding": "base64"},
+            chain_type="solana",
+            privy_authorization_signature=auth_signature,
+        )
+
+        return result.data.signed_transaction if result.data else None
+    except Exception as e:
+        logger.error(f"Privy API error signing transaction: {e}")
+        return None
+
+
 class PrivyUltraTool(AutoTool):
     """Swap tokens using Jupiter Ultra via Privy delegated wallet."""
 
@@ -245,6 +296,8 @@ class PrivyUltraTool(AutoTool):
         self.referral_account = None
         self.referral_fee = None
         self.payer_private_key = None
+        self._rpc_url = None
+        self._signing_key = None
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -276,10 +329,136 @@ class PrivyUltraTool(AutoTool):
         self.app_id = tool_cfg.get("app_id")
         self.app_secret = tool_cfg.get("app_secret")
         self.signing_key = tool_cfg.get("signing_key")
+        self._signing_key = self.signing_key  # For _sign_and_execute
         self.jupiter_api_key = tool_cfg.get("jupiter_api_key")
         self.referral_account = tool_cfg.get("referral_account")
         self.referral_fee = tool_cfg.get("referral_fee")
         self.payer_private_key = tool_cfg.get("payer_private_key")
+        self._payer_private_key = self.payer_private_key  # For _sign_and_execute
+        self._rpc_url = tool_cfg.get("rpc_url")
+
+    async def _sign_and_execute(  # pragma: no cover
+        self,
+        privy_client: AsyncPrivyAPI,
+        wallet_id: str,
+        transaction_base64: str,
+    ) -> Dict[str, Any]:
+        """
+        Replace blockhash, sign with payer (if configured) and Privy, then send.
+
+        Jupiter's /execute endpoint can have reliability issues, so we:
+        1. Get a fresh blockhash from our RPC
+        2. Replace the blockhash in Jupiter's transaction
+        3. Sign with our keys
+        4. Send directly via our RPC
+
+        This matches the pattern used in privy_trigger.py.
+        """
+        try:
+            # RPC URL is required - Jupiter's execute has reliability issues
+            if not self._rpc_url:
+                return {
+                    "status": "error",
+                    "message": "rpc_url must be configured for Ultra swaps. Jupiter's execute endpoint has reliability issues.",
+                }
+
+            # Step 1: Get fresh blockhash from our RPC
+            blockhash_result = await get_fresh_blockhash(self._rpc_url)
+            if "error" in blockhash_result:
+                return {
+                    "status": "error",
+                    "message": f"Failed to get blockhash: {blockhash_result['error']}",
+                }
+
+            fresh_blockhash = blockhash_result["blockhash"]
+            logger.info(f"Got fresh blockhash: {fresh_blockhash}")
+
+            # Step 2: Replace blockhash in the transaction
+            tx_with_new_blockhash = replace_blockhash_in_transaction(
+                transaction_base64, fresh_blockhash
+            )
+
+            tx_to_sign = tx_with_new_blockhash
+
+            # Step 3: If payer is configured, sign with payer first
+            if self._payer_private_key:
+                payer_keypair = Keypair.from_base58_string(self._payer_private_key)
+                tx_bytes = base64.b64decode(tx_with_new_blockhash)
+                transaction = VersionedTransaction.from_bytes(tx_bytes)
+                message_bytes = to_bytes_versioned(transaction.message)
+                payer_signature = payer_keypair.sign_message(message_bytes)
+
+                # Find the payer's position in the account keys
+                # The first N accounts (where N = num_required_signatures) are signers
+                payer_pubkey = payer_keypair.pubkey()
+                num_signers = transaction.message.header.num_required_signatures
+                account_keys = transaction.message.account_keys
+
+                payer_index = None
+                for i in range(num_signers):
+                    if account_keys[i] == payer_pubkey:
+                        payer_index = i
+                        break
+
+                if payer_index is None:
+                    logger.warning(
+                        f"Payer pubkey {payer_pubkey} not found in signers. "
+                        f"Signers: {[str(account_keys[i]) for i in range(num_signers)]}"
+                    )
+                    # Payer not in transaction - this might be a non-gasless transaction
+                    # Just pass through to Privy signing
+                else:
+                    # Create signature list with payer signature in correct position
+                    new_signatures = list(transaction.signatures)
+                    new_signatures[payer_index] = payer_signature
+                    logger.info(f"Payer signed at index {payer_index}")
+
+                    partially_signed = VersionedTransaction.populate(
+                        transaction.message,
+                        new_signatures,
+                    )
+                    tx_to_sign = base64.b64encode(bytes(partially_signed)).decode(
+                        "utf-8"
+                    )
+
+            # Step 4: Sign with Privy using the official SDK
+            signed_tx = await _privy_sign_transaction(
+                privy_client,
+                wallet_id,
+                tx_to_sign,
+                self._signing_key,
+            )
+
+            if not signed_tx:
+                return {
+                    "status": "error",
+                    "message": "Failed to sign transaction via Privy.",
+                }
+
+            # Step 5: Send via our RPC
+            tx_bytes = base64.b64decode(signed_tx)
+            send_result = await send_raw_transaction_with_priority(
+                rpc_url=self._rpc_url,
+                tx_bytes=tx_bytes,
+                skip_preflight=False,  # Run preflight to catch signature/signer errors
+                skip_confirmation=False,  # Wait for confirmation - blockhash is from our RPC
+                confirm_timeout=30.0,
+            )
+
+            if not send_result.get("success"):
+                return {
+                    "status": "error",
+                    "message": send_result.get("error", "Failed to send transaction"),
+                }
+
+            return {
+                "status": "success",
+                "signature": send_result.get("signature"),
+            }
+
+        except Exception as e:
+            logger.exception(f"Failed to sign and execute: {str(e)}")
+            return {"status": "error", "message": str(e)}
 
     async def execute(  # pragma: no cover
         self,
@@ -310,7 +489,6 @@ class PrivyUltraTool(AutoTool):
             public_key = wallet_info["public_key"]
 
             # Check if integrator payer is configured for gasless transactions
-            payer_keypair = None
             payer_pubkey = None
             if self.payer_private_key:
                 payer_keypair = Keypair.from_base58_string(self.payer_private_key)
@@ -337,64 +515,22 @@ class PrivyUltraTool(AutoTool):
                     "message": "No transaction returned from Jupiter Ultra.",
                 }
 
-            # If payer is configured, we need to sign with payer first, then Privy
-            tx_to_sign = order.transaction
-            if payer_keypair:
-                # Payer signs first
-                tx_bytes = base64.b64decode(order.transaction)
-                transaction = VersionedTransaction.from_bytes(tx_bytes)
-                message_bytes = to_bytes_versioned(transaction.message)
-                payer_signature = payer_keypair.sign_message(message_bytes)
-
-                # Create partially signed transaction (payer signed, taker placeholder)
-                # We need to pass this to Privy for the taker's signature
-                partially_signed = VersionedTransaction.populate(
-                    transaction.message,
-                    [
-                        payer_signature,
-                        transaction.signatures[1],
-                    ],  # Keep taker's placeholder
-                )
-                tx_to_sign = base64.b64encode(bytes(partially_signed)).decode("utf-8")
-
-            # Sign transaction via Privy using the official SDK
-            sign_result = await privy_sign_transaction(
-                privy_client,
-                wallet_id,
-                tx_to_sign,
-                self.signing_key,
+            # Sign and execute via RPC (bypasses Jupiter's /execute endpoint)
+            exec_result = await self._sign_and_execute(
+                privy_client=privy_client,
+                wallet_id=wallet_id,
+                transaction_base64=order.transaction,
             )
 
-            signed_tx = sign_result.get("data", {}).get("signedTransaction")
-            if not signed_tx:
-                return {
-                    "status": "error",
-                    "message": "Failed to sign transaction via Privy.",
-                    "details": sign_result,
-                }
-
-            # Execute the swap via Jupiter Ultra
-            execute_result = await ultra.execute_order(
-                signed_transaction=signed_tx,
-                request_id=order.request_id,
-            )
-
-            if execute_result.status == "Success":
+            if exec_result.get("status") == "success":
                 return {
                     "status": "success",
-                    "signature": execute_result.signature,
-                    "input_amount": execute_result.input_amount_result,
-                    "output_amount": execute_result.output_amount_result,
+                    "signature": exec_result.get("signature"),
                     "swap_type": order.swap_type,
                     "gasless": order.gasless,
                 }
             else:
-                return {
-                    "status": "error",
-                    "message": execute_result.error or "Swap failed",
-                    "code": execute_result.code,
-                    "signature": execute_result.signature,
-                }
+                return exec_result
 
         except Exception as e:
             logger.exception(f"Privy Ultra swap failed: {str(e)}")

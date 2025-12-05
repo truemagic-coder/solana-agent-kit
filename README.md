@@ -302,6 +302,7 @@ config = {
             "app_secret": "your-privy-app-secret", # Required - your Privy application secret
             "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
             "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
+            "rpc_url": "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY", # Required - Helius RPC for reliable tx sending
             "referral_account": "my-referral-account", # Optional - your Jupiter referral account public key for collecting fees
             "referral_fee": 50, # Optional - fee in basis points (50-255 bps, e.g., 50 = 0.5%). Jupiter takes 20% of this fee.
             "payer_private_key": "payer-private-key", # Optional - base58 private key for gasless transactions (integrator pays gas)
@@ -313,8 +314,12 @@ config = {
 **Features:**
 - **Jupiter Ultra API**: Access to competitive pricing with automatic slippage protection
 - **Privy Delegated Wallets**: Use Privy's embedded wallets with delegation for seamless user experience
+- **Helius RPC**: Transactions sent directly via RPC instead of Jupiter's execute endpoint for reliability
 - **Referral Fees**: Optionally collect integrator fees (50-255 bps) via your Jupiter referral account
 - **Integrator Gas Payer**: Optionally pay for gas on behalf of users for truly gasless swaps
+
+**RPC URL (Required):**
+Transactions are sent directly via your RPC instead of Jupiter's `/execute` endpoint, which can have reliability issues. Helius RPC is recommended (`https://mainnet.helius-rpc.com/?api-key=YOUR_KEY`). Get a free API key at [helius.dev](https://helius.dev).
 
 ### Privy Trigger
 
