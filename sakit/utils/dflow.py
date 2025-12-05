@@ -444,8 +444,8 @@ def calculate_safety_score(
         warnings.append(f"Moderate volume (${volume:,.0f})")
         score_points -= 10
 
-    # Liquidity check
-    liquidity = market.get("liquidity", 0)
+    # Liquidity check (DFlow API returns openInterest instead of liquidity)
+    liquidity = market.get("liquidity") or market.get("openInterest", 0)
     if liquidity < 500:
         warnings.append("Low liquidity - may be hard to exit")
         score_points -= 30
@@ -534,7 +534,8 @@ class DFlowPredictionClient:
         filtered = []
         for item in items:
             volume = item.get("volume", 0)
-            liquidity = item.get("liquidity", 0)
+            # DFlow API returns openInterest instead of liquidity for prediction markets
+            liquidity = item.get("liquidity") or item.get("openInterest", 0)
 
             if volume >= self.min_volume_usd and liquidity >= self.min_liquidity_usd:
                 filtered.append(item)
