@@ -285,14 +285,17 @@ class TestCalculateLimitOrderInfo:
 
     def test_order_at_current_price(self):
         """Should calculate info for order at current market price."""
-        # Order: sell 0.036 SOL for 521714 BONK
+        # Order: sell 0.036001982 SOL for 521714.66282 BONK
+        # Raw amounts: 36001982 lamports, 52171466282 smallest units
         result = calculate_limit_order_info(
-            making_amount="0.036001982",
-            taking_amount="521714.66282",
+            making_amount="36001982",  # 0.036001982 SOL in lamports
+            taking_amount="52171466282",  # 521714.66282 BONK in smallest units (5 decimals)
             input_price_usd="139",  # Current SOL price
             output_price_usd="0.0000096",  # Current BONK price
+            input_decimals=9,  # SOL decimals
+            output_decimals=5,  # BONK decimals
         )
-        # making_usd = 0.036 * 139 = ~$5
+        # making_usd = 0.036001982 * 139 = ~$5.00
         assert float(result["making_usd"]) == pytest.approx(5.00, rel=0.01)
         # trigger_price = making_usd / taking_amount = $5 / 521714 = ~$0.00000958
         trigger_price = float(result["trigger_price_usd"])
@@ -303,11 +306,14 @@ class TestCalculateLimitOrderInfo:
 
     def test_order_should_fill(self):
         """Should detect when order should fill (price dropped to trigger)."""
+        # Raw: 36000000 lamports = 0.036 SOL, 52171400000 = 521714 BONK
         result = calculate_limit_order_info(
-            making_amount="0.036",
-            taking_amount="521714",
+            making_amount="36000000",  # 0.036 SOL in lamports
+            taking_amount="52171400000",  # 521714 BONK in smallest units
             input_price_usd="139",  # SOL price
             output_price_usd="0.0000090",  # BONK price dropped below trigger
+            input_decimals=9,
+            output_decimals=5,
         )
         # trigger_price = $5 / 521714 = ~$0.00000958
         # Current price = $0.0000090 which is BELOW trigger
@@ -316,11 +322,14 @@ class TestCalculateLimitOrderInfo:
 
     def test_price_difference_calculation(self):
         """Should calculate price difference correctly."""
+        # Raw: 70000000 lamports = 0.07 SOL, 1000000 * 10^5 = 100000000000 smallest units
         result = calculate_limit_order_info(
-            making_amount="0.07",  # ~$10 at $140/SOL
-            taking_amount="1000000",  # 1M BONK
+            making_amount="70000000",  # 0.07 SOL in lamports
+            taking_amount="100000000000",  # 1M BONK in smallest units (5 decimals)
             input_price_usd="140",
             output_price_usd="0.00001",  # Current BONK price
+            input_decimals=9,
+            output_decimals=5,
         )
         # trigger_price = (0.07 * 140) / 1000000 = $0.0000098 per BONK
         trigger_price = float(result["trigger_price_usd"])
@@ -332,11 +341,14 @@ class TestCalculateLimitOrderInfo:
 
     def test_usd_values(self):
         """Should calculate USD values correctly."""
+        # Raw: 1 SOL = 1000000000 lamports, 10000 USDC = 10000000000 (6 decimals)
         result = calculate_limit_order_info(
-            making_amount="1",  # 1 SOL
-            taking_amount="10000",  # 10,000 USDC
+            making_amount="1000000000",  # 1 SOL in lamports
+            taking_amount="10000000000",  # 10,000 USDC in smallest units (6 decimals)
             input_price_usd="140",
             output_price_usd="1",  # USDC
+            input_decimals=9,
+            output_decimals=6,
         )
         # making_usd = 1 * 140 = $140
         assert result["making_usd"] == "140"
@@ -348,10 +360,12 @@ class TestCalculateLimitOrderInfo:
     def test_zero_taking_amount(self):
         """Should handle zero taking amount (edge case)."""
         result = calculate_limit_order_info(
-            making_amount="1",
+            making_amount="1000000000",  # 1 SOL in lamports
             taking_amount="0",  # Zero output
             input_price_usd="140",
             output_price_usd="1",
+            input_decimals=9,
+            output_decimals=6,
         )
         # trigger_price should be 0 when taking is 0
         assert result["trigger_price_usd"] == "0"
@@ -359,13 +373,32 @@ class TestCalculateLimitOrderInfo:
     def test_zero_output_price(self):
         """Should handle zero output price (edge case)."""
         result = calculate_limit_order_info(
-            making_amount="1",
-            taking_amount="1000",
+            making_amount="1000000000",  # 1 SOL in lamports
+            taking_amount="1000000000",  # 1000 tokens (6 decimals)
             input_price_usd="140",
             output_price_usd="0",  # Zero price
+            input_decimals=9,
+            output_decimals=6,
         )
         # price_diff should be 0 when output_price is 0
         assert result["price_difference_percent"] == "0"
+
+    def test_human_readable_amounts_no_decimals(self):
+        """Should accept human-readable amounts when decimals are 0 (backwards compatibility)."""
+        # When decimals=0, amounts are treated as already human-readable
+        result = calculate_limit_order_info(
+            making_amount="0.036",  # Already human-readable
+            taking_amount="521714",  # Already human-readable
+            input_price_usd="139",
+            output_price_usd="0.0000096",
+            input_decimals=0,  # No conversion
+            output_decimals=0,  # No conversion
+        )
+        # making_usd = 0.036 * 139 = ~$5
+        assert float(result["making_usd"]) == pytest.approx(5.00, rel=0.01)
+        # Check trigger price is calculated correctly
+        trigger_price = float(result["trigger_price_usd"])
+        assert trigger_price == pytest.approx(0.00000958, rel=0.01)
 
     def test_invalid_amounts(self):
         """Should raise error for invalid amounts."""
@@ -375,6 +408,8 @@ class TestCalculateLimitOrderInfo:
                 taking_amount="100",
                 input_price_usd="140",
                 output_price_usd="1",
+                input_decimals=9,
+                output_decimals=6,
             )
 
 
@@ -591,6 +626,7 @@ class TestTokenMathToolExecuteLimitOrderInfo:
     @pytest.mark.asyncio
     async def test_limit_order_info_success(self, math_tool):
         """Should calculate order info correctly."""
+        # Raw amounts: 36000000 lamports = 0.036 SOL, 52171400000 = 521714 BONK
         result = await math_tool.execute(
             action="limit_order_info",
             usd_amount="",
@@ -599,16 +635,16 @@ class TestTokenMathToolExecuteLimitOrderInfo:
             human_amount="",
             smallest_units="",
             input_price_usd="139",  # SOL current price
-            input_decimals=0,
+            input_decimals=9,  # SOL decimals
             output_price_usd="0.0000096",  # BONK current price
-            output_decimals=0,
+            output_decimals=5,  # BONK decimals
             price_change_percentage="0",
-            making_amount="0.036",  # Selling 0.036 SOL
-            taking_amount="521714",  # Buying 521k BONK
+            making_amount="36000000",  # 0.036 SOL in lamports
+            taking_amount="52171400000",  # 521714 BONK in smallest units
         )
         assert result["status"] == "success"
         assert result["action"] == "limit_order_info"
-        # Check USD values
+        # Check USD values (0.036 * 139 = ~$5)
         assert float(result["making_usd"]) == pytest.approx(5.0, rel=0.01)
         # Check trigger price
         assert "trigger_price_usd" in result
@@ -625,12 +661,12 @@ class TestTokenMathToolExecuteLimitOrderInfo:
             human_amount="",
             smallest_units="",
             input_price_usd="139",
-            input_decimals=0,
+            input_decimals=9,  # SOL decimals
             output_price_usd="0.0000090",  # Price dropped below trigger
-            output_decimals=0,
+            output_decimals=5,  # BONK decimals
             price_change_percentage="0",
-            making_amount="0.036",
-            taking_amount="521714",
+            making_amount="36000000",  # 0.036 SOL in lamports
+            taking_amount="52171400000",  # 521714 BONK in smallest units
         )
         assert result["status"] == "success"
         assert result["should_fill_now"] is True
@@ -654,6 +690,30 @@ class TestTokenMathToolExecuteLimitOrderInfo:
             taking_amount="",  # Missing
         )
         assert result["status"] == "error"
+
+    @pytest.mark.asyncio
+    async def test_limit_order_info_missing_decimals(self, math_tool):
+        """Should return error when decimals are 0."""
+        result = await math_tool.execute(
+            action="limit_order_info",
+            usd_amount="",
+            token_price_usd="",
+            decimals=0,
+            human_amount="",
+            smallest_units="",
+            input_price_usd="139",
+            input_decimals=0,  # Missing! Should be 9 for SOL
+            output_price_usd="0.0000096",
+            output_decimals=0,  # Missing! Should be 5 for BONK
+            price_change_percentage="0",
+            making_amount="36000000",
+            taking_amount="52171400000",
+        )
+        assert result["status"] == "error"
+        assert (
+            "input_decimals" in result["message"]
+            or "output_decimals" in result["message"]
+        )
 
 
 class TestTokenMathToolExecuteToSmallestUnits:

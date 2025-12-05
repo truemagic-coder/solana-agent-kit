@@ -890,7 +890,9 @@ config = {
   - `price_change_percentage`: Use "-0.5" for 0.5% lower (buy the dip), "10" for 10% higher (sell high)
 
 - `limit_order_info` - Calculate trigger price and USD values for displaying order info
-  - Params: `making_amount`, `taking_amount`, `input_price_usd`, `output_price_usd`
+  - Params: `making_amount`, `taking_amount`, `input_price_usd`, `output_price_usd`, `input_decimals`, `output_decimals`
+  - `making_amount` and `taking_amount` should be raw amounts from order's `rawMakingAmount` and `rawTakingAmount` fields
+  - `input_decimals` and `output_decimals` are REQUIRED (e.g., SOL=9, USDC=6, BONK=5)
   - Returns: `making_usd`, `taking_usd_at_current`, `trigger_price_usd`, `current_output_price_usd`, `price_difference_percent`, `should_fill_now`
   - Use this when listing orders to show meaningful price info to users
 

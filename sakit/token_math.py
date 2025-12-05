@@ -218,6 +218,8 @@ def calculate_limit_order_info(
     taking_amount: str,
     input_price_usd: str,
     output_price_usd: str,
+    input_decimals: int = 0,
+    output_decimals: int = 0,
 ) -> Dict[str, str]:
     """
     Calculate display info for a limit order from its amounts.
@@ -225,19 +227,32 @@ def calculate_limit_order_info(
     Use this when listing orders to show USD values and trigger prices.
 
     Args:
-        making_amount: Human-readable amount of input token being sold
-        taking_amount: Human-readable amount of output token to receive
+        making_amount: Raw amount of input token in smallest units (e.g., lamports)
+        taking_amount: Raw amount of output token in smallest units
         input_price_usd: Current market price of input token in USD
         output_price_usd: Current market price of output token in USD
+        input_decimals: Decimals for input token (e.g., 9 for SOL). If 0, assumes human-readable.
+        output_decimals: Decimals for output token (e.g., 5 for BONK). If 0, assumes human-readable.
 
     Returns:
         Dict with USD values and trigger price info
     """
     try:
-        making = Decimal(str(making_amount))
-        taking = Decimal(str(taking_amount))
+        raw_making = Decimal(str(making_amount))
+        raw_taking = Decimal(str(taking_amount))
         input_price = Decimal(str(input_price_usd))
         output_price = Decimal(str(output_price_usd))
+
+        # Convert from smallest units to human-readable if decimals provided
+        if input_decimals > 0:
+            making = raw_making / (Decimal(10) ** input_decimals)
+        else:
+            making = raw_making
+
+        if output_decimals > 0:
+            taking = raw_taking / (Decimal(10) ** output_decimals)
+        else:
+            taking = raw_taking
 
         # Calculate USD values at current prices
         making_usd = making * input_price
@@ -350,7 +365,7 @@ class TokenMathTool(AutoTool):
                 },
                 "input_decimals": {
                     "type": "integer",
-                    "description": "Input token decimals (for 'limit_order'). Get from Birdeye. Pass 0 if not needed.",
+                    "description": "Input token decimals (for 'limit_order', 'limit_order_info'). Get from Birdeye. E.g., 9 for SOL, 5 for BONK. REQUIRED for limit_order_info.",
                 },
                 "output_price_usd": {
                     "type": "string",
@@ -358,7 +373,7 @@ class TokenMathTool(AutoTool):
                 },
                 "output_decimals": {
                     "type": "integer",
-                    "description": "Output token decimals (for 'limit_order'). Get from Birdeye. Pass 0 if not needed.",
+                    "description": "Output token decimals (for 'limit_order', 'limit_order_info'). Get from Birdeye. E.g., 9 for SOL, 5 for BONK. REQUIRED for limit_order_info.",
                 },
                 "price_change_percentage": {
                     "type": "string",
@@ -366,11 +381,11 @@ class TokenMathTool(AutoTool):
                 },
                 "making_amount": {
                     "type": "string",
-                    "description": "Human-readable amount of input token being sold (for 'limit_order_info'). From order's makingAmount field. Pass empty string if not needed.",
+                    "description": "Amount of input token being sold (for 'limit_order_info'). From order's rawMakingAmount field (smallest units). Pass empty string if not needed.",
                 },
                 "taking_amount": {
                     "type": "string",
-                    "description": "Human-readable amount of output token to receive (for 'limit_order_info'). From order's takingAmount field. Pass empty string if not needed.",
+                    "description": "Amount of output token to receive (for 'limit_order_info'). From order's rawTakingAmount field (smallest units). Pass empty string if not needed.",
                 },
             },
             "required": [
@@ -535,11 +550,19 @@ class TokenMathTool(AutoTool):
                         "status": "error",
                         "message": "Missing required params for 'limit_order_info': making_amount, taking_amount, input_price_usd, output_price_usd",
                     }
+                # Validate that decimals are provided (should be > 0)
+                if input_decimals == 0 or output_decimals == 0:
+                    return {
+                        "status": "error",
+                        "message": "Missing required params for 'limit_order_info': input_decimals and output_decimals must be > 0. Get these from Birdeye. SOL=9, USDC=6, BONK=5.",
+                    }
                 result = calculate_limit_order_info(
                     making_amount=making_amount,
                     taking_amount=taking_amount,
                     input_price_usd=input_price_usd,
                     output_price_usd=output_price_usd,
+                    input_decimals=input_decimals,
+                    output_decimals=output_decimals,
                 )
                 return {
                     "status": "success",
