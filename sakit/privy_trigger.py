@@ -218,6 +218,7 @@ class PrivyTriggerTool(AutoTool):
             name="privy_trigger",
             description=(
                 "Create and manage limit orders on Solana using Jupiter Trigger API with Privy delegated wallets. "
+                "IMPORTANT: First call privy_get_user_by_telegram to get the user, then pass 'result.user_id' (the DID like 'did:privy:xxx') as 'user_id' here. "
                 "Actions: 'create' (new limit order), 'cancel' (cancel specific order), "
                 "'cancel_all' (cancel all orders), 'list' (view orders). "
                 "For cancel, first use 'list' action to get the order public key."
@@ -239,7 +240,7 @@ class PrivyTriggerTool(AutoTool):
             "properties": {
                 "user_id": {
                     "type": "string",
-                    "description": "Privy user id (did) for the delegated wallet.",
+                    "description": "Privy user id (DID like 'did:privy:xxx'). Get this from privy_get_user_by_telegram's 'result.user_id' field. REQUIRED - do not pass empty string.",
                 },
                 "action": {
                     "type": "string",

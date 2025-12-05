@@ -183,7 +183,10 @@ class PrivyTransferTool(AutoTool):
         return {
             "type": "object",
             "properties": {
-                "user_id": {"type": "string", "description": "Privy user id (did)"},
+                "user_id": {
+                    "type": "string",
+                    "description": "Privy user id (DID like 'did:privy:xxx'). Get this from privy_get_user_by_telegram's 'result.user_id' field. REQUIRED.",
+                },
                 "to_address": {
                     "type": "string",
                     "description": "Recipient wallet address",
