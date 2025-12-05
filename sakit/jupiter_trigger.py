@@ -240,7 +240,7 @@ class JupiterTriggerTool(AutoTool):
             orders_result = await trigger.get_orders(user=maker, order_status="active")
             if orders_result.get("success", False):
                 user_orders = [
-                    o.get("order") or o.get("orderPubkey")
+                    o.get("orderKey") or o.get("order") or o.get("orderPubkey")
                     for o in orders_result.get("orders", [])
                 ]
                 if order_pubkey not in user_orders:
@@ -401,13 +401,16 @@ class JupiterTriggerTool(AutoTool):
             for order in orders:
                 formatted_orders.append(
                     {
-                        "order_pubkey": order.get("order") or order.get("orderPubkey"),
+                        "order_pubkey": order.get("orderKey")
+                        or order.get("order")
+                        or order.get("orderPubkey"),
                         "input_mint": order.get("inputMint"),
                         "output_mint": order.get("outputMint"),
                         "making_amount": order.get("makingAmount"),
                         "taking_amount": order.get("takingAmount"),
-                        "filled_making_amount": order.get("filledMakingAmount"),
-                        "filled_taking_amount": order.get("filledTakingAmount"),
+                        "remaining_making_amount": order.get("remainingMakingAmount"),
+                        "remaining_taking_amount": order.get("remainingTakingAmount"),
+                        "status": order.get("status"),
                         "expired_at": order.get("expiredAt"),
                         "created_at": order.get("createdAt"),
                     }
