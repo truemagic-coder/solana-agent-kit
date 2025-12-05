@@ -887,7 +887,10 @@ config = {
 - `limit_order` - Calculate making_amount and taking_amount for limit orders
   - Params: `usd_amount`, `input_price_usd`, `input_decimals`, `output_price_usd`, `output_decimals`, `price_change_percentage`
   - Returns: `making_amount`, `taking_amount` (use these for privy_trigger)
-  - `price_change_percentage`: Use "-0.5" for 0.5% lower (buy the dip), "10" for 10% higher (sell high)
+  - `price_change_percentage`: How much MORE output you want than current market. ALWAYS POSITIVE for limit orders:
+    - "0.5" = get 0.5% more output (buy the dip - wait for output token to drop)
+    - "5" = get 5% more output (sell high - wait for input token to rise)
+    - "0" = current market price (fills immediately)
 
 - `limit_order_info` - Calculate trigger price and USD values for displaying order info
   - Params: `making_amount`, `taking_amount`, `input_price_usd`, `output_price_usd`, `input_decimals`, `output_decimals`
@@ -920,13 +923,13 @@ User: "limit buy BONK when price drops 0.5% with $10 of SOL"
    - input_decimals=9
    - output_price_usd="0.00001" (BONK)
    - output_decimals=5
-   - price_change_percentage="-0.5"
+   - price_change_percentage="0.5"  # Want 0.5% MORE BONK than current market
    
    Returns:
    - making_amount="71428571" (SOL in lamports)
-   - taking_amount="100502512562" (BONK in smallest units)
+   - taking_amount="100500000000" (BONK - 0.5% more than current would give)
 
-3. privy_trigger with those exact amounts
+3. privy_trigger with those exact amounts - order waits until you can get 0.5% more BONK
 ```
 
 ## 🧩 Plugin Development

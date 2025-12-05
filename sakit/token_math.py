@@ -179,14 +179,23 @@ def calculate_limit_order_amounts(
     """
     Calculate both making_amount and taking_amount for a limit order.
 
+    The price_change_percentage indicates how much MORE output you want than current market:
+    - Positive = you want MORE output tokens (order waits for better price)
+      Example: 0.5 = get 0.5% more output tokens (buy the dip)
+      Example: 5 = get 5% more output tokens (sell high)
+    - Zero = current market price (will fill immediately if liquidity available)
+    - Negative = accept LESS output (will fill immediately, rare use case)
+
+    For "buy the dip 0.5%" → use 0.5 (you want 0.5% more tokens)
+    For "sell high 5%" → use 5 (you want 5% more of the output token)
+
     Args:
         input_usd_amount: USD value of input token to spend
         input_price_usd: Current price of input token in USD
         input_decimals: Decimals of input token
         output_price_usd: Current price of output token in USD
         output_decimals: Decimals of output token
-        price_change_percentage: Target price change for output token
-                                 (e.g., "-0.5" for 0.5% lower = buy the dip)
+        price_change_percentage: How much MORE output you want (positive = wait for better price)
 
     Returns:
         Dict with making_amount, taking_amount (both in smallest units)
@@ -195,14 +204,22 @@ def calculate_limit_order_amounts(
     input_human = usd_to_token_amount(input_usd_amount, input_price_usd)
     making_amount = human_to_smallest_units(input_human, input_decimals)
 
-    # Calculate target output price with percentage change
-    target_output_price = apply_percentage_change(
-        output_price_usd, price_change_percentage
+    # Apply percentage change to get the adjusted USD value
+    # Positive percentage = you want MORE output (input worth more, or output cheaper)
+    # We ADD the percentage to the input USD value to get more output tokens
+    pct = Decimal(str(price_change_percentage))
+    adjusted_usd = Decimal(str(input_usd_amount)) * (
+        Decimal("1") + pct / Decimal("100")
     )
 
-    # Calculate output token amount at target price
-    output_human = usd_to_token_amount(input_usd_amount, target_output_price)
+    # Calculate output token amount at current price for the adjusted USD value
+    output_human = usd_to_token_amount(str(adjusted_usd), output_price_usd)
     taking_amount = human_to_smallest_units(output_human, output_decimals)
+
+    # Calculate what the target output price would be (for display purposes)
+    # trigger_price = input_usd / output_tokens
+    # If we're asking for more output, the effective output price we're paying is lower
+    target_output_price = str(Decimal(str(input_usd_amount)) / Decimal(output_human))
 
     return {
         "making_amount": making_amount,
@@ -377,7 +394,14 @@ class TokenMathTool(AutoTool):
                 },
                 "price_change_percentage": {
                     "type": "string",
-                    "description": "Price change percentage for limit order (for 'limit_order'). E.g., '-0.5' for 0.5% lower (buy dip), '10' for 10% higher (sell high). Pass '0' for current price.",
+                    "description": (
+                        "How much MORE output you want compared to current market (for 'limit_order'). "
+                        "ALWAYS POSITIVE for limit orders that wait for better prices: "
+                        "e.g., '0.5' = get 0.5%% more output (buy the dip), "
+                        "'5' = get 5%% more output (sell high). "
+                        "Pass '0' for current market price (will fill immediately). "
+                        "Negative values mean accepting LESS than market (rare, fills immediately)."
+                    ),
                 },
                 "making_amount": {
                     "type": "string",
