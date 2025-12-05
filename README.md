@@ -22,6 +22,8 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Jupiter Holdings - Get token holdings with USD values for any wallet
 * Jupiter Shield - Get security warnings and risk information for tokens
 * Jupiter Token Search - Search for tokens by symbol, name, or address
+* DFlow Prediction - Trade prediction markets with safety scoring and quality filters
+* Privy DFlow Prediction - Trade prediction markets with Privy delegated wallets
 * Privy Transfer - Transfer tokens using Privy delegated wallets with sponsored transactions
 * Privy Ultra - Swap tokens using Jupiter Ultra with Privy delegated wallets
 * Privy Trigger - Create and manage limit orders with Privy delegated wallets
@@ -505,6 +507,113 @@ config = {
 - `user_id` - The Privy user ID (did:privy:...)
 - `wallets` - List of embedded wallets with address, chain_type, and delegation status
 - `has_wallet` - Boolean indicating if the user has at least one wallet
+
+### DFlow Prediction Market
+
+This plugin enables Solana Agent to discover and trade prediction markets on Solana via DFlow's Prediction Market API. It includes safety-first features to help users avoid scams.
+
+⚠️ **PREDICTION MARKET RISKS:**
+Unlike token swaps, prediction markets carry unique risks that cannot be fully detected:
+- **Insider trading**: Market creators may have privileged information
+- **Resolution risk**: Markets may resolve unfairly or not at all
+- **Liquidity traps**: You may not be able to exit your position
+
+This tool applies safety filters and provides warnings, but cannot guarantee market legitimacy. Only bet what you can afford to lose. Prefer established series (major elections, sports).
+
+```python
+config = {
+    "tools": {
+        "dflow_prediction": {
+            "private_key": "my-private-key",  # Required for trading - base58 string
+            "rpc_url": "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY",  # Required for trading
+            
+            # Optional - Platform fee collection
+            "platform_fee_bps": 50,  # Fee in basis points (0.5%)
+            "fee_account": "your-usdc-token-account",  # Account to receive fees
+            
+            # Optional - Quality filters (defaults shown)
+            "min_volume_usd": 1000,  # Minimum market volume
+            "min_liquidity_usd": 500,  # Minimum market liquidity
+            "include_risky": False,  # Show low-quality markets (with warnings)
+        },
+    },
+}
+```
+
+**Features:**
+- **Safety Scoring**: Every market gets a safety score (HIGH/MEDIUM/LOW) with warnings
+- **Quality Filters**: Low-volume and low-liquidity markets filtered by default
+- **Risk Warnings**: Clear warnings about unverified series, new markets, unclear rules
+- **Blocking Execution**: Async orders poll internally so agent gets single response
+- **Platform Fees**: Collect fees on all trades via Jupiter Referral Program
+
+**Actions:**
+
+Discovery:
+- `search` - Search markets by text query (e.g., "trump", "bitcoin")
+- `list_events` - List prediction events with filters (status, sort, series)
+- `get_event` - Get specific event details with safety score
+- `list_markets` - List prediction markets with filters
+- `get_market` - Get market details including YES/NO token mints
+
+Trading:
+- `buy` - Buy YES or NO outcome tokens with USDC
+- `sell` - Sell outcome tokens back to USDC
+- `positions` - Get hints for checking prediction market positions
+
+**Safety Scores:**
+- **HIGH** (PROCEED): Established market, good volume/liquidity, verified series
+- **MEDIUM** (CAUTION): Some warnings (moderate volume, young market)
+- **LOW** (AVOID): Multiple red flags (low volume, unclear rules, unknown series)
+
+**Example - Search and Buy:**
+```
+User: "Search for prediction markets about the 2028 election"
+Agent uses dflow_prediction action="search" query="2028 election"
+
+User: "Buy $10 of YES on Kamala Harris winning"
+Agent uses dflow_prediction action="buy" market_id="PRES-2028-DEM-HARRIS" side="YES" amount=10
+```
+
+### Privy DFlow Prediction
+
+This plugin enables Solana Agent to discover and trade prediction markets on Solana via DFlow's Prediction Market API using Privy delegated wallets. Same features as DFlow Prediction but for Privy embedded wallet users.
+
+```python
+config = {
+    "tools": {
+        "privy_dflow_prediction": {
+            "app_id": "your-privy-app-id",  # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret",  # Required - your Privy application secret
+            "signing_key": "wallet-auth:your-signing-key",  # Required - your Privy wallet authorization signing key
+            "rpc_url": "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY",  # Required for trading
+            
+            # Optional - Platform fee collection
+            "platform_fee_bps": 50,  # Fee in basis points (0.5%)
+            "fee_account": "your-usdc-token-account",  # Account to receive fees
+            
+            # Optional - Quality filters (defaults shown)
+            "min_volume_usd": 1000,  # Minimum market volume
+            "min_liquidity_usd": 500,  # Minimum market liquidity
+            "include_risky": False,  # Show low-quality markets (with warnings)
+            
+            # Optional - Gasless transactions
+            "payer_private_key": "payer-private-key",  # For sponsored transactions
+        },
+    },
+}
+```
+
+**Features:**
+- Same safety scoring and quality filters as DFlow Prediction
+- **Privy Delegated Wallets**: Seamless user experience with embedded wallets
+- **Gasless Transactions**: Optionally sponsor gas fees for users via `payer_private_key`
+
+**Actions:** Same as DFlow Prediction (search, list_events, get_event, list_markets, get_market, buy, sell, positions)
+
+**Parameters:**
+- All DFlow Prediction parameters plus:
+- `privy_user_id` (required for trading) - Privy user ID (did:privy:xxx format)
 
 ### Rugcheck
 
