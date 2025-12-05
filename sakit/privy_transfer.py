@@ -228,7 +228,7 @@ class PrivyTransferTool(AutoTool):
     ) -> Dict[str, Any]:
         # Sanitize user_id to handle LLM formatting errors
         user_id = sanitize_privy_user_id(user_id) or user_id
-        
+
         if not all(
             [
                 self.app_id,

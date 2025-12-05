@@ -32,7 +32,10 @@ from solders.message import to_bytes_versioned
 
 from sakit.utils.dflow import DFlowPredictionClient
 from sakit.utils.trigger import replace_blockhash_in_transaction, get_fresh_blockhash
-from sakit.utils.wallet import send_raw_transaction_with_priority, sanitize_privy_user_id
+from sakit.utils.wallet import (
+    send_raw_transaction_with_priority,
+    sanitize_privy_user_id,
+)
 
 logger = logging.getLogger(__name__)
 

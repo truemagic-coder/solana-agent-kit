@@ -26,7 +26,10 @@ from solders.transaction import VersionedTransaction  # type: ignore
 from solders.message import to_bytes_versioned  # type: ignore
 
 from sakit.utils.dflow import DFlowSwap
-from sakit.utils.wallet import send_raw_transaction_with_priority, sanitize_privy_user_id
+from sakit.utils.wallet import (
+    send_raw_transaction_with_priority,
+    sanitize_privy_user_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -262,7 +265,7 @@ class PrivyDFlowSwapTool(AutoTool):
     ) -> Dict[str, Any]:
         # Sanitize user_id to handle LLM formatting errors
         user_id = sanitize_privy_user_id(user_id) or user_id
-        
+
         if not all([self._app_id, self._app_secret, self._signing_key]):
             return {"status": "error", "message": "Privy config missing."}
 

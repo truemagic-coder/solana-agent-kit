@@ -295,7 +295,7 @@ class PrivyRecurringTool(AutoTool):
     ) -> Dict[str, Any]:
         # Sanitize user_id to handle LLM formatting errors
         user_id = sanitize_privy_user_id(user_id) or user_id
-        
+
         if not all([self._app_id, self._app_secret, self._signing_key]):
             return {"status": "error", "message": "Privy config missing."}
 
