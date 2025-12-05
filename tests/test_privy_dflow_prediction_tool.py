@@ -13,6 +13,7 @@ from sakit.privy_dflow_prediction import (
     PrivyDFlowPredictionTool,
     PrivyDFlowPredictionPlugin,
 )
+from sakit.utils.wallet import sanitize_privy_user_id
 from sakit.utils.dflow import (
     DFlowPredictionClient,
     DFlowPredictionOrderResult,
@@ -99,6 +100,83 @@ def sample_event():
         "liquidity": 45000,
         "status": "active",
     }
+
+
+# =============================================================================
+# PRIVY USER ID SANITIZATION TESTS
+# =============================================================================
+
+
+class TestPrivyUserIdSanitization:
+    """Test privy_user_id sanitization to handle LLM formatting errors."""
+
+    def test_sanitize_none(self):
+        """None should return None."""
+        assert sanitize_privy_user_id(None) is None
+
+    def test_sanitize_empty_string(self):
+        """Empty string should return None."""
+        assert sanitize_privy_user_id("") is None
+
+    def test_sanitize_correct_format(self):
+        """Correctly formatted ID should be returned as-is."""
+        user_id = "did:privy:cmiox5jks01fhk40d0feu1wt8"
+        assert sanitize_privy_user_id(user_id) == user_id
+
+    def test_sanitize_with_leading_quote(self):
+        """Leading quote should be stripped."""
+        user_id = '"did:privy:cmiox5jks01fhk40d0feu1wt8'
+        expected = "did:privy:cmiox5jks01fhk40d0feu1wt8"
+        assert sanitize_privy_user_id(user_id) == expected
+
+    def test_sanitize_with_capitalized_did(self):
+        """Capitalized Did should be normalized."""
+        user_id = "Did:privy:cmiox5jks01fhk40d0feu1wt8"
+        expected = "did:privy:cmiox5jks01fhk40d0feu1wt8"
+        assert sanitize_privy_user_id(user_id) == expected
+
+    def test_sanitize_with_all_caps(self):
+        """All caps DID:PRIVY should be normalized."""
+        user_id = "DID:PRIVY:cmiox5jks01fhk40d0feu1wt8"
+        expected = "did:privy:cmiox5jks01fhk40d0feu1wt8"
+        assert sanitize_privy_user_id(user_id) == expected
+
+    def test_sanitize_with_quotes_and_caps(self):
+        """Leading quote and caps should both be fixed."""
+        user_id = '"Did:privy:cmiox5jks01fhk40d0feu1wt8'
+        expected = "did:privy:cmiox5jks01fhk40d0feu1wt8"
+        assert sanitize_privy_user_id(user_id) == expected
+
+    def test_sanitize_with_single_quotes(self):
+        """Single quotes should be stripped."""
+        user_id = "'did:privy:cmiox5jks01fhk40d0feu1wt8'"
+        expected = "did:privy:cmiox5jks01fhk40d0feu1wt8"
+        assert sanitize_privy_user_id(user_id) == expected
+
+    def test_sanitize_with_whitespace(self):
+        """Whitespace should be stripped."""
+        user_id = "  did:privy:cmiox5jks01fhk40d0feu1wt8  "
+        expected = "did:privy:cmiox5jks01fhk40d0feu1wt8"
+        assert sanitize_privy_user_id(user_id) == expected
+
+    def test_sanitize_preserves_unique_id_case(self):
+        """Unique ID part should preserve its original case."""
+        user_id = "did:privy:CmIoX5jKs01fHk40D0fEu1wT8"
+        expected = "did:privy:CmIoX5jKs01fHk40D0fEu1wT8"
+        assert sanitize_privy_user_id(user_id) == expected
+
+    def test_sanitize_non_privy_id(self):
+        """Non-privy ID should be returned cleaned but not normalized."""
+        user_id = "  some-other-id  "
+        expected = "some-other-id"
+        assert sanitize_privy_user_id(user_id) == expected
+
+    def test_sanitize_only_whitespace_and_quotes(self):
+        """String with only whitespace and quotes should return None."""
+        assert sanitize_privy_user_id("   ") is None
+        assert sanitize_privy_user_id('""') is None
+        assert sanitize_privy_user_id("''") is None
+        assert sanitize_privy_user_id('" "') is None
 
 
 # =============================================================================

@@ -23,7 +23,7 @@ from solders.message import to_bytes_versioned
 
 from sakit.utils.ultra import JupiterUltra
 from sakit.utils.trigger import replace_blockhash_in_transaction, get_fresh_blockhash
-from sakit.utils.wallet import send_raw_transaction_with_priority
+from sakit.utils.wallet import send_raw_transaction_with_priority, sanitize_privy_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -467,6 +467,9 @@ class PrivyUltraTool(AutoTool):
         output_mint: str,
         amount: int,
     ) -> Dict[str, Any]:
+        # Sanitize user_id to handle LLM formatting errors
+        user_id = sanitize_privy_user_id(user_id) or user_id
+        
         if not all([self.app_id, self.app_secret, self.signing_key]):
             return {"status": "error", "message": "Privy config missing."}
 

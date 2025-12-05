@@ -15,6 +15,41 @@ from solders.pubkey import Pubkey
 logger = logging.getLogger(__name__)
 
 
+def sanitize_privy_user_id(user_id: Optional[str]) -> Optional[str]:
+    """
+    Sanitize and normalize privy user_id to handle LLM formatting errors.
+    
+    LLMs sometimes mangle the user ID by:
+    - Adding quotes: "did:privy:xxx" or 'did:privy:xxx'
+    - Changing case: Did:privy:xxx or DID:PRIVY:xxx
+    - Adding whitespace
+    
+    This function normalizes to the correct format: did:privy:xxx
+    
+    Args:
+        user_id: The raw user_id string from LLM
+        
+    Returns:
+        Sanitized user_id or None if input was None/empty
+    """
+    if not user_id:
+        return None
+    
+    # Strip whitespace and quotes
+    cleaned = user_id.strip().strip('"').strip("'").strip()
+    
+    if not cleaned:
+        return None
+    
+    # Normalize the did:privy: prefix to lowercase
+    if cleaned.lower().startswith("did:privy:"):
+        # Keep the unique ID part as-is, but normalize prefix
+        unique_part = cleaned[10:]  # Everything after "did:privy:"
+        return f"did:privy:{unique_part}"
+    
+    return cleaned
+
+
 class SolanaTransaction:
     """Transaction parameters for Solana."""
 

@@ -18,6 +18,7 @@ from solders.transaction import VersionedTransaction  # type: ignore
 from solders.message import to_bytes_versioned  # type: ignore
 
 from sakit.utils.recurring import JupiterRecurring
+from sakit.utils.wallet import sanitize_privy_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -292,6 +293,9 @@ class PrivyRecurringTool(AutoTool):
         start_at: Optional[str] = None,
         order_pubkey: Optional[str] = None,
     ) -> Dict[str, Any]:
+        # Sanitize user_id to handle LLM formatting errors
+        user_id = sanitize_privy_user_id(user_id) or user_id
+        
         if not all([self._app_id, self._app_secret, self._signing_key]):
             return {"status": "error", "message": "Privy config missing."}
 

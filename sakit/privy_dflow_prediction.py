@@ -32,7 +32,7 @@ from solders.message import to_bytes_versioned
 
 from sakit.utils.dflow import DFlowPredictionClient
 from sakit.utils.trigger import replace_blockhash_in_transaction, get_fresh_blockhash
-from sakit.utils.wallet import send_raw_transaction_with_priority
+from sakit.utils.wallet import send_raw_transaction_with_priority, sanitize_privy_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -533,6 +533,9 @@ class PrivyDFlowPredictionTool(AutoTool):
         include_risky: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """Execute a prediction market action using Privy embedded wallet."""
+
+        # Sanitize privy_user_id to handle LLM formatting errors
+        privy_user_id = sanitize_privy_user_id(privy_user_id)
 
         client = self._get_client(include_risky)
 
