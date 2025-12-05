@@ -2,7 +2,8 @@
 Tests for Solana Ultra Tool.
 
 Tests the SolanaUltraTool which swaps tokens using Jupiter Ultra API
-with a Solana keypair.
+with a Solana keypair. Transactions are sent via Helius RPC instead
+of Jupiter's /execute endpoint for reliability.
 """
 
 import pytest
@@ -23,6 +24,7 @@ def ultra_tool():
                     "jupiter_api_key": "test-jupiter-key",
                     "referral_account": "RefAcct123",
                     "referral_fee": 50,
+                    "rpc_url": "https://mainnet.helius-rpc.com/?api-key=test-key",
                 }
             }
         }
@@ -41,6 +43,7 @@ def ultra_tool_with_payer():
                     "private_key": "5jGR...base58privatekey",
                     "jupiter_api_key": "test-jupiter-key",
                     "payer_private_key": "PayerPrivateKey...base58",
+                    "rpc_url": "https://mainnet.helius-rpc.com/?api-key=test-key",
                 }
             }
         }
@@ -96,9 +99,13 @@ class TestSolanaUltraToolConfigure:
         """Should store payer private key for gasless."""
         assert ultra_tool_with_payer._payer_private_key == "PayerPrivateKey...base58"
 
+    def test_configure_stores_rpc_url(self, ultra_tool):
+        """Should store RPC URL for direct transaction sending."""
+        assert ultra_tool._rpc_url == "https://mainnet.helius-rpc.com/?api-key=test-key"
+
 
 class TestSolanaUltraToolExecute:
-    """Test execute method."""
+    """Test execute method using RPC-based transaction sending."""
 
     @pytest.mark.asyncio
     async def test_execute_missing_private_key_error(self, ultra_tool_no_key):
@@ -143,27 +150,27 @@ class TestSolanaUltraToolExecute:
 
     @pytest.mark.asyncio
     async def test_execute_success(self, ultra_tool):
-        """Should return success on successful swap."""
+        """Should return success on successful swap via RPC."""
         mock_order = MagicMock()
         mock_order.transaction = "base64encodedtransaction"
         mock_order.request_id = "request-123"
         mock_order.swap_type = "ExactIn"
         mock_order.gasless = False
 
-        mock_execute_result = MagicMock()
-        mock_execute_result.status = "Success"
-        mock_execute_result.signature = "TxSig123...abc"
-        mock_execute_result.input_amount_result = "1000000000"
-        mock_execute_result.output_amount_result = "50000000"
-        mock_execute_result.error = None
-        mock_execute_result.code = 0
+        # Mock _sign_and_execute to return success
+        mock_exec_result = {
+            "status": "success",
+            "signature": "TxSig123...abc",
+        }
 
         with (
             patch("sakit.solana_ultra.Keypair") as MockKeypair,
             patch("sakit.solana_ultra.JupiterUltra") as MockUltra,
-            patch(
-                "sakit.solana_ultra.sign_ultra_transaction",
-                return_value="signedtransaction",
+            patch.object(
+                ultra_tool,
+                "_sign_and_execute",
+                new_callable=AsyncMock,
+                return_value=mock_exec_result,
             ),
         ):
             mock_keypair = MagicMock()
@@ -173,9 +180,6 @@ class TestSolanaUltraToolExecute:
 
             mock_ultra_instance = AsyncMock()
             mock_ultra_instance.get_order = AsyncMock(return_value=mock_order)
-            mock_ultra_instance.execute_order = AsyncMock(
-                return_value=mock_execute_result
-            )
             MockUltra.return_value = mock_ultra_instance
 
             result = await ultra_tool.execute(
@@ -187,38 +191,37 @@ class TestSolanaUltraToolExecute:
             assert result["status"] == "success"
             assert result["signature"] == "TxSig123...abc"
             assert result["swap_type"] == "ExactIn"
+            assert result["gasless"] is False
 
     @pytest.mark.asyncio
-    async def test_execute_swap_failed_error(self, ultra_tool):
-        """Should return error when swap fails."""
+    async def test_execute_sign_and_execute_failure(self, ultra_tool):
+        """Should return error when _sign_and_execute fails."""
         mock_order = MagicMock()
         mock_order.transaction = "base64encodedtransaction"
         mock_order.request_id = "request-123"
 
-        mock_execute_result = MagicMock()
-        mock_execute_result.status = "Failed"
-        mock_execute_result.signature = None
-        mock_execute_result.error = "Insufficient balance"
-        mock_execute_result.code = 1001
+        # Mock _sign_and_execute to return error
+        mock_exec_result = {
+            "status": "error",
+            "message": "Failed to send transaction",
+        }
 
         with (
             patch("sakit.solana_ultra.Keypair") as MockKeypair,
             patch("sakit.solana_ultra.JupiterUltra") as MockUltra,
-            patch(
-                "sakit.solana_ultra.sign_ultra_transaction",
-                return_value="signedtransaction",
+            patch.object(
+                ultra_tool,
+                "_sign_and_execute",
+                new_callable=AsyncMock,
+                return_value=mock_exec_result,
             ),
         ):
             mock_keypair = MagicMock()
             mock_keypair.pubkey.return_value = "TakerPubkey123"
-            mock_keypair.sign_message = MagicMock(return_value=b"signature")
             MockKeypair.from_base58_string.return_value = mock_keypair
 
             mock_ultra_instance = AsyncMock()
             mock_ultra_instance.get_order = AsyncMock(return_value=mock_order)
-            mock_ultra_instance.execute_order = AsyncMock(
-                return_value=mock_execute_result
-            )
             MockUltra.return_value = mock_ultra_instance
 
             result = await ultra_tool.execute(
@@ -228,8 +231,47 @@ class TestSolanaUltraToolExecute:
             )
 
             assert result["status"] == "error"
-            assert "Insufficient balance" in result["message"]
-            assert result["code"] == 1001
+            assert "Failed to send transaction" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_execute_rpc_blockhash_failure(self, ultra_tool):
+        """Should return error when blockhash fetch fails."""
+        mock_order = MagicMock()
+        mock_order.transaction = "base64encodedtransaction"
+        mock_order.request_id = "request-123"
+
+        # Mock _sign_and_execute to return blockhash error
+        mock_exec_result = {
+            "status": "error",
+            "message": "Failed to get blockhash: RPC error",
+        }
+
+        with (
+            patch("sakit.solana_ultra.Keypair") as MockKeypair,
+            patch("sakit.solana_ultra.JupiterUltra") as MockUltra,
+            patch.object(
+                ultra_tool,
+                "_sign_and_execute",
+                new_callable=AsyncMock,
+                return_value=mock_exec_result,
+            ),
+        ):
+            mock_keypair = MagicMock()
+            mock_keypair.pubkey.return_value = "TakerPubkey123"
+            MockKeypair.from_base58_string.return_value = mock_keypair
+
+            mock_ultra_instance = AsyncMock()
+            mock_ultra_instance.get_order = AsyncMock(return_value=mock_order)
+            MockUltra.return_value = mock_ultra_instance
+
+            result = await ultra_tool.execute(
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                amount=1000000000,
+            )
+
+            assert result["status"] == "error"
+            assert "blockhash" in result["message"].lower()
 
     @pytest.mark.asyncio
     async def test_execute_exception_handling(self, ultra_tool):

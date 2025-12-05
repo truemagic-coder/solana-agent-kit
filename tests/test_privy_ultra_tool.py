@@ -2,7 +2,8 @@
 Tests for Privy Ultra Tool.
 
 Tests the PrivyUltraTool which swaps tokens using Jupiter Ultra API
-via Privy delegated wallets.
+via Privy delegated wallets. Transactions are sent via Helius RPC
+instead of Jupiter's /execute endpoint for reliability.
 """
 
 import pytest
@@ -30,6 +31,7 @@ def ultra_tool():
                     "jupiter_api_key": "test-jupiter-key",
                     "referral_account": "RefAcct123",
                     "referral_fee": 50,
+                    "rpc_url": "https://mainnet.helius-rpc.com/?api-key=test-key",
                 }
             }
         }
@@ -98,6 +100,14 @@ class TestPrivyUltraToolConfigure:
         assert ultra_tool.jupiter_api_key == "test-jupiter-key"
         assert ultra_tool.referral_account == "RefAcct123"
         assert ultra_tool.referral_fee == 50
+
+    def test_configure_stores_rpc_url(self, ultra_tool):
+        """Should store RPC URL for direct transaction sending."""
+        assert ultra_tool._rpc_url == "https://mainnet.helius-rpc.com/?api-key=test-key"
+
+    def test_configure_stores_internal_signing_key(self, ultra_tool):
+        """Should store internal signing key for _sign_and_execute."""
+        assert ultra_tool._signing_key == "wallet-auth:test-signing-key"
 
 
 class TestPrivyUltraToolExecute:
@@ -346,13 +356,13 @@ class TestGetPrivyEmbeddedWallet:
 
 
 class TestPrivyUltraToolExecuteSuccess:
-    """Test successful execute paths."""
+    """Test successful execute paths using RPC-based transaction sending."""
 
     TEST_EC_KEY_SEC1 = "MHcCAQEEIH6phbwVBTxg+QYJMSqHXcLoiTpmO163WjA8Td/+DqQ3oAoGCCqGSM49AwEHoUQDQgAEoY29/uiiWfItIYBAmejKuM17a0GackAbFG4sNs1ObTUilKQ2V/7WkTRC0xk7IgLwCRUI1e/Yk5wQFCjlajvilw=="
 
     @pytest.fixture
     def configured_ultra_tool(self):
-        """Create a fully configured PrivyUltraTool."""
+        """Create a fully configured PrivyUltraTool with RPC URL."""
         tool = PrivyUltraTool()
         tool.configure(
             {
@@ -364,6 +374,7 @@ class TestPrivyUltraToolExecuteSuccess:
                         "jupiter_api_key": "test-jupiter-key",
                         "referral_account": "RefAcct123",
                         "referral_fee": 50,
+                        "rpc_url": "https://mainnet.helius-rpc.com/?api-key=test-key",
                     }
                 }
             }
@@ -372,7 +383,7 @@ class TestPrivyUltraToolExecuteSuccess:
 
     @pytest.mark.asyncio
     async def test_execute_successful_swap(self, configured_ultra_tool):
-        """Should successfully execute a swap."""
+        """Should successfully execute a swap via RPC."""
         mock_wallet_info = {
             "wallet_id": "wallet-123",
             "public_key": "WalletPubkey123",
@@ -384,13 +395,11 @@ class TestPrivyUltraToolExecuteSuccess:
         mock_order.swap_type = "ExactIn"
         mock_order.gasless = False
 
-        mock_execute_result = MagicMock()
-        mock_execute_result.status = "Success"
-        mock_execute_result.signature = "sig-456"
-        mock_execute_result.input_amount_result = 1000000000
-        mock_execute_result.output_amount_result = 50000000
-
-        mock_sign_result = {"data": {"signedTransaction": "signed-tx-base64"}}
+        # Mock _sign_and_execute to return success
+        mock_exec_result = {
+            "status": "success",
+            "signature": "sig-456",
+        }
 
         with (
             patch(
@@ -399,15 +408,15 @@ class TestPrivyUltraToolExecuteSuccess:
                 return_value=mock_wallet_info,
             ),
             patch("sakit.privy_ultra.JupiterUltra") as MockUltra,
-            patch(
-                "sakit.privy_ultra.privy_sign_transaction",
+            patch.object(
+                configured_ultra_tool,
+                "_sign_and_execute",
                 new_callable=AsyncMock,
-                return_value=mock_sign_result,
+                return_value=mock_exec_result,
             ),
         ):
             mock_instance = AsyncMock()
             mock_instance.get_order = AsyncMock(return_value=mock_order)
-            mock_instance.execute_order = AsyncMock(return_value=mock_execute_result)
             MockUltra.return_value = mock_instance
 
             result = await configured_ultra_tool.execute(
@@ -419,12 +428,12 @@ class TestPrivyUltraToolExecuteSuccess:
 
             assert result["status"] == "success"
             assert result["signature"] == "sig-456"
-            assert result["input_amount"] == 1000000000
-            assert result["output_amount"] == 50000000
+            assert result["swap_type"] == "ExactIn"
+            assert result["gasless"] is False
 
     @pytest.mark.asyncio
-    async def test_execute_swap_failure_from_jupiter(self, configured_ultra_tool):
-        """Should return error when Jupiter swap fails."""
+    async def test_execute_sign_and_execute_failure(self, configured_ultra_tool):
+        """Should return error when _sign_and_execute fails."""
         mock_wallet_info = {
             "wallet_id": "wallet-123",
             "public_key": "WalletPubkey123",
@@ -434,13 +443,11 @@ class TestPrivyUltraToolExecuteSuccess:
         mock_order.transaction = "mock-transaction-base64"
         mock_order.request_id = "req-123"
 
-        mock_execute_result = MagicMock()
-        mock_execute_result.status = "Failed"
-        mock_execute_result.error = "Insufficient balance"
-        mock_execute_result.code = "INSUFFICIENT_FUNDS"
-        mock_execute_result.signature = None
-
-        mock_sign_result = {"data": {"signedTransaction": "signed-tx-base64"}}
+        # Mock _sign_and_execute to return error
+        mock_exec_result = {
+            "status": "error",
+            "message": "Failed to send transaction",
+        }
 
         with (
             patch(
@@ -449,15 +456,15 @@ class TestPrivyUltraToolExecuteSuccess:
                 return_value=mock_wallet_info,
             ),
             patch("sakit.privy_ultra.JupiterUltra") as MockUltra,
-            patch(
-                "sakit.privy_ultra.privy_sign_transaction",
+            patch.object(
+                configured_ultra_tool,
+                "_sign_and_execute",
                 new_callable=AsyncMock,
-                return_value=mock_sign_result,
+                return_value=mock_exec_result,
             ),
         ):
             mock_instance = AsyncMock()
             mock_instance.get_order = AsyncMock(return_value=mock_order)
-            mock_instance.execute_order = AsyncMock(return_value=mock_execute_result)
             MockUltra.return_value = mock_instance
 
             result = await configured_ultra_tool.execute(
@@ -468,7 +475,53 @@ class TestPrivyUltraToolExecuteSuccess:
             )
 
             assert result["status"] == "error"
-            assert "Insufficient balance" in result["message"]
+            assert "Failed to send transaction" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_execute_rpc_blockhash_failure(self, configured_ultra_tool):
+        """Should return error when blockhash fetch fails."""
+        mock_wallet_info = {
+            "wallet_id": "wallet-123",
+            "public_key": "WalletPubkey123",
+        }
+
+        mock_order = MagicMock()
+        mock_order.transaction = "mock-transaction-base64"
+        mock_order.request_id = "req-123"
+
+        # Mock _sign_and_execute to return blockhash error
+        mock_exec_result = {
+            "status": "error",
+            "message": "Failed to get blockhash: RPC error",
+        }
+
+        with (
+            patch(
+                "sakit.privy_ultra.get_privy_embedded_wallet",
+                new_callable=AsyncMock,
+                return_value=mock_wallet_info,
+            ),
+            patch("sakit.privy_ultra.JupiterUltra") as MockUltra,
+            patch.object(
+                configured_ultra_tool,
+                "_sign_and_execute",
+                new_callable=AsyncMock,
+                return_value=mock_exec_result,
+            ),
+        ):
+            mock_instance = AsyncMock()
+            mock_instance.get_order = AsyncMock(return_value=mock_order)
+            MockUltra.return_value = mock_instance
+
+            result = await configured_ultra_tool.execute(
+                user_id="did:privy:user123",
+                input_mint="So11111111111111111111111111111111111111112",
+                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                amount=1000000000,
+            )
+
+            assert result["status"] == "error"
+            assert "blockhash" in result["message"].lower()
 
     @pytest.mark.asyncio
     async def test_execute_privy_signing_failure(self, configured_ultra_tool):
@@ -482,8 +535,11 @@ class TestPrivyUltraToolExecuteSuccess:
         mock_order.transaction = "mock-transaction-base64"
         mock_order.request_id = "req-123"
 
-        # No signedTransaction in response
-        mock_sign_result = {"data": {}}
+        # Mock _sign_and_execute to return signing error
+        mock_exec_result = {
+            "status": "error",
+            "message": "Failed to sign transaction via Privy.",
+        }
 
         with (
             patch(
@@ -492,10 +548,11 @@ class TestPrivyUltraToolExecuteSuccess:
                 return_value=mock_wallet_info,
             ),
             patch("sakit.privy_ultra.JupiterUltra") as MockUltra,
-            patch(
-                "sakit.privy_ultra.privy_sign_transaction",
+            patch.object(
+                configured_ultra_tool,
+                "_sign_and_execute",
                 new_callable=AsyncMock,
-                return_value=mock_sign_result,
+                return_value=mock_exec_result,
             ),
         ):
             mock_instance = AsyncMock()

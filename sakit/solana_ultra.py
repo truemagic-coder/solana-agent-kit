@@ -2,15 +2,24 @@
 Jupiter Ultra swap tool for Solana wallets.
 
 Enables swapping tokens using Jupiter Ultra API with a Solana keypair.
+
+NOTE: We bypass Jupiter's /execute endpoint and send transactions directly via
+our RPC (Helius). This is because Jupiter's execute can have reliability issues.
+This matches the pattern used in privy_ultra.py and privy_trigger.py.
 """
 
+import base64
 import logging
 from typing import Dict, Any, List, Optional
 
 from solana_agent import AutoTool, ToolRegistry
 from solders.keypair import Keypair
+from solders.transaction import VersionedTransaction
+from solders.message import to_bytes_versioned
 
-from sakit.utils.ultra import JupiterUltra, sign_ultra_transaction
+from sakit.utils.ultra import JupiterUltra
+from sakit.utils.trigger import replace_blockhash_in_transaction, get_fresh_blockhash
+from sakit.utils.wallet import send_raw_transaction_with_priority
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +38,7 @@ class SolanaUltraTool(AutoTool):
         self._referral_account: Optional[str] = None
         self._referral_fee: Optional[int] = None
         self._payer_private_key: Optional[str] = None
+        self._rpc_url: Optional[str] = None
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -59,6 +69,125 @@ class SolanaUltraTool(AutoTool):
         self._referral_account = tool_cfg.get("referral_account")
         self._referral_fee = tool_cfg.get("referral_fee")
         self._payer_private_key = tool_cfg.get("payer_private_key")
+        self._rpc_url = tool_cfg.get("rpc_url")
+
+    async def _sign_and_execute(  # pragma: no cover
+        self,
+        keypair: Keypair,
+        transaction_base64: str,
+    ) -> Dict[str, Any]:
+        """
+        Replace blockhash, sign with keypair (and payer if configured), then send.
+
+        Jupiter's /execute endpoint can have reliability issues, so we:
+        1. Get a fresh blockhash from our RPC
+        2. Replace the blockhash in Jupiter's transaction
+        3. Sign with our keys
+        4. Send directly via our RPC
+
+        This matches the pattern used in privy_ultra.py and privy_trigger.py.
+        """
+        try:
+            # RPC URL is required - Jupiter's execute has reliability issues
+            if not self._rpc_url:
+                return {
+                    "status": "error",
+                    "message": "rpc_url must be configured for Ultra swaps. Jupiter's execute endpoint has reliability issues.",
+                }
+
+            # Step 1: Get fresh blockhash from our RPC
+            blockhash_result = await get_fresh_blockhash(self._rpc_url)
+            if "error" in blockhash_result:
+                return {
+                    "status": "error",
+                    "message": f"Failed to get blockhash: {blockhash_result['error']}",
+                }
+
+            fresh_blockhash = blockhash_result["blockhash"]
+            logger.info(f"Got fresh blockhash: {fresh_blockhash}")
+
+            # Step 2: Replace blockhash in the transaction
+            tx_with_new_blockhash = replace_blockhash_in_transaction(
+                transaction_base64, fresh_blockhash
+            )
+
+            # Step 3: Sign with keypair (and payer if configured)
+            tx_bytes = base64.b64decode(tx_with_new_blockhash)
+            transaction = VersionedTransaction.from_bytes(tx_bytes)
+            message_bytes = to_bytes_versioned(transaction.message)
+
+            # Get the number of required signatures
+            num_signers = transaction.message.header.num_required_signatures
+            account_keys = transaction.message.account_keys
+            new_signatures = list(transaction.signatures)
+
+            # If payer is configured, sign with payer first
+            if self._payer_private_key:
+                payer_keypair = Keypair.from_base58_string(self._payer_private_key)
+                payer_pubkey = payer_keypair.pubkey()
+                payer_signature = payer_keypair.sign_message(message_bytes)
+
+                # Find payer's position in signers
+                payer_index = None
+                for i in range(num_signers):
+                    if account_keys[i] == payer_pubkey:
+                        payer_index = i
+                        break
+
+                if payer_index is not None:
+                    new_signatures[payer_index] = payer_signature
+                    logger.info(f"Payer signed at index {payer_index}")
+
+            # Sign with main keypair (taker)
+            taker_pubkey = keypair.pubkey()
+            taker_signature = keypair.sign_message(message_bytes)
+
+            # Find taker's position in signers
+            taker_index = None
+            for i in range(num_signers):
+                if account_keys[i] == taker_pubkey:
+                    taker_index = i
+                    break
+
+            if taker_index is None:
+                return {
+                    "status": "error",
+                    "message": f"Taker pubkey {taker_pubkey} not found in transaction signers.",
+                }
+
+            new_signatures[taker_index] = taker_signature
+            logger.info(f"Taker signed at index {taker_index}")
+
+            # Create signed transaction
+            signed_transaction = VersionedTransaction.populate(
+                transaction.message,
+                new_signatures,
+            )
+            signed_tx_bytes = bytes(signed_transaction)
+
+            # Step 4: Send via our RPC
+            send_result = await send_raw_transaction_with_priority(
+                rpc_url=self._rpc_url,
+                tx_bytes=signed_tx_bytes,
+                skip_preflight=False,  # Run preflight to catch signature/signer errors
+                skip_confirmation=False,  # Wait for confirmation - blockhash is from our RPC
+                confirm_timeout=30.0,
+            )
+
+            if not send_result.get("success"):
+                return {
+                    "status": "error",
+                    "message": send_result.get("error", "Failed to send transaction"),
+                }
+
+            return {
+                "status": "success",
+                "signature": send_result.get("signature"),
+            }
+
+        except Exception as e:
+            logger.exception(f"Failed to sign and execute: {str(e)}")
+            return {"status": "error", "message": str(e)}
 
     async def execute(
         self,
@@ -74,7 +203,6 @@ class SolanaUltraTool(AutoTool):
             taker = str(keypair.pubkey())
 
             # Check if integrator payer is configured for gasless transactions
-            payer_keypair = None
             payer_pubkey = None
             if self._payer_private_key:  # pragma: no cover
                 payer_keypair = Keypair.from_base58_string(self._payer_private_key)
@@ -101,35 +229,21 @@ class SolanaUltraTool(AutoTool):
                     "message": "No transaction returned from Jupiter Ultra.",
                 }
 
-            # Sign the transaction
-            signed_tx = sign_ultra_transaction(
+            # Sign and execute via RPC (bypasses Jupiter's /execute endpoint)
+            exec_result = await self._sign_and_execute(
+                keypair=keypair,
                 transaction_base64=order.transaction,
-                sign_message_func=keypair.sign_message,
-                payer_sign_func=payer_keypair.sign_message if payer_keypair else None,
             )
 
-            # Execute the swap via Jupiter Ultra
-            execute_result = await ultra.execute_order(
-                signed_transaction=signed_tx,
-                request_id=order.request_id,
-            )
-
-            if execute_result.status == "Success":
+            if exec_result.get("status") == "success":
                 return {
                     "status": "success",
-                    "signature": execute_result.signature,
-                    "input_amount": execute_result.input_amount_result,
-                    "output_amount": execute_result.output_amount_result,
+                    "signature": exec_result.get("signature"),
                     "swap_type": order.swap_type,
                     "gasless": order.gasless,
                 }
             else:
-                return {
-                    "status": "error",
-                    "message": execute_result.error or "Swap failed",
-                    "code": execute_result.code,
-                    "signature": execute_result.signature,
-                }
+                return exec_result
 
         except Exception as e:
             logger.exception(f"Solana Ultra swap failed: {str(e)}")
