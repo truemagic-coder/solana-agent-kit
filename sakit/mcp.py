@@ -33,16 +33,19 @@ class MCPTool(AutoTool):
     """
 
     def __init__(self, registry: Optional[ToolRegistry] = None):
-        super().__init__(
-            name="mcp",
-            description="Executes tasks using connected MCP servers (e.g., Zapier actions) via fastmcp. Provide a natural language query describing the task.",
-            registry=registry,
-        )
+        # Initialize all instance attributes BEFORE calling super().__init__
+        # This prevents attribute errors if the registry inspects the tool during registration
         self._servers: List[Dict[str, Any]] = []  # List of server configs
         self._llm_provider: str = "grok"  # Default to "grok", fallback to "openai"
         self._llm_api_key: Optional[str] = None
         self._llm_base_url: Optional[str] = None
         self._llm_model: Optional[str] = None
+
+        super().__init__(
+            name="mcp",
+            description="Executes tasks using connected MCP servers (e.g., Zapier actions) via fastmcp. Provide a natural language query describing the task.",
+            registry=registry,
+        )
         logger.info("MCPTool (fastmcp) initialized.")
 
     def get_schema(self) -> Dict[str, Any]:
