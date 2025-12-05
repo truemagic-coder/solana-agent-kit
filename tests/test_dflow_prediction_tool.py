@@ -850,14 +850,60 @@ class TestPositionsAction:
         assert "private_key" in result["message"].lower()
 
     @pytest.mark.asyncio
-    async def test_positions_returns_hint(self, prediction_tool):
-        """Positions should return hint about checking token balances."""
+    async def test_positions_requires_rpc_url(self):
+        """Positions should require rpc_url configuration."""
+        tool = DFlowPredictionTool()
+        tool.configure(
+            {
+                "tools": {
+                    "dflow_prediction": {
+                        "private_key": "5jGR...base58privatekey",
+                        # No rpc_url
+                    }
+                }
+            }
+        )
+        with patch("sakit.dflow_prediction.Keypair") as MockKeypair:
+            mock_keypair = MagicMock()
+            mock_keypair.pubkey.return_value = "UserPubkey123"
+            MockKeypair.from_base58_string.return_value = mock_keypair
+
+            result = await tool.execute(action="positions")
+            assert result["status"] == "error"
+            assert "rpc_url must be configured" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_positions_returns_positions(self, prediction_tool):
+        """Positions should return actual positions via get_positions."""
         with (
             patch.object(
                 DFlowPredictionClient,
-                "get_outcome_mints",
+                "get_positions",
                 new_callable=AsyncMock,
-                return_value={"mints": []},
+                return_value={
+                    "status": "success",
+                    "wallet": "UserPubkey123",
+                    "position_count": 2,
+                    "positions": [
+                        {
+                            "mint": "Mint1",
+                            "ticker": "PRES-2028",
+                            "side": "YES",
+                            "amount": "1000000",
+                            "ui_amount": 1.0,
+                            "decimals": 6,
+                        },
+                        {
+                            "mint": "Mint2",
+                            "ticker": "BTC-100K",
+                            "side": "NO",
+                            "amount": "2000000",
+                            "ui_amount": 2.0,
+                            "decimals": 6,
+                        },
+                    ],
+                    "hint": "Each position represents outcome tokens.",
+                },
             ),
             patch("sakit.dflow_prediction.Keypair") as MockKeypair,
         ):
@@ -867,8 +913,36 @@ class TestPositionsAction:
 
             result = await prediction_tool.execute(action="positions")
             assert result["status"] == "success"
-            assert "user_wallet" in result
-            assert "hint" in result
+            assert result["wallet"] == "UserPubkey123"
+            assert result["position_count"] == 2
+            assert len(result["positions"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_positions_no_positions(self, prediction_tool):
+        """Positions should return empty when no positions found."""
+        with (
+            patch.object(
+                DFlowPredictionClient,
+                "get_positions",
+                new_callable=AsyncMock,
+                return_value={
+                    "status": "success",
+                    "wallet": "UserPubkey123",
+                    "position_count": 0,
+                    "positions": [],
+                    "hint": "No prediction market positions found.",
+                },
+            ),
+            patch("sakit.dflow_prediction.Keypair") as MockKeypair,
+        ):
+            mock_keypair = MagicMock()
+            mock_keypair.pubkey.return_value = "UserPubkey123"
+            MockKeypair.from_base58_string.return_value = mock_keypair
+
+            result = await prediction_tool.execute(action="positions")
+            assert result["status"] == "success"
+            assert result["position_count"] == 0
+            assert result["positions"] == []
 
 
 # =============================================================================
@@ -2556,3 +2630,302 @@ class TestDFlowPredictionClientHTTP:
             with pytest.raises(Exception) as exc_info:
                 await prediction_client.get_prediction_order_status("req123")
             assert "404" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_get_positions_success_with_positions(self, prediction_client):
+        """Get positions should return positions when outcome tokens found."""
+        # Mock outcome mints response
+        outcome_mints_response = {
+            "OutcomeMint1": {"market": "PRES-2028-HARRIS", "side": "yes"},
+            "OutcomeMint2": {"market": "PRES-2028-HARRIS", "side": "no"},
+            "OutcomeMint3": {"market": "BTC-100K-2025", "side": "yes"},
+        }
+
+        # Mock RPC response with token accounts
+        rpc_response = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "value": [
+                    {
+                        "account": {
+                            "data": {
+                                "parsed": {
+                                    "info": {
+                                        "mint": "OutcomeMint1",
+                                        "tokenAmount": {
+                                            "amount": "1500000",
+                                            "uiAmount": 1.5,
+                                            "decimals": 6,
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "account": {
+                            "data": {
+                                "parsed": {
+                                    "info": {
+                                        "mint": "SomeOtherToken",
+                                        "tokenAmount": {
+                                            "amount": "1000000000",
+                                            "uiAmount": 1.0,
+                                            "decimals": 9,
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "account": {
+                            "data": {
+                                "parsed": {
+                                    "info": {
+                                        "mint": "OutcomeMint3",
+                                        "tokenAmount": {
+                                            "amount": "5000000",
+                                            "uiAmount": 5.0,
+                                            "decimals": 6,
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ]
+            },
+        }
+
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+
+            # First call: get_outcome_mints
+            mock_outcome_response = MagicMock(
+                status_code=200, json=lambda: outcome_mints_response
+            )
+            # Second call: RPC getTokenAccountsByOwner
+            mock_rpc_response = MagicMock(status_code=200, json=lambda: rpc_response)
+
+            mock_instance.get = AsyncMock(return_value=mock_outcome_response)
+            mock_instance.post = AsyncMock(return_value=mock_rpc_response)
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await prediction_client.get_positions(
+                wallet_address="TestWallet123",
+                rpc_url="https://api.mainnet-beta.solana.com",
+            )
+
+            assert result["status"] == "success"
+            assert result["wallet"] == "TestWallet123"
+            assert result["position_count"] == 2
+            assert len(result["positions"]) == 2
+
+            # Check first position
+            pos1 = result["positions"][0]
+            assert pos1["mint"] == "OutcomeMint1"
+            assert pos1["ticker"] == "PRES-2028-HARRIS"
+            assert pos1["side"] == "YES"
+            assert pos1["ui_amount"] == 1.5
+
+            # Check second position
+            pos2 = result["positions"][1]
+            assert pos2["mint"] == "OutcomeMint3"
+            assert pos2["ticker"] == "BTC-100K-2025"
+            assert pos2["side"] == "YES"
+            assert pos2["ui_amount"] == 5.0
+
+    @pytest.mark.asyncio
+    async def test_get_positions_no_positions(self, prediction_client):
+        """Get positions should return empty when no outcome tokens held."""
+        outcome_mints_response = {
+            "OutcomeMint1": {"market": "PRES-2028", "side": "yes"},
+        }
+
+        rpc_response = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "value": [
+                    {
+                        "account": {
+                            "data": {
+                                "parsed": {
+                                    "info": {
+                                        "mint": "SomeOtherToken",
+                                        "tokenAmount": {
+                                            "amount": "1000000000",
+                                            "uiAmount": 1.0,
+                                            "decimals": 9,
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+        }
+
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_outcome_response = MagicMock(
+                status_code=200, json=lambda: outcome_mints_response
+            )
+            mock_rpc_response = MagicMock(status_code=200, json=lambda: rpc_response)
+            mock_instance.get = AsyncMock(return_value=mock_outcome_response)
+            mock_instance.post = AsyncMock(return_value=mock_rpc_response)
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await prediction_client.get_positions(
+                wallet_address="TestWallet123",
+                rpc_url="https://api.mainnet-beta.solana.com",
+            )
+
+            assert result["status"] == "success"
+            assert result["position_count"] == 0
+            assert result["positions"] == []
+            assert "No prediction market positions found" in result["hint"]
+
+    @pytest.mark.asyncio
+    async def test_get_positions_zero_balance_excluded(self, prediction_client):
+        """Positions with zero balance should be excluded."""
+        outcome_mints_response = {
+            "OutcomeMint1": {"market": "TEST", "side": "yes"},
+        }
+
+        rpc_response = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "value": [
+                    {
+                        "account": {
+                            "data": {
+                                "parsed": {
+                                    "info": {
+                                        "mint": "OutcomeMint1",
+                                        "tokenAmount": {
+                                            "amount": "0",
+                                            "uiAmount": 0,
+                                            "decimals": 6,
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+        }
+
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_outcome_response = MagicMock(
+                status_code=200, json=lambda: outcome_mints_response
+            )
+            mock_rpc_response = MagicMock(status_code=200, json=lambda: rpc_response)
+            mock_instance.get = AsyncMock(return_value=mock_outcome_response)
+            mock_instance.post = AsyncMock(return_value=mock_rpc_response)
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await prediction_client.get_positions(
+                wallet_address="TestWallet123",
+                rpc_url="https://api.mainnet-beta.solana.com",
+            )
+
+            assert result["status"] == "success"
+            assert result["position_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_get_positions_rpc_error(self, prediction_client):
+        """Get positions should return error when RPC fails."""
+        outcome_mints_response = {
+            "OutcomeMint1": {"market": "TEST", "side": "yes"},
+        }
+
+        rpc_error_response = {"jsonrpc": "2.0", "id": 1, "error": {"code": -32000}}
+
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_outcome_response = MagicMock(
+                status_code=200, json=lambda: outcome_mints_response
+            )
+            mock_rpc_response = MagicMock(
+                status_code=200, json=lambda: rpc_error_response
+            )
+            mock_instance.get = AsyncMock(return_value=mock_outcome_response)
+            mock_instance.post = AsyncMock(return_value=mock_rpc_response)
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await prediction_client.get_positions(
+                wallet_address="TestWallet123",
+                rpc_url="https://api.mainnet-beta.solana.com",
+            )
+
+            assert result["status"] == "error"
+            assert "RPC error" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_get_positions_rpc_http_error(self, prediction_client):
+        """Get positions should return error on HTTP failure."""
+        outcome_mints_response = {
+            "OutcomeMint1": {"market": "TEST", "side": "yes"},
+        }
+
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_outcome_response = MagicMock(
+                status_code=200, json=lambda: outcome_mints_response
+            )
+            mock_rpc_response = MagicMock(status_code=503, text="Service Unavailable")
+            mock_instance.get = AsyncMock(return_value=mock_outcome_response)
+            mock_instance.post = AsyncMock(return_value=mock_rpc_response)
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await prediction_client.get_positions(
+                wallet_address="TestWallet123",
+                rpc_url="https://api.mainnet-beta.solana.com",
+            )
+
+            assert result["status"] == "error"
+            assert "503" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_get_positions_rpc_exception(self, prediction_client):
+        """Get positions should return error when RPC throws exception."""
+        outcome_mints_response = {
+            "OutcomeMint1": {"market": "TEST", "side": "yes"},
+        }
+
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_outcome_response = MagicMock(
+                status_code=200, json=lambda: outcome_mints_response
+            )
+            mock_instance.get = AsyncMock(return_value=mock_outcome_response)
+            # RPC call throws exception
+            mock_instance.post = AsyncMock(side_effect=Exception("Connection timeout"))
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            result = await prediction_client.get_positions(
+                wallet_address="TestWallet123",
+                rpc_url="https://api.mainnet-beta.solana.com",
+            )
+
+            assert result["status"] == "error"
+            assert "Connection timeout" in result["message"]

@@ -1169,3 +1169,127 @@ class DFlowPredictionClient:
                 price_impact_pct=None,
                 error=str(e),
             )
+
+    async def get_positions(
+        self,
+        wallet_address: str,
+        rpc_url: str,
+    ) -> Dict[str, Any]:
+        """
+        Get prediction market positions for a wallet.
+
+        Queries token accounts via RPC and cross-references with DFlow outcome mints
+        to identify prediction market positions.
+
+        Args:
+            wallet_address: Solana wallet address to check
+            rpc_url: RPC endpoint URL
+
+        Returns:
+            Dict with positions list and summary
+        """
+        # Get all outcome mints from DFlow
+        outcome_mints = await self.get_outcome_mints()
+
+        # Query wallet token accounts via RPC
+        token_accounts = await _get_token_accounts(rpc_url, wallet_address)
+
+        if "error" in token_accounts:
+            return {
+                "status": "error",
+                "message": f"Failed to query token accounts: {token_accounts['error']}",
+            }
+
+        # Cross-reference to find prediction positions
+        positions = []
+
+        for account in token_accounts.get("accounts", []):
+            mint = account.get("mint")
+            if mint and mint in outcome_mints:
+                market_info = outcome_mints[mint]
+                amount = account.get("amount", "0")
+                ui_amount = account.get("uiAmount", 0)
+
+                # Only include if they have a balance
+                if ui_amount > 0:
+                    positions.append(
+                        {
+                            "mint": mint,
+                            "ticker": market_info.get(
+                                "market", market_info.get("ticker", "unknown")
+                            ),
+                            "side": market_info.get("side", "unknown").upper(),
+                            "amount": amount,
+                            "ui_amount": ui_amount,
+                            "decimals": account.get("decimals", 6),
+                        }
+                    )
+
+        return {
+            "status": "success",
+            "wallet": wallet_address,
+            "position_count": len(positions),
+            "positions": positions,
+            "hint": "Each position represents outcome tokens. Sell to exit or hold until resolution."
+            if positions
+            else "No prediction market positions found.",
+        }
+
+
+async def _get_token_accounts(rpc_url: str, wallet_address: str) -> Dict[str, Any]:
+    """
+    Get all SPL token accounts for a wallet via RPC.
+
+    Args:
+        rpc_url: RPC endpoint URL
+        wallet_address: Wallet public key
+
+    Returns:
+        Dict with 'accounts' list or 'error' on failure
+    """
+    # Token Program ID
+    TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getTokenAccountsByOwner",
+        "params": [
+            wallet_address,
+            {"programId": TOKEN_PROGRAM_ID},
+            {"encoding": "jsonParsed"},
+        ],
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(rpc_url, json=payload)
+            if response.status_code != 200:
+                return {"error": f"RPC error: {response.status_code}"}
+
+            data = response.json()
+            if "error" in data:
+                return {"error": f"RPC error: {data['error']}"}
+
+            result = data.get("result", {}).get("value", [])
+
+            accounts = []
+            for item in result:
+                parsed = item.get("account", {}).get("data", {}).get("parsed", {})
+                info = parsed.get("info", {})
+                token_amount = info.get("tokenAmount", {})
+
+                accounts.append(
+                    {
+                        "mint": info.get("mint"),
+                        "amount": token_amount.get("amount", "0"),
+                        "uiAmount": float(token_amount.get("uiAmount", 0) or 0),
+                        "decimals": token_amount.get("decimals", 0),
+                    }
+                )
+
+            return {"accounts": accounts}
+
+    except Exception as e:
+        logger.exception("Failed to get token accounts")
+        return {"error": str(e)}
