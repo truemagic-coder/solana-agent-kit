@@ -1,7 +1,7 @@
 # Solana Agent Kit
 
 [![PyPI - Version](https://img.shields.io/pypi/v/sakit)](https://pypi.org/project/sakit)
-[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/sakit)](https://pypi.org/project/sakit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![codecov](https://img.shields.io/codecov/c/github/truemagic-coder/solana-agent-kit/main.svg)](https://codecov.io/gh/truemagic-coder/solana-agent-kit)
