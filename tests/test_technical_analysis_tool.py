@@ -23,6 +23,16 @@ from sakit.technical_analysis import (
 )
 
 
+def make_config(api_key: str = "", chain: str = None) -> dict:
+    """Helper to create proper nested config structure for tests."""
+    ta_config = {}
+    if api_key:
+        ta_config["api_key"] = api_key
+    if chain:
+        ta_config["chain"] = chain
+    return {"tools": {"technical_analysis": ta_config}}
+
+
 # =============================================================================
 # Unit Tests for Helper Functions
 # =============================================================================
@@ -323,14 +333,14 @@ class TestTechnicalAnalysisTool:
     def test_configure_sets_api_key(self):
         """Configure should set API key."""
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         assert tool.api_key == "test-key"
 
     def test_configure_sets_chain(self):
         """Configure should set chain."""
         tool = TechnicalAnalysisTool()
-        tool.configure({"chain": "ethereum"})
+        tool.configure(make_config(chain="ethereum"))
 
         assert tool.default_chain == "ethereum"
 
@@ -387,7 +397,7 @@ class TestTechnicalAnalysisToolExecute:
     async def test_execute_success(self, mock_ohlcv_response, mock_overview_response):
         """Should return successful analysis with valid data."""
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         with patch.object(
             tool, "_get_ohlcv_data", new_callable=AsyncMock
@@ -416,7 +426,7 @@ class TestTechnicalAnalysisToolExecute:
     async def test_execute_invalid_timeframe(self):
         """Should return error for invalid timeframe."""
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         result = await tool.execute(
             address="So11111111111111111111111111111111111111112",
@@ -430,7 +440,7 @@ class TestTechnicalAnalysisToolExecute:
     async def test_execute_insufficient_data(self, mock_overview_response):
         """Should return error when insufficient candles."""
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         # Mock with only 50 candles
         insufficient_response = {
@@ -473,7 +483,7 @@ class TestTechnicalAnalysisToolExecute:
     async def test_execute_no_data(self, mock_overview_response):
         """Should return error when no OHLCV data."""
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         empty_response = {"success": True, "data": {"items": []}}
 
@@ -498,7 +508,7 @@ class TestTechnicalAnalysisToolExecute:
     async def test_execute_api_failure(self):
         """Should return error on API failure."""
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         with patch.object(
             tool, "_get_ohlcv_data", new_callable=AsyncMock
@@ -523,7 +533,7 @@ class TestTechnicalAnalysisToolExecute:
     ):
         """Timeframe should be case insensitive."""
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         with patch.object(
             tool, "_get_ohlcv_data", new_callable=AsyncMock
@@ -545,7 +555,7 @@ class TestTechnicalAnalysisToolExecute:
     async def test_execute_ohlcv_exception(self, mock_overview_response):
         """Should raise exception when OHLCV fetch fails with generic error."""
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         with patch.object(
             tool, "_get_ohlcv_data", new_callable=AsyncMock
@@ -565,7 +575,7 @@ class TestTechnicalAnalysisToolExecute:
     async def test_execute_overview_exception_non_fatal(self, mock_ohlcv_response):
         """Should continue when overview fetch raises an exception (non-fatal)."""
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         with patch.object(
             tool, "_get_ohlcv_data", new_callable=AsyncMock
@@ -590,7 +600,7 @@ class TestTechnicalAnalysisToolExecute:
         import httpx
 
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         mock_response = MagicMock()
         mock_response.status_code = 401
@@ -617,7 +627,7 @@ class TestTechnicalAnalysisToolExecute:
         import httpx
 
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         mock_response = MagicMock()
         mock_response.status_code = 404
@@ -643,7 +653,7 @@ class TestTechnicalAnalysisToolExecute:
         import httpx
 
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         mock_response = MagicMock()
         mock_response.status_code = 500
@@ -668,7 +678,7 @@ class TestTechnicalAnalysisToolExecute:
     async def test_execute_generic_exception(self):
         """Should return internal_error for unexpected exceptions."""
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         with patch.object(
             tool, "_get_ohlcv_data", new_callable=AsyncMock
@@ -726,7 +736,7 @@ class TestApiMethods:
         import httpx
 
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         mock_response = {
             "success": True,
@@ -763,7 +773,7 @@ class TestApiMethods:
         import httpx
 
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         mock_response = {
             "success": True,
@@ -792,7 +802,7 @@ class TestApiMethods:
         import httpx
 
         tool = TechnicalAnalysisTool()
-        tool.configure({"api_key": "test-key"})
+        tool.configure(make_config(api_key="test-key"))
 
         mock_response = {"success": True, "data": {"items": []}}
 
