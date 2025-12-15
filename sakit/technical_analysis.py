@@ -336,8 +336,13 @@ class TechnicalAnalysisTool(AutoTool):
 
     def configure(self, config: Dict[str, Any]) -> None:
         """Configure the tool with API credentials."""
-        self.api_key = config.get("api_key", "")
-        self.default_chain = config.get("chain", "solana")
+        # Get API key and chain from tools.technical_analysis config
+        tools_config = config.get("tools", {})
+        ta_config = tools_config.get("technical_analysis", {})
+        if isinstance(ta_config, dict):
+            self.api_key = ta_config.get("api_key", "")
+            if ta_config.get("chain"):
+                self.default_chain = ta_config.get("chain")
 
     async def _get_ohlcv_data(
         self, address: str, timeframe: str, chain: str
