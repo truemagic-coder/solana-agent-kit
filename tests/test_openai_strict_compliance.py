@@ -92,12 +92,6 @@ class TestOpenAIStrictCompliance:
 
         assert self._check_schema_compliance(MCPTool, "mcp")
 
-    def test_nemo_agent_compliance(self):
-        """Test nemo_agent tool is OpenAI strict compliant."""
-        from sakit.nemo_agent import NemoAgentTool
-
-        assert self._check_schema_compliance(NemoAgentTool, "nemo_agent")
-
     def test_privy_create_user_compliance(self):
         """Test privy_create_user tool is OpenAI strict compliant."""
         from sakit.privy_create_user import PrivyCreateUserTool
@@ -256,7 +250,6 @@ class TestAllToolsHaveGetSchema:
         ),
         ("jupiter_trigger", "sakit.jupiter_trigger", "JupiterTriggerTool"),
         ("mcp", "sakit.mcp", "MCPTool"),
-        ("nemo_agent", "sakit.nemo_agent", "NemoAgentTool"),
         ("privy_recurring", "sakit.privy_recurring", "PrivyRecurringTool"),
         ("privy_transfer", "sakit.privy_transfer", "PrivyTransferTool"),
         ("privy_trigger", "sakit.privy_trigger", "PrivyTriggerTool"),
@@ -321,7 +314,6 @@ class TestAllPluginsHaveGetPlugin:
         "sakit.jupiter_token_search",
         "sakit.jupiter_trigger",
         "sakit.mcp",
-        "sakit.nemo_agent",
         "sakit.privy_recurring",
         "sakit.privy_transfer",
         "sakit.privy_trigger",
