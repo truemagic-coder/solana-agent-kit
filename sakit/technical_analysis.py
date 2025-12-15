@@ -115,11 +115,11 @@ def calculate_indicators(df: pd.DataFrame) -> Dict[str, Any]:
     bb_bandwidth = None
     bb_percent_b = None
     if bbands is not None and not bbands.empty:
-        bb_upper = _safe_get(bbands, "BBU_20_2.0", latest_idx)
-        bb_middle = _safe_get(bbands, "BBM_20_2.0", latest_idx)
-        bb_lower = _safe_get(bbands, "BBL_20_2.0", latest_idx)
-        bb_bandwidth = _safe_get(bbands, "BBB_20_2.0", latest_idx)
-        bb_percent_b = _safe_get(bbands, "BBP_20_2.0", latest_idx)
+        bb_upper = _safe_get(bbands, "BBU_20_2.0_2.0", latest_idx)
+        bb_middle = _safe_get(bbands, "BBM_20_2.0_2.0", latest_idx)
+        bb_lower = _safe_get(bbands, "BBL_20_2.0_2.0", latest_idx)
+        bb_bandwidth = _safe_get(bbands, "BBB_20_2.0_2.0", latest_idx)
+        bb_percent_b = _safe_get(bbands, "BBP_20_2.0_2.0", latest_idx)
 
     # ATR
     atr_14 = ta.atr(df["high"], df["low"], df["close"], length=14)
@@ -426,31 +426,17 @@ class TechnicalAnalysisTool(AutoTool):
         chain = self.default_chain
 
         try:
-            # Fetch OHLCV data and token overview in parallel
-            import asyncio
+            # Fetch OHLCV data - this can raise HTTPStatusError
+            ohlcv_response = await self._get_ohlcv_data(address, timeframe, chain)
 
-            ohlcv_task = self._get_ohlcv_data(address, timeframe, chain)
-            overview_task = self._get_token_overview(address, chain)
-
-            ohlcv_response, overview_response = await asyncio.gather(
-                ohlcv_task, overview_task, return_exceptions=True
-            )
-
-            # Handle OHLCV errors
-            if isinstance(ohlcv_response, Exception):
-                logger.error(f"OHLCV fetch error: {ohlcv_response}")
-                return {
-                    "status": "error",
-                    "error": "api_error",
-                    "message": f"Failed to fetch OHLCV data: {str(ohlcv_response)}",
-                }
-
-            # Handle overview errors (non-fatal)
+            # Fetch overview separately - non-critical, can fail silently
             overview_data = None
-            if isinstance(overview_response, Exception):
-                logger.warning(f"Token overview fetch error: {overview_response}")
-            elif overview_response.get("success"):
-                overview_data = overview_response.get("data", {})
+            try:
+                overview_response = await self._get_token_overview(address, chain)
+                if overview_response.get("success"):
+                    overview_data = overview_response.get("data", {})
+            except Exception as e:
+                logger.warning(f"Token overview fetch error: {e}")
 
             # Check if OHLCV request was successful
             if not ohlcv_response.get("success"):

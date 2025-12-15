@@ -127,39 +127,45 @@ class TestTimeframeMap:
 
 
 # =============================================================================
+# Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def sample_ohlcv_data():
+    """Create sample OHLCV data with enough points for all indicators."""
+    np.random.seed(42)
+    n = 250  # More than MIN_CANDLES_REQUIRED
+
+    # Generate realistic price movement
+    base_price = 100.0
+    prices = [base_price]
+    for _ in range(n - 1):
+        change = np.random.normal(0, 0.02)  # 2% daily volatility
+        prices.append(prices[-1] * (1 + change))
+
+    prices = np.array(prices)
+
+    df = pd.DataFrame(
+        {
+            "open": prices * (1 + np.random.uniform(-0.01, 0.01, n)),
+            "high": prices * (1 + np.random.uniform(0, 0.02, n)),
+            "low": prices * (1 - np.random.uniform(0, 0.02, n)),
+            "close": prices,
+            "volume": np.random.uniform(1000000, 10000000, n),
+        }
+    )
+
+    return df
+
+
+# =============================================================================
 # Tests for calculate_indicators Function
 # =============================================================================
 
 
 class TestCalculateIndicators:
     """Test calculate_indicators function with real pandas-ta calculations."""
-
-    @pytest.fixture
-    def sample_ohlcv_data(self):
-        """Create sample OHLCV data with enough points for all indicators."""
-        np.random.seed(42)
-        n = 250  # More than MIN_CANDLES_REQUIRED
-
-        # Generate realistic price movement
-        base_price = 100.0
-        prices = [base_price]
-        for _ in range(n - 1):
-            change = np.random.normal(0, 0.02)  # 2% daily volatility
-            prices.append(prices[-1] * (1 + change))
-
-        prices = np.array(prices)
-
-        df = pd.DataFrame(
-            {
-                "open": prices * (1 + np.random.uniform(-0.01, 0.01, n)),
-                "high": prices * (1 + np.random.uniform(0, 0.02, n)),
-                "low": prices * (1 - np.random.uniform(0, 0.02, n)),
-                "close": prices,
-                "volume": np.random.uniform(1000000, 10000000, n),
-            }
-        )
-
-        return df
 
     def test_calculate_indicators_returns_all_categories(self, sample_ohlcv_data):
         """Should return all indicator categories."""
@@ -534,6 +540,329 @@ class TestTechnicalAnalysisToolExecute:
                 )
 
         assert result["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_execute_ohlcv_exception(self, mock_overview_response):
+        """Should raise exception when OHLCV fetch fails with generic error."""
+        tool = TechnicalAnalysisTool()
+        tool.configure({"api_key": "test-key"})
+
+        with patch.object(
+            tool, "_get_ohlcv_data", new_callable=AsyncMock
+        ) as mock_ohlcv:
+            mock_ohlcv.side_effect = Exception("Connection timeout")
+
+            result = await tool.execute(
+                address="So11111111111111111111111111111111111111112",
+                timeframe="4h",
+            )
+
+        assert result["status"] == "error"
+        assert result["error"] == "internal_error"
+        assert "Connection timeout" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_execute_overview_exception_non_fatal(self, mock_ohlcv_response):
+        """Should continue when overview fetch raises an exception (non-fatal)."""
+        tool = TechnicalAnalysisTool()
+        tool.configure({"api_key": "test-key"})
+
+        with patch.object(
+            tool, "_get_ohlcv_data", new_callable=AsyncMock
+        ) as mock_ohlcv:
+            with patch.object(
+                tool, "_get_token_overview", new_callable=AsyncMock
+            ) as mock_overview:
+                mock_ohlcv.return_value = mock_ohlcv_response
+                mock_overview.side_effect = Exception("Overview timeout")
+
+                result = await tool.execute(
+                    address="So11111111111111111111111111111111111111112",
+                    timeframe="4h",
+                )
+
+        # Should still succeed with indicators, just no overview data
+        assert result["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_execute_http_401_error(self):
+        """Should return unauthorized error for 401 response."""
+        import httpx
+
+        tool = TechnicalAnalysisTool()
+        tool.configure({"api_key": "test-key"})
+
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+
+        with patch.object(
+            tool, "_get_ohlcv_data", new_callable=AsyncMock
+        ) as mock_ohlcv:
+            mock_ohlcv.side_effect = httpx.HTTPStatusError(
+                "Unauthorized", request=MagicMock(), response=mock_response
+            )
+
+            result = await tool.execute(
+                address="So11111111111111111111111111111111111111112",
+                timeframe="4h",
+            )
+
+        assert result["status"] == "error"
+        assert result["error"] == "unauthorized"
+        assert "API key" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_execute_http_404_error(self):
+        """Should return token_not_found error for 404 response."""
+        import httpx
+
+        tool = TechnicalAnalysisTool()
+        tool.configure({"api_key": "test-key"})
+
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+
+        with patch.object(
+            tool, "_get_ohlcv_data", new_callable=AsyncMock
+        ) as mock_ohlcv:
+            mock_ohlcv.side_effect = httpx.HTTPStatusError(
+                "Not Found", request=MagicMock(), response=mock_response
+            )
+
+            result = await tool.execute(
+                address="So11111111111111111111111111111111111111112",
+                timeframe="4h",
+            )
+
+        assert result["status"] == "error"
+        assert result["error"] == "token_not_found"
+
+    @pytest.mark.asyncio
+    async def test_execute_http_500_error(self):
+        """Should return api_error for 500 response."""
+        import httpx
+
+        tool = TechnicalAnalysisTool()
+        tool.configure({"api_key": "test-key"})
+
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+
+        with patch.object(
+            tool, "_get_ohlcv_data", new_callable=AsyncMock
+        ) as mock_ohlcv:
+            mock_ohlcv.side_effect = httpx.HTTPStatusError(
+                "Server Error", request=MagicMock(), response=mock_response
+            )
+
+            result = await tool.execute(
+                address="So11111111111111111111111111111111111111112",
+                timeframe="4h",
+            )
+
+        assert result["status"] == "error"
+        assert result["error"] == "api_error"
+        assert "500" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_execute_generic_exception(self):
+        """Should return internal_error for unexpected exceptions."""
+        tool = TechnicalAnalysisTool()
+        tool.configure({"api_key": "test-key"})
+
+        with patch.object(
+            tool, "_get_ohlcv_data", new_callable=AsyncMock
+        ) as mock_ohlcv:
+            with patch.object(
+                tool, "_get_token_overview", new_callable=AsyncMock
+            ) as mock_overview:
+                mock_ohlcv.return_value = {"success": True, "data": {"items": []}}
+                mock_overview.return_value = {"success": True}
+
+                # Patch calculate_indicators to raise an exception
+                with patch(
+                    "sakit.technical_analysis.calculate_indicators"
+                ) as mock_calc:
+                    mock_calc.side_effect = ValueError("Unexpected error")
+
+                    # Need enough data to get past the checks
+                    mock_ohlcv.return_value = {
+                        "success": True,
+                        "data": {
+                            "items": [
+                                {
+                                    "unixTime": 1700000000 + i * 3600,
+                                    "o": 100 + i,
+                                    "h": 105 + i,
+                                    "l": 95 + i,
+                                    "c": 102 + i,
+                                    "v": 1000000,
+                                }
+                                for i in range(250)
+                            ]
+                        },
+                    }
+
+                    result = await tool.execute(
+                        address="So11111111111111111111111111111111111111112",
+                        timeframe="4h",
+                    )
+
+        assert result["status"] == "error"
+        assert result["error"] == "internal_error"
+
+
+# =============================================================================
+# Tests for API Methods
+# =============================================================================
+
+
+class TestApiMethods:
+    """Test API call methods."""
+
+    @pytest.mark.asyncio
+    async def test_get_ohlcv_data(self, respx_mock):
+        """Should fetch OHLCV data from Birdeye API."""
+        import httpx
+
+        tool = TechnicalAnalysisTool()
+        tool.configure({"api_key": "test-key"})
+
+        mock_response = {
+            "success": True,
+            "data": {
+                "items": [
+                    {
+                        "unixTime": 1700000000,
+                        "o": 100,
+                        "h": 105,
+                        "l": 95,
+                        "c": 102,
+                        "v": 1000000,
+                    }
+                ]
+            },
+        }
+
+        respx_mock.get("https://public-api.birdeye.so/defi/v3/ohlcv").mock(
+            return_value=httpx.Response(200, json=mock_response)
+        )
+
+        result = await tool._get_ohlcv_data(
+            address="So11111111111111111111111111111111111111112",
+            timeframe="4h",
+            chain="solana",
+        )
+
+        assert result["success"] is True
+        assert "items" in result["data"]
+
+    @pytest.mark.asyncio
+    async def test_get_token_overview(self, respx_mock):
+        """Should fetch token overview from Birdeye API."""
+        import httpx
+
+        tool = TechnicalAnalysisTool()
+        tool.configure({"api_key": "test-key"})
+
+        mock_response = {
+            "success": True,
+            "data": {
+                "symbol": "SOL",
+                "name": "Wrapped SOL",
+                "price": 150.0,
+            },
+        }
+
+        respx_mock.get("https://public-api.birdeye.so/defi/token_overview").mock(
+            return_value=httpx.Response(200, json=mock_response)
+        )
+
+        result = await tool._get_token_overview(
+            address="So11111111111111111111111111111111111111112",
+            chain="solana",
+        )
+
+        assert result["success"] is True
+        assert result["data"]["symbol"] == "SOL"
+
+    @pytest.mark.asyncio
+    async def test_get_ohlcv_data_different_timeframes(self, respx_mock):
+        """Should use correct Birdeye type for different timeframes."""
+        import httpx
+
+        tool = TechnicalAnalysisTool()
+        tool.configure({"api_key": "test-key"})
+
+        mock_response = {"success": True, "data": {"items": []}}
+
+        route = respx_mock.get("https://public-api.birdeye.so/defi/v3/ohlcv").mock(
+            return_value=httpx.Response(200, json=mock_response)
+        )
+
+        # Test 1m timeframe
+        await tool._get_ohlcv_data("test", "1m", "solana")
+        assert "type=1m" in str(route.calls.last.request.url)
+
+        # Test 1d timeframe
+        await tool._get_ohlcv_data("test", "1d", "solana")
+        assert "type=1D" in str(route.calls.last.request.url)
+
+
+# =============================================================================
+# Tests for Edge Cases
+# =============================================================================
+
+
+class TestEdgeCases:
+    """Test edge cases and boundary conditions."""
+
+    def test_safe_get_series_index_error(self):
+        """Should return None when index is out of bounds."""
+        series = pd.Series([1.0, 2.0, 3.0])
+        # Access an index that doesn't exist
+        result = _safe_get_series(series, 100)
+        assert result is None
+
+    def test_price_vs_bb_middle_calculated(self, sample_ohlcv_data):
+        """Should calculate vs_bb_middle_percent when Bollinger middle exists."""
+        result = calculate_indicators(sample_ohlcv_data)
+
+        # Check that Bollinger middle exists and price_vs_indicators has bb_middle
+        assert result["volatility"]["bollinger"]["middle"] is not None
+        assert "vs_bb_middle_percent" in result["price_vs_indicators"]
+
+    def test_price_vs_vwap_with_datetime_index(self):
+        """Should calculate vs_vwap_percent when VWAP is available with DatetimeIndex."""
+        np.random.seed(42)
+        n = 250
+
+        # Generate realistic price movement
+        base_price = 100.0
+        prices = [base_price]
+        for _ in range(n - 1):
+            change = np.random.normal(0, 0.02)
+            prices.append(prices[-1] * (1 + change))
+
+        prices = np.array(prices)
+
+        # Create DataFrame with DatetimeIndex for VWAP
+        df = pd.DataFrame(
+            {
+                "open": prices * (1 + np.random.uniform(-0.01, 0.01, n)),
+                "high": prices * (1 + np.random.uniform(0, 0.02, n)),
+                "low": prices * (1 - np.random.uniform(0, 0.02, n)),
+                "close": prices,
+                "volume": np.random.uniform(1000000, 10000000, n),
+            },
+            index=pd.date_range(start="2024-01-01", periods=n, freq="1h"),
+        )
+
+        result = calculate_indicators(df)
+
+        # VWAP should be calculated with DatetimeIndex
+        assert result["volume"]["vwap"] is not None
+        assert "vs_vwap_percent" in result["price_vs_indicators"]
 
 
 # =============================================================================
