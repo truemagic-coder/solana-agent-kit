@@ -431,7 +431,14 @@ class TestTechnicalAnalysisToolExecute:
             "success": True,
             "data": {
                 "items": [
-                    {"o": 100, "h": 101, "l": 99, "c": 100.5, "v": 1000000, "unix_time": 1700000000 + i * 14400}
+                    {
+                        "o": 100,
+                        "h": 101,
+                        "l": 99,
+                        "c": 100.5,
+                        "v": 1000000,
+                        "unix_time": 1700000000 + i * 14400,
+                    }
                     for i in range(50)
                 ]
             },
