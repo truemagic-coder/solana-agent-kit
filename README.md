@@ -7,7 +7,6 @@
 [![codecov](https://img.shields.io/codecov/c/github/truemagic-coder/solana-agent-kit/main.svg)](https://codecov.io/gh/truemagic-coder/solana-agent-kit)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/truemagic-coder/solana-agent-kit/ci.yml?branch=main)](https://github.com/truemagic-coder/solana-agent-kit/actions/workflows/ci.yml)
 [![Ruff Style](https://img.shields.io/badge/style-ruff-41B5BE)](https://github.com/astral-sh/ruff)
-[![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/truemagic-coder/solana-agent-kit)](https://libraries.io/pypi/sakit)
 
 A collection of powerful plugins to extend the capabilities of Solana Agent.
 
