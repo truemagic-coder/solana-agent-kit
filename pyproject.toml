@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "15.2.0"
+version = "16.1.0"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -14,12 +14,11 @@ classifiers = [
 packages = [{ include = "sakit" }]
 
 [tool.poetry.dependencies]
-python = ">=3.12,<4.0"
+python = ">=3.13,<4.0"
 httpx = "^0.28.1"
-solana-agent = ">=31.4.0"
+solana-agent = ">=32.0.0"
 boto3 = "^1.42.3"
 botocore = "^1.42.3"
-nemo-agent = "5.0.3"
 fastmcp = "^2.13.3"
 solana = "^0.36.10"
 solders = "^0.27.1"
@@ -27,6 +26,7 @@ pynacl = "^1.6.1"
 based58 = "^0.1.1"
 openai = "*"
 privy-client = "^0.5.0"
+pandas-ta = "^0.4.71b0"
 
 
 
@@ -44,7 +44,6 @@ jupiter_shield = "sakit.jupiter_shield:get_plugin"
 jupiter_token_search = "sakit.jupiter_token_search:get_plugin"
 jupiter_trigger = "sakit.jupiter_trigger:get_plugin"
 mcp = "sakit.mcp:get_plugin"
-nemo_agent = "sakit.nemo_agent:get_plugin"
 privy_create_user = "sakit.privy_create_user:get_plugin"
 privy_create_wallet = "sakit.privy_create_wallet:get_plugin"
 privy_dflow_prediction = "sakit.privy_dflow_prediction:get_plugin"
@@ -60,6 +59,7 @@ search_internet = "sakit.search_internet:get_plugin"
 solana_dflow_swap = "sakit.solana_dflow_swap:get_plugin"
 solana_transfer = "sakit.solana_transfer:get_plugin"
 solana_ultra = "sakit.solana_ultra:get_plugin"
+technical_analysis = "sakit.technical_analysis:get_plugin"
 token_math = "sakit.token_math:get_plugin"
 vybe = "sakit.vybe:get_plugin"
 
@@ -72,7 +72,6 @@ pytest-cov = "^7.0.0"
 
 [tool.coverage.run]
 omit = [
-    "sakit/nemo_agent.py",
     "sakit/mcp.py",
 ]
 

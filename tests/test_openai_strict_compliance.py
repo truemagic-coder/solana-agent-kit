@@ -184,6 +184,14 @@ class TestOpenAIStrictCompliance:
 
         assert self._check_schema_compliance(SolanaUltraTool, "solana_ultra")
 
+    def test_technical_analysis_compliance(self):
+        """Test technical_analysis tool is OpenAI strict compliant."""
+        from sakit.technical_analysis import TechnicalAnalysisTool
+
+        assert self._check_schema_compliance(
+            TechnicalAnalysisTool, "technical_analysis"
+        )
+
     def test_vybe_compliance(self):
         """Test vybe tool is OpenAI strict compliant."""
         from sakit.vybe import VybeTool
@@ -262,6 +270,11 @@ class TestAllToolsHaveGetSchema:
         ("search_internet", "sakit.search_internet", "SearchInternetTool"),
         ("solana_transfer", "sakit.solana_transfer", "SolanaTransferTool"),
         ("solana_ultra", "sakit.solana_ultra", "SolanaUltraTool"),
+        (
+            "technical_analysis",
+            "sakit.technical_analysis",
+            "TechnicalAnalysisTool",
+        ),
         ("vybe", "sakit.vybe", "VybeTool"),
     ]
 
@@ -318,6 +331,7 @@ class TestAllPluginsHaveGetPlugin:
         "sakit.search_internet",
         "sakit.solana_transfer",
         "sakit.solana_ultra",
+        "sakit.technical_analysis",
         "sakit.vybe",
     ]
 

@@ -39,7 +39,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Internet Search - Search the internet in real-time using Perplexity, Grok, or OpenAI
 * MCP - Interface with MCP web servers
 * Image Generation - Generate images with OpenAI, Grok, or Gemini with uploading to S3 compatible storage
-* Nemo Agent - Generate Python projects with Nemo Agent with uploading to S3 compatible storage
+* Technical Analysis - Comprehensive technical indicators (EMA, SMA, MACD, RSI, Bollinger Bands, etc.) for any token using Birdeye OHLCV data
 * Token Math - Reliable token amount calculations for swaps, limit orders, and transfers (LLMs are bad at math!)
 
 ## 📦 Installation
@@ -926,34 +926,109 @@ config = {
 * Gemini - `imagen-3.0-generate-002`
 
 
-### Nemo Agent
+### Technical Analysis
 
-This plugin allows the agent to generate python programs using [Nemo Agent](https://nemo-agent.com) and uploads the files in a ZIP file to s3-compatible storage. It returns the public URL of the zip file.
+This plugin provides comprehensive technical analysis indicators for any token using Birdeye OHLCV data. It calculates indicators using the `pandas-ta` library and returns raw values without interpretation (your agent/app handles the interpretation).
 
-This has been tested using [Cloudflare R2](https://developers.cloudflare.com/r2/).
+**Requires a Birdeye API key** (same as the `birdeye` tool).
 
 ```python
 config = {
     "tools": {
-        "nemo_agent": {
-            "provider": "openai",                                        # Required: either "openai" or "gemini"
-            "api_key": "your-api-key",                                   # Required: your OpenAI or Gemini API key
-            "s3_endpoint_url": "https://your-s3-endpoint.com",           # Required: e.g., https://nyc3.digitaloceanspaces.com
-            "s3_access_key_id": "YOUR_S3_ACCESS_KEY",                    # Required: Your S3 access key ID
-            "s3_secret_access_key": "YOUR_S3_SECRET_KEY",                # Required: Your S3 secret access key
-            "s3_bucket_name": "your-bucket-name",                        # Required: The name of your S3 bucket
-            "s3_region_name": "your-region",                             # Optional: e.g., "nyc3", needed by some providers
-            "s3_public_url_base": "https://your-cdn-or-bucket-url.com/", # Optional: Custom base URL for public links (include trailing slash). If omitted, a standard URL is constructed.
+        "technical_analysis": {
+            "api_key": "your-birdeye-api-key",  # Required: Your Birdeye API key
         }
     },
     "agents": [
         {
-            "name": "python_dev",
-            "instructions": "You are an expert Python Developer. You always use your nemo_agent tool to generate python code.",
-            "specialization": "Python Developer",
-            "tools": ["nemo_agent"],  # Enable the tool for this agent
+            "name": "technical_analyst",
+            "instructions": """You are a crypto technical analyst. Use the technical_analysis tool to get indicator values for tokens.
+            
+            IMPORTANT: The tool returns RAW indicator values. YOU must interpret them:
+            - RSI > 70 = overbought, RSI < 30 = oversold
+            - Price above upper Bollinger Band = overbought
+            - MACD above signal line = bullish momentum
+            - ADX > 25 = strong trend
+            - Price above key EMAs = bullish structure
+            
+            Always explain what the indicators mean for the user.""",
+            "specialization": "Technical analysis and trading signals",
+            "tools": ["technical_analysis", "birdeye"],
         }
     ]
+}
+```
+
+**Parameters:**
+- `token_address` (required) - The token's contract address (mint address on Solana)
+- `timeframe` (optional) - Candle timeframe: "1m", "5m", "15m", "30m", "1h", "2h", "4h", "8h", "1d" (default: "4h")
+
+**Indicators Returned:**
+
+*Moving Averages:*
+- EMA 9, 21, 50, 200
+- SMA 20, 50, 200
+
+*Momentum:*
+- MACD (line, signal, histogram)
+- RSI (14)
+- Stochastic (K, D)
+- Williams %R
+- ROC (Rate of Change)
+- MFI (Money Flow Index)
+- CCI (Commodity Channel Index)
+- ADX with +DI/-DI
+
+*Volatility:*
+- Bollinger Bands (upper, middle, lower, bandwidth, %B)
+- ATR (Average True Range)
+- Keltner Channels (upper, middle, lower)
+
+*Volume:*
+- OBV (On-Balance Volume)
+- VWAP
+
+*Price vs Indicators:*
+Returns percentage difference between current price and key levels (EMA 50/200, Bollinger bands, etc.) for quick analysis.
+
+**Example Response Structure:**
+```json
+{
+  "token_address": "So11111111111111111111111111111111111111112",
+  "timeframe": "4h",
+  "current_price": 142.50,
+  "symbol": "SOL",
+  "name": "Wrapped SOL",
+  "moving_averages": {
+    "ema_9": 141.23,
+    "ema_21": 140.15,
+    "ema_50": 138.90,
+    "ema_200": 125.45,
+    "sma_20": 140.80,
+    "sma_50": 139.20,
+    "sma_200": 126.30
+  },
+  "momentum": {
+    "macd": {"macd": 1.25, "signal": 0.98, "histogram": 0.27},
+    "rsi": 58.5,
+    "stochastic": {"k": 65.2, "d": 62.1},
+    "adx": {"adx": 28.5, "plus_di": 25.3, "minus_di": 18.7}
+  },
+  "volatility": {
+    "bollinger": {"upper": 148.50, "middle": 140.80, "lower": 133.10, "bandwidth": 10.94, "percent_b": 0.61},
+    "atr": 4.25,
+    "keltner": {"upper": 149.30, "middle": 140.80, "lower": 132.30}
+  },
+  "volume": {
+    "obv": 123456789,
+    "vwap": 141.15
+  },
+  "price_vs_indicators": {
+    "vs_ema_50": 2.59,
+    "vs_ema_200": 13.60,
+    "vs_bb_upper": -4.04,
+    "vs_bb_lower": 7.06
+  }
 }
 ```
 
