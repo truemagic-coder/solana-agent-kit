@@ -151,7 +151,9 @@ class TestPrivyUltraQuoteToolExecute:
         mock_order.in_amount = "1000000000"
         mock_order.out_amount = "50000000"
         mock_order.slippage_bps = 100
-        mock_order.price_impact_pct = "0.5"
+        mock_order.price_impact = -0.005
+        mock_order.in_usd_value = 50.0
+        mock_order.out_usd_value = 49.75
         mock_order.swap_type = "ExactIn"
         mock_order.gasless = False
 
@@ -225,7 +227,9 @@ class TestPrivyUltraQuoteToolExecute:
         mock_order.in_amount = "1000000000"
         mock_order.out_amount = "50000000"
         mock_order.slippage_bps = 100
-        mock_order.price_impact_pct = "0.5"
+        mock_order.price_impact = -0.5
+        mock_order.in_usd_value = 50.0
+        mock_order.out_usd_value = 49.75
         mock_order.swap_type = "ExactIn"
         mock_order.gasless = False
 
@@ -261,7 +265,9 @@ class TestPrivyUltraQuoteToolExecute:
             assert result["in_amount"] == "1000000000"
             assert result["out_amount"] == "50000000"
             assert result["slippage_bps"] == 100
-            assert result["price_impact_pct"] == "0.5"
+            assert result["price_impact_pct"] == "-0.50%"
+            assert result["in_usd_value"] == "$50.00"
+            assert result["out_usd_value"] == "$49.75"
             assert result["swap_type"] == "ExactIn"
             assert result["gasless"] is False
             assert "preview only" in result["message"].lower()
@@ -280,7 +286,9 @@ class TestPrivyUltraQuoteToolExecute:
         mock_order.in_amount = "1000000000"
         mock_order.out_amount = "50000000"
         mock_order.slippage_bps = 100
-        mock_order.price_impact_pct = "0.5"
+        mock_order.price_impact = -0.5
+        mock_order.in_usd_value = 50.0
+        mock_order.out_usd_value = 49.75
         mock_order.swap_type = "ExactIn"
         mock_order.gasless = True
 
@@ -370,7 +378,9 @@ class TestPrivyUltraQuoteToolExecute:
         mock_order.in_amount = "1000000000"
         mock_order.out_amount = "50000000"
         mock_order.slippage_bps = 100
-        mock_order.price_impact_pct = "0.5"
+        mock_order.price_impact = -0.5
+        mock_order.in_usd_value = 50.0
+        mock_order.out_usd_value = 49.75
         mock_order.swap_type = "ExactIn"
         mock_order.gasless = False
 

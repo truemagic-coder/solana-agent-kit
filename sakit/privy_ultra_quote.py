@@ -206,6 +206,15 @@ class PrivyUltraQuoteTool(AutoTool):
                 close_authority=public_key if payer_pubkey else None,
             )
 
+            # Format price impact as percentage with sign
+            price_impact_str = ""
+            if order.price_impact is not None:
+                price_impact_str = f"{order.price_impact:.2f}%"
+
+            # Format USD values
+            in_usd_str = f"${order.in_usd_value:.2f}" if order.in_usd_value else None
+            out_usd_str = f"${order.out_usd_value:.2f}" if order.out_usd_value else None
+
             # Return quote details without executing
             return {
                 "status": "success",
@@ -213,8 +222,10 @@ class PrivyUltraQuoteTool(AutoTool):
                 "output_mint": order.output_mint,
                 "in_amount": order.in_amount,
                 "out_amount": order.out_amount,
+                "in_usd_value": in_usd_str,
+                "out_usd_value": out_usd_str,
                 "slippage_bps": order.slippage_bps,
-                "price_impact_pct": order.price_impact_pct,
+                "price_impact_pct": price_impact_str,
                 "swap_type": order.swap_type,
                 "gasless": order.gasless,
                 "message": "Preview only - no transaction executed. Call privy_ultra to execute the swap.",

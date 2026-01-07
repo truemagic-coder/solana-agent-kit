@@ -156,6 +156,12 @@ class TestSolanaUltraToolExecute:
         mock_order.request_id = "request-123"
         mock_order.swap_type = "ExactIn"
         mock_order.gasless = False
+        mock_order.price_impact = -0.5
+        mock_order.in_usd_value = 50.0
+        mock_order.out_usd_value = 49.75
+        mock_order.in_amount = "1000000000"
+        mock_order.out_amount = "50000000"
+        mock_order.slippage_bps = 100
 
         # Mock _sign_and_execute to return success
         mock_exec_result = {
@@ -199,6 +205,9 @@ class TestSolanaUltraToolExecute:
         mock_order = MagicMock()
         mock_order.transaction = "base64encodedtransaction"
         mock_order.request_id = "request-123"
+        mock_order.price_impact = -0.5
+        mock_order.in_usd_value = 50.0
+        mock_order.out_usd_value = 49.75
 
         # Mock _sign_and_execute to return error
         mock_exec_result = {
@@ -239,6 +248,9 @@ class TestSolanaUltraToolExecute:
         mock_order = MagicMock()
         mock_order.transaction = "base64encodedtransaction"
         mock_order.request_id = "request-123"
+        mock_order.price_impact = -0.5
+        mock_order.in_usd_value = 50.0
+        mock_order.out_usd_value = 49.75
 
         # Mock _sign_and_execute to return blockhash error
         mock_exec_result = {
