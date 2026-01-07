@@ -102,7 +102,7 @@ class SolanaUltraQuoteTool(AutoTool):
                 "in_amount": order.in_amount,
                 "out_amount": order.out_amount,
                 "slippage_bps": order.slippage_bps,
-                "price_impact_pct": order.price_impact_pct,
+                "price_impact_pct": order.price_impact,
                 "swap_type": order.swap_type,
                 "gasless": order.gasless,
                 "message": "Preview only - no transaction executed. Call solana_ultra to execute the swap.",

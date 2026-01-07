@@ -537,7 +537,7 @@ class PrivyUltraTool(AutoTool):
                     "in_amount": order.in_amount,
                     "out_amount": order.out_amount,
                     "slippage_bps": order.slippage_bps,
-                    "price_impact_pct": order.price_impact_pct,
+                    "price_impact_pct": order.price_impact,
                 }
             else:
                 return exec_result
