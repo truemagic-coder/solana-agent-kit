@@ -15,6 +15,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 
 * Solana Transfer - Transfer Solana tokens between the agent's wallet and the destination wallet
 * Solana Ultra - Swap Solana tokens using Jupiter Ultra API with automatic slippage, priority fees, and transaction landing
+* Solana Ultra Quote - Preview swap details and price impact before executing swaps
 * Solana DFlow Swap - Fast token swaps using DFlow API
 * Jupiter Trigger - Create, cancel, and manage limit orders using Jupiter Trigger API
 * Jupiter Recurring - Create, cancel, and manage DCA orders using Jupiter Recurring API
@@ -25,6 +26,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Privy DFlow Prediction - Trade prediction markets with Privy delegated wallets
 * Privy Transfer - Transfer tokens using Privy delegated wallets with sponsored transactions
 * Privy Ultra - Swap tokens using Jupiter Ultra with Privy delegated wallets
+* Privy Ultra Quote - Preview swap details and price impact before executing swaps with Privy wallets
 * Privy Trigger - Create and manage limit orders with Privy delegated wallets
 * Privy Recurring - Create and manage DCA orders with Privy delegated wallets
 * Privy DFlow Swap - Fast token swaps using DFlow API with Privy delegated wallets
@@ -106,7 +108,38 @@ To collect fees, you need a Jupiter referral account. Create one at [referral.ju
 **Gasless Transactions:**
 By default, Jupiter Ultra provides gasless swaps when the user has < 0.01 SOL and trade is > $10. However, this **doesn't work with referral fees**. To enable gasless + referral fees, configure `payer_private_key` - this wallet will pay all gas fees and you recoup costs via referral fees.
 
+### Solana Ultra Quote
+
+This plugin enables Solana Agent to preview swap details (amounts, slippage, price impact) before executing using Jupiter Ultra API. Perfect for showing users the exact impact before they confirm a swap.
+
+```python
+config = {
+    "tools": {
+        "solana_ultra_quote": {
+            "private_key": "my-private-key", # Required - base58 string
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
+            "referral_account": "my-referral-account", # Optional
+            "referral_fee": 50, # Optional
+            "payer_private_key": "payer-private-key", # Optional
+        },
+    },
+}
+```
+
+**Features:**
+- **Preview Before Execute**: Get exact swap amounts and costs without executing
+- **Show Slippage**: Display slippage tolerance in basis points
+- **Show Price Impact**: Display price impact percentage
+- **No Gas Fees**: Quote calls don't consume gas, safe to preview
+- **Same Config as Solana Ultra**: Reuses the same configuration
+
+**Workflow:**
+1. Call `solana_ultra_quote` to preview the swap
+2. Show user the in_amount, out_amount, slippage_bps, and price_impact_pct
+3. If user approves, call `solana_ultra` to execute the actual swap
+
 ### Solana DFlow Swap
+
 
 This plugin enables Solana Agent to swap tokens using DFlow's Swap API with a Solana keypair. DFlow offers faster swaps compared to Jupiter Ultra with competitive rates.
 
@@ -329,7 +362,40 @@ config = {
 **RPC URL (Required):**
 Transactions are sent directly via your RPC instead of Jupiter's `/execute` endpoint, which can have reliability issues. Helius RPC is recommended (`https://mainnet.helius-rpc.com/?api-key=YOUR_KEY`). Get a free API key at [helius.dev](https://helius.dev).
 
+### Privy Ultra Quote
+
+This plugin enables Solana Agent to preview swap details (amounts, slippage, price impact) before executing using Jupiter Ultra API with Privy delegated wallets. Perfect for showing users the exact impact before they confirm a swap.
+
+```python
+config = {
+    "tools": {
+        "privy_ultra_quote": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
+            "referral_account": "my-referral-account", # Optional
+            "referral_fee": 50, # Optional
+            "payer_private_key": "payer-private-key", # Optional
+        },
+    },
+}
+```
+
+**Features:**
+- **Preview Before Execute**: Get exact swap amounts and costs without executing
+- **Show Slippage**: Display slippage tolerance in basis points
+- **Show Price Impact**: Display price impact percentage
+- **No Gas Fees**: Quote calls don't consume gas, safe to preview
+- **Privy Delegated Wallets**: Works with Privy's embedded wallets
+- **Same Config as Privy Ultra**: Reuses most of the same configuration
+
+**Workflow:**
+1. Call `privy_ultra_quote` to preview the swap
+2. Show user the in_amount, out_amount, slippage_bps, and price_impact_pct
+3. If user approves, call `privy_ultra` to execute the actual swap
+
 ### Privy Trigger
+
 
 This plugin enables Solana Agent to create, cancel, and manage limit orders using Jupiter's Trigger API with Privy delegated wallets.
 
