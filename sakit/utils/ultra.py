@@ -32,7 +32,7 @@ class UltraOrderResponse:
     output_mint: str
     slippage_bps: int
     swap_type: str
-    fee_bps: int
+    price_impact_pct: str  # Price impact as a percentage string
     gasless: bool
     raw_response: Dict[str, Any]
 
@@ -137,7 +137,7 @@ class JupiterUltra:
                 output_mint=data.get("outputMint", ""),
                 slippage_bps=data.get("slippageBps", 0),
                 swap_type=data.get("swapType", ""),
-                fee_bps=data.get("feeBps", 0),
+                price_impact_pct=data.get("priceImpactPct", ""),
                 gasless=data.get("gasless", False),
                 raw_response=data,
             )
