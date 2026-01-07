@@ -15,26 +15,90 @@ from sakit.utils.ultra import JupiterUltra
 from sakit.utils.wallet import sanitize_privy_user_id
 
 
+logger = logging.getLogger(__name__)
+
+
 async def get_privy_embedded_wallet(
     privy_client: AsyncPrivyAPI, user_id: str
 ) -> Optional[Dict[str, str]]:
-    """
-    Get the embedded wallet for a Privy user.
+    """Get Privy embedded wallet info for a user using the official SDK.
 
-    Returns:
-        Dict with "wallet_id" and "public_key" or None if not found
+    Supports both:
+    - App-first wallets (SDK-created): connector_type == "embedded" with delegated == True
+    - Bot-first wallets (API-created): type == "wallet" with chain_type == "solana"
     """
     try:
         user = await privy_client.users.get(user_id)
-        for wallet in user.linked_accounts:
-            if hasattr(wallet, "wallet_type") and wallet.wallet_type == "solana":
-                return {
-                    "wallet_id": wallet.wallet_id,
-                    "public_key": str(wallet.address),
-                }
+        linked_accounts = user.linked_accounts or []
+        logger.info(f"Privy user {user_id} has {len(linked_accounts)} linked accounts")
+
+        # Log all account types for debugging
+        for i, acct in enumerate(linked_accounts):
+            acct_type = getattr(acct, "type", "unknown")
+            connector_type = getattr(acct, "connector_type", "none")
+            chain_type = getattr(acct, "chain_type", "none")
+            delegated = getattr(acct, "delegated", False)
+            has_id = hasattr(acct, "id") and acct.id is not None
+            has_address = hasattr(acct, "address") and acct.address is not None
+            has_public_key = hasattr(acct, "public_key") and acct.public_key is not None
+            logger.info(
+                f"  Account {i}: type={acct_type}, connector_type={connector_type}, "
+                f"chain_type={chain_type}, delegated={delegated}, "
+                f"has_id={has_id}, has_address={has_address}, has_public_key={has_public_key}"
+            )
+
+        # First, try to find embedded wallet with delegation
+        for acct in linked_accounts:
+            if getattr(acct, "connector_type", None) == "embedded" and getattr(
+                acct, "delegated", False
+            ):
+                wallet_id = getattr(acct, "id", None)
+                # Use 'address' field if 'public_key' is null (common for API-created wallets)
+                address = getattr(acct, "address", None) or getattr(
+                    acct, "public_key", None
+                )
+                if wallet_id and address:
+                    logger.info(
+                        f"Found embedded delegated wallet: {wallet_id}, address: {address}"
+                    )
+                    return {"wallet_id": wallet_id, "public_key": address}
+
+        # Then, try to find bot-first wallet (API-created via privy_create_wallet)
+        # These have type == "wallet" and include chain_type
+        for acct in linked_accounts:
+            acct_type = getattr(acct, "type", "")
+            # Check for Solana embedded wallets created via API
+            if acct_type == "wallet" and getattr(acct, "chain_type", None) == "solana":
+                wallet_id = getattr(acct, "id", None)
+                # API wallets use "address" field, SDK wallets use "public_key"
+                address = getattr(acct, "address", None) or getattr(
+                    acct, "public_key", None
+                )
+                if wallet_id and address:
+                    logger.info(
+                        f"Found bot-first wallet: {wallet_id}, address: {address}"
+                    )
+                    return {"wallet_id": wallet_id, "public_key": address}
+            # Also check for solana_embedded_wallet type
+            if (
+                acct_type
+                and "solana" in acct_type.lower()
+                and "embedded" in acct_type.lower()
+            ):
+                wallet_id = getattr(acct, "id", None)
+                address = getattr(acct, "address", None) or getattr(
+                    acct, "public_key", None
+                )
+                if wallet_id and address:
+                    logger.info(
+                        f"Found solana_embedded_wallet: {wallet_id}, address: {address}"
+                    )
+                    return {"wallet_id": wallet_id, "public_key": address}
+
+        logger.warning(f"No suitable wallet found for user {user_id}")
         return None
     except Exception as e:
-        logger.error(f"Failed to get Privy user wallet: {e}")
+        logger.error(f"Privy API error getting user {user_id}: {e}")
         return None
 
 

@@ -407,12 +407,16 @@ class TestGetPrivyEmbeddedWallet:
     """Test get_privy_embedded_wallet helper function."""
 
     @pytest.mark.asyncio
-    async def test_get_wallet_success(self):
-        """Should return wallet info when found."""
+    async def test_get_wallet_success_embedded_delegated(self):
+        """Should return wallet info when found (SDK-created embedded delegated)."""
         mock_wallet = MagicMock()
-        mock_wallet.wallet_type = "solana"
-        mock_wallet.wallet_id = "wallet-123"
+        mock_wallet.connector_type = "embedded"
+        mock_wallet.delegated = True
+        mock_wallet.id = "wallet-123"
         mock_wallet.address = "UserPubkey123"
+        mock_wallet.public_key = None
+        mock_wallet.type = "solana_embedded_wallet"
+        mock_wallet.chain_type = None
 
         mock_user = MagicMock()
         mock_user.linked_accounts = [mock_wallet]
@@ -427,10 +431,37 @@ class TestGetPrivyEmbeddedWallet:
         assert result["public_key"] == "UserPubkey123"
 
     @pytest.mark.asyncio
-    async def test_get_wallet_not_found(self):
+    async def test_get_wallet_success_bot_first(self):
+        """Should return wallet info when found (API-created bot-first)."""
+        mock_wallet = MagicMock()
+        mock_wallet.type = "wallet"
+        mock_wallet.chain_type = "solana"
+        mock_wallet.id = "wallet-456"
+        mock_wallet.address = "UserPubkey456"
+        mock_wallet.public_key = None
+        mock_wallet.connector_type = None
+        mock_wallet.delegated = False
+
+        mock_user = MagicMock()
+        mock_user.linked_accounts = [mock_wallet]
+
+        mock_privy = AsyncMock()
+        mock_privy.users.get = AsyncMock(return_value=mock_user)
+
+        result = await get_privy_embedded_wallet(mock_privy, "did:privy:user123")
+
+        assert result is not None
+        assert result["wallet_id"] == "wallet-456"
+        assert result["public_key"] == "UserPubkey456"
+
+    @pytest.mark.asyncio
+    async def test_get_wallet_not_found_no_solana(self):
         """Should return None when no Solana wallet found."""
         mock_wallet = MagicMock()
-        mock_wallet.wallet_type = "ethereum"  # Not Solana
+        mock_wallet.type = "ethereum_wallet"
+        mock_wallet.chain_type = "ethereum"
+        mock_wallet.connector_type = None
+        mock_wallet.delegated = False
 
         mock_user = MagicMock()
         mock_user.linked_accounts = [mock_wallet]
