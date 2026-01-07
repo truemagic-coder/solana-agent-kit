@@ -32,7 +32,11 @@ class UltraOrderResponse:
     output_mint: str
     slippage_bps: int
     swap_type: str
-    price_impact_pct: str  # Price impact as a percentage string
+    price_impact: Optional[
+        float
+    ]  # Price impact as percentage (negative = cost, positive = benefit)
+    in_usd_value: Optional[float]  # Input USD value
+    out_usd_value: Optional[float]  # Output USD value
     gasless: bool
     raw_response: Dict[str, Any]
 
@@ -137,7 +141,9 @@ class JupiterUltra:
                 output_mint=data.get("outputMint", ""),
                 slippage_bps=data.get("slippageBps", 0),
                 swap_type=data.get("swapType", ""),
-                price_impact_pct=data.get("priceImpactPct", ""),
+                price_impact=data.get("priceImpact"),
+                in_usd_value=data.get("inUsdValue"),
+                out_usd_value=data.get("outUsdValue"),
                 gasless=data.get("gasless", False),
                 raw_response=data,
             )

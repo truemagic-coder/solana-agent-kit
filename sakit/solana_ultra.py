@@ -236,6 +236,11 @@ class SolanaUltraTool(AutoTool):
             )
 
             if exec_result.get("status") == "success":
+                # Format price impact as percentage with sign
+                price_impact_str = ""
+                if order.price_impact is not None:
+                    price_impact_str = f"{order.price_impact:.2f}%"
+
                 return {
                     "status": "success",
                     "signature": exec_result.get("signature"),
@@ -243,8 +248,10 @@ class SolanaUltraTool(AutoTool):
                     "gasless": order.gasless,
                     "in_amount": order.in_amount,
                     "out_amount": order.out_amount,
+                    "in_usd_value": order.in_usd_value,
+                    "out_usd_value": order.out_usd_value,
                     "slippage_bps": order.slippage_bps,
-                    "price_impact_pct": order.price_impact_pct,
+                    "price_impact_pct": price_impact_str,
                 }
             else:
                 return exec_result
