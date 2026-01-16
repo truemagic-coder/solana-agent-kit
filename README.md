@@ -25,6 +25,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * DFlow Prediction - Trade prediction markets with safety scoring and quality filters
 * Privy DFlow Prediction - Trade prediction markets with Privy delegated wallets
 * Privy Transfer - Transfer tokens using Privy delegated wallets with sponsored transactions
+* Privy Privacy Cash - Private deposits, withdrawals, transfers, and balance checks via PrivacyCash
 * Privy Ultra - Swap tokens using Jupiter Ultra with Privy delegated wallets
 * Privy Ultra Quote - Preview swap details and price impact before executing swaps with Privy wallets
 * Privy Trigger - Create and manage limit orders with Privy delegated wallets
@@ -330,6 +331,27 @@ config = {
     },
 }
 ```
+
+### Privy Privacy Cash
+
+This plugin enables PrivacyCash operations (deposit, withdraw, transfer, balance) for Privy wallets via cash.solana-agent.com.
+
+```python
+config = {
+    "tools": {
+        "privy_privy_cash": {
+            "api_key": "your-privacycash-api-key", # Required - API key for cash.solana-agent.com
+            "base_url": "https://cash.solana-agent.com", # Optional - override base URL
+        },
+    },
+}
+```
+
+**Actions:**
+- `transfer` - Deposit + withdraw in one call (requires wallet_id, recipient, amount, token)
+- `deposit` - Deposit SOL/USDC to PrivacyCash (requires wallet_id, amount, token)
+- `withdraw` - Withdraw SOL/USDC from PrivacyCash (requires wallet_id, recipient, amount, token)
+- `balance` - Get private balance (requires wallet_id, token)
 
 ### Privy Ultra
 
