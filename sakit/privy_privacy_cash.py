@@ -9,12 +9,12 @@ from solana_agent import AutoTool, ToolRegistry
 logger = logging.getLogger(__name__)
 
 
-class PrivyPrivyCashTool(AutoTool):
+class PrivyPrivacyCashTool(AutoTool):
     """PrivacyCash operations via cash.solana-agent.com."""
 
     def __init__(self, registry: Optional[ToolRegistry] = None):
         super().__init__(
-            name="privy_privy_cash",
+            name="privy_privacy_cash",
             description=(
                 "PrivacyCash operations for Privy wallets via cash.solana-agent.com. "
                 "Actions: transfer, deposit, withdraw, balance."
@@ -65,7 +65,7 @@ class PrivyPrivyCashTool(AutoTool):
     def configure(self, config: Dict[str, Any]) -> None:
         """Configure the tool with API key from config."""
         super().configure(config)
-        tool_cfg = config.get("tools", {}).get("privy_privy_cash", {})
+        tool_cfg = config.get("tools", {}).get("privy_privacy_cash", {})
         if isinstance(tool_cfg, dict):
             self.api_key = tool_cfg.get("api_key", "")
             if tool_cfg.get("base_url"):
@@ -79,7 +79,7 @@ class PrivyPrivyCashTool(AutoTool):
                 "success": False,
                 "error": (
                     "Privy Cash API key not configured. "
-                    "Set privy_privy_cash.api_key in config."
+                    "Set privy_privacy_cash.api_key in config."
                 ),
             }
 
@@ -197,11 +197,11 @@ class PrivyPrivyCashTool(AutoTool):
         }
 
 
-class PrivyPrivyCashPlugin:
+class PrivyPrivacyCashPlugin:
     """Plugin for PrivacyCash operations via Privy."""
 
     def __init__(self):
-        self.name = "privy_privy_cash"
+        self.name = "privy_privacy_cash"
         self.config = None
         self.tool_registry = None
         self._tool = None
@@ -212,7 +212,7 @@ class PrivyPrivyCashPlugin:
 
     def initialize(self, tool_registry: ToolRegistry) -> None:
         self.tool_registry = tool_registry
-        self._tool = PrivyPrivyCashTool(registry=tool_registry)
+        self._tool = PrivyPrivacyCashTool(registry=tool_registry)
 
     def configure(self, config: Dict[str, Any]) -> None:
         self.config = config
@@ -224,4 +224,4 @@ class PrivyPrivyCashPlugin:
 
 
 def get_plugin():
-    return PrivyPrivyCashPlugin()
+    return PrivyPrivacyCashPlugin()

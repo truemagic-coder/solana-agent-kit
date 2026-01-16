@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "17.2.0"
+version = "17.2.1"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -49,7 +49,7 @@ privy_create_wallet = "sakit.privy_create_wallet:get_plugin"
 privy_dflow_prediction = "sakit.privy_dflow_prediction:get_plugin"
 privy_dflow_swap = "sakit.privy_dflow_swap:get_plugin"
 privy_get_user_by_telegram = "sakit.privy_get_user_by_telegram:get_plugin"
-privy_privy_cash = "sakit.privy_privy_cash:get_plugin"
+privy_privacy_cash = "sakit.privy_privacy_cash:get_plugin"
 privy_recurring = "sakit.privy_recurring:get_plugin"
 privy_transfer = "sakit.privy_transfer:get_plugin"
 privy_trigger = "sakit.privy_trigger:get_plugin"

@@ -339,7 +339,7 @@ This plugin enables PrivacyCash operations (deposit, withdraw, transfer, balance
 ```python
 config = {
     "tools": {
-        "privy_privy_cash": {
+        "privy_privacy_cash": {
             "api_key": "your-privacycash-api-key", # Required - API key for cash.solana-agent.com
             "base_url": "https://cash.solana-agent.com", # Optional - override base URL
         },

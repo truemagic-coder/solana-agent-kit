@@ -1,30 +1,34 @@
-"""Tests for PrivyPrivyCashTool."""
+"""Tests for PrivyPrivacyCashTool."""
 
 import pytest
 import respx
 from httpx import Response
 from unittest.mock import MagicMock
 
-from sakit.privy_privy_cash import PrivyPrivyCashTool, PrivyPrivyCashPlugin, get_plugin
+from sakit.privy_privacy_cash import (
+    PrivyPrivacyCashTool,
+    PrivyPrivacyCashPlugin,
+    get_plugin,
+)
 
 
 @pytest.fixture
 def cash_tool():
-    tool = PrivyPrivyCashTool()
-    tool.configure({"tools": {"privy_privy_cash": {"api_key": "test-api-key"}}})
+    tool = PrivyPrivacyCashTool()
+    tool.configure({"tools": {"privy_privacy_cash": {"api_key": "test-api-key"}}})
     return tool
 
 
 @pytest.fixture
 def cash_tool_no_key():
-    tool = PrivyPrivyCashTool()
+    tool = PrivyPrivacyCashTool()
     tool.configure({})
     return tool
 
 
-class TestPrivyPrivyCashToolSchema:
+class TestPrivyPrivacyCashToolSchema:
     def test_tool_name(self, cash_tool):
-        assert cash_tool.name == "privy_privy_cash"
+        assert cash_tool.name == "privy_privacy_cash"
 
     def test_schema_has_required_properties(self, cash_tool):
         schema = cash_tool.get_schema()
@@ -35,11 +39,11 @@ class TestPrivyPrivyCashToolSchema:
         assert "token" in schema["properties"]
 
     def test_configure_base_url_override(self):
-        tool = PrivyPrivyCashTool()
+        tool = PrivyPrivacyCashTool()
         tool.configure(
             {
                 "tools": {
-                    "privy_privy_cash": {
+                    "privy_privacy_cash": {
                         "api_key": "test-api-key",
                         "base_url": "https://example.com",
                     }
@@ -49,7 +53,7 @@ class TestPrivyPrivyCashToolSchema:
         assert tool.base_url == "https://example.com"
 
 
-class TestPrivyPrivyCashToolExecute:
+class TestPrivyPrivacyCashToolExecute:
     @pytest.mark.asyncio
     async def test_missing_api_key(self, cash_tool_no_key):
         result = await cash_tool_no_key.execute(
@@ -180,32 +184,32 @@ class TestPrivyPrivyCashToolExecute:
         assert result["data"]["balance"] == 2.5
 
 
-class TestPrivyPrivyCashPlugin:
+class TestPrivyPrivacyCashPlugin:
     def test_get_plugin(self):
         plugin = get_plugin()
-        assert isinstance(plugin, PrivyPrivyCashPlugin)
-        assert plugin.name == "privy_privy_cash"
+        assert isinstance(plugin, PrivyPrivacyCashPlugin)
+        assert plugin.name == "privy_privacy_cash"
 
     def test_plugin_description(self):
-        plugin = PrivyPrivyCashPlugin()
+        plugin = PrivyPrivacyCashPlugin()
         assert "privacycash" in plugin.description.lower()
 
     def test_plugin_get_tools_empty_before_init(self):
-        plugin = PrivyPrivyCashPlugin()
+        plugin = PrivyPrivacyCashPlugin()
         assert plugin.get_tools() == []
 
     def test_plugin_initialize(self):
-        plugin = PrivyPrivyCashPlugin()
+        plugin = PrivyPrivacyCashPlugin()
         mock_registry = MagicMock()
         plugin.initialize(mock_registry)
         assert plugin._tool is not None
         assert len(plugin.get_tools()) == 1
 
     def test_plugin_configure(self):
-        plugin = PrivyPrivyCashPlugin()
+        plugin = PrivyPrivacyCashPlugin()
         mock_registry = MagicMock()
         plugin.initialize(mock_registry)
-        config = {"tools": {"privy_privy_cash": {"api_key": "test-api-key"}}}
+        config = {"tools": {"privy_privacy_cash": {"api_key": "test-api-key"}}}
         plugin.configure(config)
         assert plugin.config == config
         assert plugin._tool.api_key == "test-api-key"
