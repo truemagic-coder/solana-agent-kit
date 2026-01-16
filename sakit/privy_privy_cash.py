@@ -17,7 +17,7 @@ class PrivyPrivyCashTool(AutoTool):
             name="privy_privy_cash",
             description=(
                 "PrivacyCash operations for Privy wallets via cash.solana-agent.com. "
-                "Actions: transfer, deposit, withdraw, balance, health."
+                "Actions: transfer, deposit, withdraw, balance."
             ),
             registry=registry,
         )
