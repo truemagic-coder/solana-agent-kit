@@ -3,6 +3,7 @@
 import pytest
 import respx
 from httpx import Response
+from unittest.mock import MagicMock
 
 from sakit.privy_privy_cash import PrivyPrivyCashTool, PrivyPrivyCashPlugin, get_plugin
 
@@ -58,6 +59,16 @@ class TestPrivyPrivyCashToolExecute:
         )
         assert result["success"] is False
         assert "api key" in result["error"].lower()
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_request_get_success(self, cash_tool):
+        respx.get("https://cash.solana-agent.com/status").mock(
+            return_value=Response(200, json={"status": "ok"})
+        )
+        result = await cash_tool._request("GET", "/status")
+        assert result["success"] is True
+        assert result["data"]["status"] == "ok"
 
     @pytest.mark.asyncio
     async def test_unknown_action(self, cash_tool):
@@ -174,3 +185,27 @@ class TestPrivyPrivyCashPlugin:
         plugin = get_plugin()
         assert isinstance(plugin, PrivyPrivyCashPlugin)
         assert plugin.name == "privy_privy_cash"
+
+    def test_plugin_description(self):
+        plugin = PrivyPrivyCashPlugin()
+        assert "privacycash" in plugin.description.lower()
+
+    def test_plugin_get_tools_empty_before_init(self):
+        plugin = PrivyPrivyCashPlugin()
+        assert plugin.get_tools() == []
+
+    def test_plugin_initialize(self):
+        plugin = PrivyPrivyCashPlugin()
+        mock_registry = MagicMock()
+        plugin.initialize(mock_registry)
+        assert plugin._tool is not None
+        assert len(plugin.get_tools()) == 1
+
+    def test_plugin_configure(self):
+        plugin = PrivyPrivyCashPlugin()
+        mock_registry = MagicMock()
+        plugin.initialize(mock_registry)
+        config = {"tools": {"privy_privy_cash": {"api_key": "test-api-key"}}}
+        plugin.configure(config)
+        assert plugin.config == config
+        assert plugin._tool.api_key == "test-api-key"
