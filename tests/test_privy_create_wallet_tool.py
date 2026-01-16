@@ -2,7 +2,7 @@
 Tests for Privy Create Wallet Tool.
 
 Tests the PrivyCreateWalletTool which creates new Solana wallets
-for Privy users with optional bot delegation.
+for Privy users.
 """
 
 import pytest
@@ -17,26 +17,7 @@ from sakit.privy_create_wallet import (
 
 @pytest.fixture
 def create_wallet_tool():
-    """Create a configured PrivyCreateWalletTool with signer."""
-    tool = PrivyCreateWalletTool()
-    tool.configure(
-        {
-            "tools": {
-                "privy_create_wallet": {
-                    "app_id": "test-app-id",
-                    "app_secret": "test-app-secret",
-                    "signer_id": "test-signer-id",
-                    "policy_ids": ["policy-1", "policy-2"],
-                }
-            }
-        }
-    )
-    return tool
-
-
-@pytest.fixture
-def create_wallet_tool_no_signer():
-    """Create a configured PrivyCreateWalletTool without signer."""
+    """Create a configured PrivyCreateWalletTool."""
     tool = PrivyCreateWalletTool()
     tool.configure(
         {
@@ -80,17 +61,14 @@ class TestPrivyCreateWalletToolSchema:
         schema = create_wallet_tool.get_schema()
         assert "user_id" in schema["properties"]
         assert "chain_type" in schema["properties"]
-        assert "add_bot_signer" in schema["properties"]
         assert "user_id" in schema["required"]
         assert "chain_type" in schema["required"]
-        assert "add_bot_signer" in schema["required"]
 
     def test_schema_property_types(self, create_wallet_tool):
         """Should have correct property types."""
         schema = create_wallet_tool.get_schema()
         assert schema["properties"]["user_id"]["type"] == "string"
         assert schema["properties"]["chain_type"]["type"] == "string"
-        assert schema["properties"]["add_bot_signer"]["type"] == "boolean"
 
     def test_schema_chain_type_enum(self, create_wallet_tool):
         """Should have chain_type enum values."""
@@ -111,8 +89,6 @@ class TestPrivyCreateWalletToolConfigure:
         """Should store Privy configuration."""
         assert create_wallet_tool.app_id == "test-app-id"
         assert create_wallet_tool.app_secret == "test-app-secret"
-        assert create_wallet_tool.signer_id == "test-signer-id"
-        assert create_wallet_tool.policy_ids == ["policy-1", "policy-2"]
 
 
 class TestPrivyCreateWalletToolExecute:
@@ -124,61 +100,17 @@ class TestPrivyCreateWalletToolExecute:
         result = await create_wallet_tool_incomplete.execute(
             user_id="did:privy:user123",
             chain_type="solana",
-            add_bot_signer=True,
         )
 
         assert result["status"] == "error"
         assert "config" in result["message"].lower()
 
     @pytest.mark.asyncio
-    async def test_execute_missing_signer_id_error(self, create_wallet_tool_no_signer):
-        """Should return error when signer_id missing but add_bot_signer is True."""
-        result = await create_wallet_tool_no_signer.execute(
-            user_id="did:privy:user123",
-            chain_type="solana",
-            add_bot_signer=True,
-        )
-
-        assert result["status"] == "error"
-        assert "signer_id" in result["message"].lower()
-
-    @pytest.mark.asyncio
-    async def test_execute_success_with_signer(self, create_wallet_tool):
-        """Should return wallet data on success with bot signer."""
+    async def test_execute_success(self, create_wallet_tool):
+        """Should return wallet data on success."""
         mock_wallet_data = {
             "id": "wallet-id-123",
             "address": "SoLaNaWaLLeTaDdReSs123...",
-            "chain_type": "solana",
-            "created_at": 1741834854578,
-            "owner_id": "rkiz0ivz254drv1xw982v3jq",
-            "additional_signers": [
-                {"signer_id": "test-signer-id", "override_policy_ids": ["policy-1"]}
-            ],
-        }
-
-        with patch(
-            "sakit.privy_create_wallet.create_privy_wallet",
-            new_callable=AsyncMock,
-            return_value=mock_wallet_data,
-        ):
-            result = await create_wallet_tool.execute(
-                user_id="did:privy:user123",
-                chain_type="solana",
-                add_bot_signer=True,
-            )
-
-            assert result["status"] == "success"
-            assert result["result"]["wallet_id"] == "wallet-id-123"
-            assert result["result"]["address"] == "SoLaNaWaLLeTaDdReSs123..."
-            assert result["result"]["chain_type"] == "solana"
-            assert len(result["result"]["additional_signers"]) == 1
-
-    @pytest.mark.asyncio
-    async def test_execute_success_without_signer(self, create_wallet_tool_no_signer):
-        """Should create wallet without bot signer when add_bot_signer is False."""
-        mock_wallet_data = {
-            "id": "wallet-id-456",
-            "address": "SoLaNaWaLLeTaDdReSs456...",
             "chain_type": "solana",
             "created_at": 1741834854578,
             "owner_id": "rkiz0ivz254drv1xw982v3jq",
@@ -190,14 +122,15 @@ class TestPrivyCreateWalletToolExecute:
             new_callable=AsyncMock,
             return_value=mock_wallet_data,
         ):
-            result = await create_wallet_tool_no_signer.execute(
+            result = await create_wallet_tool.execute(
                 user_id="did:privy:user123",
                 chain_type="solana",
-                add_bot_signer=False,
             )
 
             assert result["status"] == "success"
-            assert result["result"]["wallet_id"] == "wallet-id-456"
+            assert result["result"]["wallet_id"] == "wallet-id-123"
+            assert result["result"]["address"] == "SoLaNaWaLLeTaDdReSs123..."
+            assert result["result"]["chain_type"] == "solana"
             assert result["result"]["additional_signers"] == []
 
     @pytest.mark.asyncio
@@ -219,7 +152,6 @@ class TestPrivyCreateWalletToolExecute:
             result = await create_wallet_tool.execute(
                 user_id="did:privy:user123",
                 chain_type="solana",
-                add_bot_signer=True,
             )
 
             assert result["status"] == "error"
@@ -230,41 +162,9 @@ class TestCreatePrivyWallet:
     """Test the helper function."""
 
     @pytest.mark.asyncio
-    async def test_creates_wallet_with_signer(self):
-        """Should create wallet with additional signer."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "id": "wallet-123",
-            "address": "WalletAddress...",
-            "chain_type": "solana",
-            "additional_signers": [{"signer_id": "signer-123"}],
-        }
-
-        with patch("httpx.AsyncClient") as MockClient:
-            mock_client_instance = AsyncMock()
-            mock_client_instance.post = AsyncMock(return_value=mock_response)
-            mock_client_instance.__aenter__ = AsyncMock(
-                return_value=mock_client_instance
-            )
-            mock_client_instance.__aexit__ = AsyncMock()
-            MockClient.return_value = mock_client_instance
-
-            result = await create_privy_wallet(
-                user_id="did:privy:user123",
-                app_id="app-id",
-                app_secret="app-secret",
-                chain_type="solana",
-                signer_id="signer-123",
-                policy_ids=["policy-1"],
-            )
-
-            assert result["id"] == "wallet-123"
-            assert len(result["additional_signers"]) == 1
-
     @pytest.mark.asyncio
     async def test_creates_wallet_without_signer(self):
-        """Should create wallet without additional signer."""
+        """Should create wallet."""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -292,39 +192,6 @@ class TestCreatePrivyWallet:
 
             assert result["id"] == "wallet-456"
             assert result["additional_signers"] == []
-
-    @pytest.mark.asyncio
-    async def test_sends_correct_request_body_with_signer(self):
-        """Should send correct request body with additional signer."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"id": "test"}
-
-        with patch("httpx.AsyncClient") as MockClient:
-            mock_client_instance = AsyncMock()
-            mock_client_instance.post = AsyncMock(return_value=mock_response)
-            mock_client_instance.__aenter__ = AsyncMock(
-                return_value=mock_client_instance
-            )
-            mock_client_instance.__aexit__ = AsyncMock()
-            MockClient.return_value = mock_client_instance
-
-            await create_privy_wallet(
-                user_id="did:privy:user123",
-                app_id="app-id",
-                app_secret="app-secret",
-                chain_type="solana",
-                signer_id="signer-123",
-                policy_ids=["policy-1"],
-            )
-
-            # Verify the call was made with correct body
-            call_args = mock_client_instance.post.call_args
-            body = call_args[1]["json"]
-            assert body["chain_type"] == "solana"
-            assert body["owner"]["user_id"] == "did:privy:user123"
-            assert body["additional_signers"][0]["signer_id"] == "signer-123"
-            assert body["additional_signers"][0]["override_policy_ids"] == ["policy-1"]
 
 
 class TestPrivyCreateWalletPlugin:
@@ -366,7 +233,6 @@ class TestPrivyCreateWalletPlugin:
                 "privy_create_wallet": {
                     "app_id": "test-id",
                     "app_secret": "test-secret",
-                    "signer_id": "test-signer",
                 }
             }
         }
@@ -374,4 +240,3 @@ class TestPrivyCreateWalletPlugin:
 
         assert plugin._tool.app_id == "test-id"
         assert plugin._tool.app_secret == "test-secret"
-        assert plugin._tool.signer_id == "test-signer"

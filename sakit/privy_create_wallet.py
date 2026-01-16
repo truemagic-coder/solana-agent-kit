@@ -1,7 +1,7 @@
 """
 Privy Create Wallet Tool.
 
-Creates a new Solana wallet for a Privy user with optional additional signers.
+Creates a new Solana wallet for a Privy user.
 Used for bot-first Telegram bot flows where wallets are created server-side.
 """
 
@@ -17,8 +17,7 @@ async def create_privy_wallet(  # pragma: no cover
     app_id: str,
     app_secret: str,
     chain_type: str = "solana",
-    signer_id: Optional[str] = None,
-    policy_ids: Optional[List[str]] = None,
+    owner_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create a new wallet for a Privy user.
@@ -28,8 +27,7 @@ async def create_privy_wallet(  # pragma: no cover
         app_id: Privy app ID
         app_secret: Privy app secret
         chain_type: The chain type (solana, ethereum, etc.)
-        signer_id: Optional key quorum ID to add as additional signer
-        policy_ids: Optional list of policy IDs to apply to the signer
+        owner_id: Optional owner ID to assign the wallet to
 
     Returns:
         Dict with wallet data including id, address, chain_type
@@ -44,19 +42,16 @@ async def create_privy_wallet(  # pragma: no cover
         "Content-Type": "application/json",
     }
 
-    body: Dict[str, Any] = {
-        "chain_type": chain_type,
-        "owner": {"user_id": user_id},
-    }
-
-    # Add additional signer if provided (for bot delegation)
-    if signer_id:
-        body["additional_signers"] = [
-            {
-                "signer_id": signer_id,
-                "override_policy_ids": policy_ids or [],
-            }
-        ]
+    if owner_id:
+        body: Dict[str, Any] = {
+            "chain_type": chain_type,
+            "owner_id": owner_id,
+        }
+    else:
+        body = {
+            "chain_type": chain_type,
+            "owner": {"user_id": user_id},
+        }
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(url, headers=headers, json=body, timeout=30)
@@ -72,13 +67,12 @@ class PrivyCreateWalletTool(AutoTool):
     def __init__(self, registry: Optional[ToolRegistry] = None):
         super().__init__(
             name="privy_create_wallet",
-            description="Create a new Solana wallet for a Privy user with optional bot delegation. Used for bot-first Telegram bot flows.",
+            description="Create a new Solana wallet for a Privy user. Used for bot-first Telegram bot flows.",
             registry=registry,
         )
         self.app_id = None
         self.app_secret = None
-        self.signer_id = None
-        self.policy_ids = None
+        self.owner_id = None
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -94,13 +88,8 @@ class PrivyCreateWalletTool(AutoTool):
                     "enum": ["solana", "ethereum"],
                     "default": "solana",
                 },
-                "add_bot_signer": {
-                    "type": "boolean",
-                    "description": "Whether to add the bot as an additional signer for delegation. Defaults to true.",
-                    "default": True,
-                },
             },
-            "required": ["user_id", "chain_type", "add_bot_signer"],
+            "required": ["user_id", "chain_type"],
             "additionalProperties": False,
         }
 
@@ -108,14 +97,12 @@ class PrivyCreateWalletTool(AutoTool):
         tool_cfg = config.get("tools", {}).get("privy_create_wallet", {})
         self.app_id = tool_cfg.get("app_id")
         self.app_secret = tool_cfg.get("app_secret")
-        self.signer_id = tool_cfg.get("signer_id")  # Key quorum ID for bot
-        self.policy_ids = tool_cfg.get("policy_ids", [])  # Optional policies
+        self.owner_id = tool_cfg.get("owner_id")  # Optional owner ID
 
     async def execute(
         self,
         user_id: str,
         chain_type: str = "solana",
-        add_bot_signer: bool = True,
     ) -> Dict[str, Any]:
         if not all([self.app_id, self.app_secret]):
             return {
@@ -123,24 +110,15 @@ class PrivyCreateWalletTool(AutoTool):
                 "message": "Privy config missing (app_id, app_secret).",
             }
 
-        # Only require signer_id if add_bot_signer is True
-        if add_bot_signer and not self.signer_id:
-            return {
-                "status": "error",
-                "message": "Privy config missing signer_id for bot delegation.",
-            }
-
         try:
-            signer = self.signer_id if add_bot_signer else None
-            policies = self.policy_ids if add_bot_signer else None
+            owner_id = self.owner_id if self.owner_id else None
 
             wallet_data = await create_privy_wallet(
                 user_id=user_id,
                 app_id=self.app_id,
                 app_secret=self.app_secret,
                 chain_type=chain_type,
-                signer_id=signer,
-                policy_ids=policies,
+                owner_id=owner_id,
             )
             return {
                 "status": "success",
@@ -165,7 +143,7 @@ class PrivyCreateWalletTool(AutoTool):
 
 
 class PrivyCreateWalletPlugin:
-    """Plugin for creating Privy wallets with bot delegation."""
+    """Plugin for creating Privy wallets."""
 
     def __init__(self):
         self.name = "privy_create_wallet"
@@ -175,7 +153,7 @@ class PrivyCreateWalletPlugin:
 
     @property
     def description(self):
-        return "Plugin for creating Solana wallets for Privy users with optional bot delegation."
+        return "Plugin for creating Solana wallets for Privy users."
 
     def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         self.tool_registry = tool_registry
