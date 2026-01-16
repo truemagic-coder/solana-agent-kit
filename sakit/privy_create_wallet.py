@@ -1,7 +1,7 @@
 """
 Privy Create Wallet Tool.
 
-Creates a new Solana wallet for a Privy user with optional additional signers.
+Creates a new Solana wallet for a Privy user.
 Used for bot-first Telegram bot flows where wallets are created server-side.
 """
 
@@ -67,7 +67,7 @@ class PrivyCreateWalletTool(AutoTool):
     def __init__(self, registry: Optional[ToolRegistry] = None):
         super().__init__(
             name="privy_create_wallet",
-            description="Create a new Solana wallet for a Privy user with optional bot delegation. Used for bot-first Telegram bot flows.",
+            description="Create a new Solana wallet for a Privy user. Used for bot-first Telegram bot flows.",
             registry=registry,
         )
         self.app_id = None
@@ -103,7 +103,6 @@ class PrivyCreateWalletTool(AutoTool):
         self,
         user_id: str,
         chain_type: str = "solana",
-        add_bot_signer: bool = True,
     ) -> Dict[str, Any]:
         if not all([self.app_id, self.app_secret]):
             return {
@@ -144,7 +143,7 @@ class PrivyCreateWalletTool(AutoTool):
 
 
 class PrivyCreateWalletPlugin:
-    """Plugin for creating Privy wallets with bot delegation."""
+    """Plugin for creating Privy wallets."""
 
     def __init__(self):
         self.name = "privy_create_wallet"
@@ -154,7 +153,7 @@ class PrivyCreateWalletPlugin:
 
     @property
     def description(self):
-        return "Plugin for creating Solana wallets for Privy users with optional bot delegation."
+        return "Plugin for creating Solana wallets for Privy users."
 
     def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         self.tool_registry = tool_registry

@@ -33,7 +33,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Privy DFlow Swap - Fast token swaps using DFlow API with Privy delegated wallets
 * Privy Wallet Address - Get the wallet address of a Privy delegated wallet
 * Privy Create User - Create a new Privy user with a linked Telegram account (for bot-first flows)
-* Privy Create Wallet - Create a Solana wallet for a Privy user with optional bot delegation
+* Privy Create Wallet - Create a Solana wallet for a Privy user
 * Privy Get User by Telegram - Look up an existing Privy user by their Telegram ID
 * Rugcheck - Check if a token is a rug
 * Vybe - Look up and label known Solana wallets (CEX, market makers, AMM pools, treasuries)
