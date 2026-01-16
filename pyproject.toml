@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sakit"
-version = "17.2.1"
+version = "17.2.2"
 description = "Solana Agent Kit"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 license = "MIT"
@@ -20,7 +20,7 @@ solana-agent = ">=33.0.0"
 boto3 = "^1.42.29"
 botocore = "^1.42.29"
 fastmcp = "^2.14.3"
-solana = "^0.36.10"
+solana = "^0.36.11"
 solders = "^0.27.1"
 pynacl = "^1.6.2"
 based58 = "^0.1.1"

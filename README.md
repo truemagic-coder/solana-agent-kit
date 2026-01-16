@@ -536,16 +536,7 @@ config = {
 
 ### Privy Create Wallet
 
-This plugin enables Solana Agent to create a new Solana wallet for a Privy user with optional bot delegation. When `add_bot_signer` is true, the bot can execute transactions on behalf of the user.
-
-**Prerequisites:**
-1. Create an authorization key locally:
-   ```bash
-   openssl ecparam -name prime256v1 -genkey -noout -out private.pem
-   openssl ec -in private.pem -pubout -outform DER | base64
-   ```
-2. Register the public key as a key quorum in the [Privy Dashboard](https://dashboard.privy.io/apps?authorization-keys)
-3. Save the key quorum ID as `signer_id` in the config
+This plugin enables Solana Agent to create a new Solana wallet for a Privy user.
 
 ```python
 config = {
@@ -553,8 +544,7 @@ config = {
         "privy_create_wallet": {
             "app_id": "your-privy-app-id", # Required - your Privy application ID
             "app_secret": "your-privy-app-secret", # Required - your Privy application secret
-            "signer_id": "your-key-quorum-id", # Required if add_bot_signer=True - the key quorum ID from Privy Dashboard
-            "policy_ids": [], # Optional - list of policy IDs to apply to the signer for restricted permissions
+            "owner_id": "your-owner-id", # Optional - set an owner ID rather than assigning to user - see Privy docs
         },
     },
 }
@@ -563,7 +553,6 @@ config = {
 **Parameters:**
 - `user_id` (required) - The Privy user ID (did:privy:...) to create a wallet for
 - `chain_type` (optional) - "solana" or "ethereum" (default: "solana")
-- `add_bot_signer` (optional) - Whether to add the bot as an additional signer for delegation (default: true)
 
 **Returns:**
 - `wallet_id` - The Privy wallet ID
