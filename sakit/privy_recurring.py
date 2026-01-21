@@ -246,7 +246,10 @@ class PrivyRecurringTool(AutoTool):
         order_pubkey: Optional[str] = None,
     ) -> Dict[str, Any]:
         if not wallet_id or not wallet_public_key:
-            return {"status": "error", "message": "wallet_id and wallet_public_key are required."}
+            return {
+                "status": "error",
+                "message": "wallet_id and wallet_public_key are required.",
+            }
 
         if not all([self._app_id, self._app_secret, self._signing_key]):
             return {"status": "error", "message": "Privy config missing."}

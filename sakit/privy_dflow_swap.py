@@ -194,7 +194,13 @@ class PrivyDFlowSwapTool(AutoTool):
                     "default": 0,
                 },
             },
-            "required": ["wallet_id", "wallet_public_key", "input_mint", "output_mint", "amount"],
+            "required": [
+                "wallet_id",
+                "wallet_public_key",
+                "input_mint",
+                "output_mint",
+                "amount",
+            ],
             "additionalProperties": False,
         }
 
@@ -218,7 +224,10 @@ class PrivyDFlowSwapTool(AutoTool):
         slippage_bps: int = 0,
     ) -> Dict[str, Any]:
         if not wallet_id or not wallet_public_key:
-            return {"status": "error", "message": "wallet_id and wallet_public_key are required."}
+            return {
+                "status": "error",
+                "message": "wallet_id and wallet_public_key are required.",
+            }
 
         if not all([self._app_id, self._app_secret, self._signing_key]):
             return {"status": "error", "message": "Privy config missing."}

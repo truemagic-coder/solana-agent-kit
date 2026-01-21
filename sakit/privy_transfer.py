@@ -156,7 +156,14 @@ class PrivyTransferTool(AutoTool):
                     "default": "",
                 },
             },
-            "required": ["wallet_id", "wallet_public_key", "to_address", "amount", "mint", "memo"],
+            "required": [
+                "wallet_id",
+                "wallet_public_key",
+                "to_address",
+                "amount",
+                "mint",
+                "memo",
+            ],
             "additionalProperties": False,
         }
 
@@ -179,7 +186,10 @@ class PrivyTransferTool(AutoTool):
         memo: str = "",
     ) -> Dict[str, Any]:
         if not wallet_id or not wallet_public_key:
-            return {"status": "error", "message": "wallet_id and wallet_public_key are required."}
+            return {
+                "status": "error",
+                "message": "wallet_id and wallet_public_key are required.",
+            }
 
         if not all(
             [

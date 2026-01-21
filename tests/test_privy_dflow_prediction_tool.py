@@ -412,13 +412,19 @@ class TestTradingValidation:
             action="buy", market_id="TEST", side="YES", amount=10
         )
         assert result["status"] == "error"
-        assert "wallet_id" in result["message"] or "wallet_public_key" in result["message"]
+        assert (
+            "wallet_id" in result["message"] or "wallet_public_key" in result["message"]
+        )
 
     @pytest.mark.asyncio
     async def test_buy_missing_market_id(self, privy_prediction_tool):
         """Buy without market_id should return error."""
         result = await privy_prediction_tool.execute(
-            action="buy", wallet_id="wallet-123", wallet_public_key="PublicKey123", side="YES", amount=10
+            action="buy",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
+            side="YES",
+            amount=10,
         )
         assert result["status"] == "error"
         assert "market_id or mint_address required" in result["message"]
@@ -456,13 +462,19 @@ class TestTradingValidation:
             action="sell", market_id="TEST", side="YES", amount=10
         )
         assert result["status"] == "error"
-        assert "wallet_id" in result["message"] or "wallet_public_key" in result["message"]
+        assert (
+            "wallet_id" in result["message"] or "wallet_public_key" in result["message"]
+        )
 
     @pytest.mark.asyncio
     async def test_sell_missing_market_id(self, privy_prediction_tool):
         """Sell without market_id should return error."""
         result = await privy_prediction_tool.execute(
-            action="sell", wallet_id="wallet-123", wallet_public_key="PublicKey123", side="YES", amount=10
+            action="sell",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
+            side="YES",
+            amount=10,
         )
         assert result["status"] == "error"
         assert "market_id or mint_address required" in result["message"]
@@ -1185,7 +1197,9 @@ class TestPositionsSuccessfulExecution:
         """Positions without wallet_id/wallet_public_key should return error."""
         result = await privy_prediction_tool.execute(action="positions")
         assert result["status"] == "error"
-        assert "wallet_id" in result["message"] or "wallet_public_key" in result["message"]
+        assert (
+            "wallet_id" in result["message"] or "wallet_public_key" in result["message"]
+        )
 
     @pytest.mark.asyncio
     async def test_positions_missing_rpc_url(self, privy_prediction_tool_no_config):

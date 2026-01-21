@@ -114,7 +114,10 @@ class TestPrivyTransferToolExecute:
         )
 
         assert result["status"] == "error"
-        assert "wallet_id" in result["message"].lower() or "wallet_public_key" in result["message"].lower()
+        assert (
+            "wallet_id" in result["message"].lower()
+            or "wallet_public_key" in result["message"].lower()
+        )
 
     @pytest.mark.asyncio
     async def test_execute_missing_config_error(self, transfer_tool_incomplete):

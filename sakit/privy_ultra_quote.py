@@ -55,7 +55,13 @@ class PrivyUltraQuoteTool(AutoTool):
                     "description": "The amount of input token to swap (in smallest units, e.g., lamports for SOL).",
                 },
             },
-            "required": ["wallet_id", "wallet_public_key", "input_mint", "output_mint", "amount"],
+            "required": [
+                "wallet_id",
+                "wallet_public_key",
+                "input_mint",
+                "output_mint",
+                "amount",
+            ],
             "additionalProperties": False,
         }
 
@@ -75,7 +81,10 @@ class PrivyUltraQuoteTool(AutoTool):
         amount: int,
     ) -> Dict[str, Any]:
         if not wallet_id or not wallet_public_key:
-            return {"status": "error", "message": "wallet_id and wallet_public_key are required."}
+            return {
+                "status": "error",
+                "message": "wallet_id and wallet_public_key are required.",
+            }
 
         public_key = wallet_public_key
 
