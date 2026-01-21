@@ -32,10 +32,7 @@ from solders.message import to_bytes_versioned
 
 from sakit.utils.dflow import DFlowPredictionClient
 from sakit.utils.trigger import replace_blockhash_in_transaction, get_fresh_blockhash
-from sakit.utils.wallet import (
-    send_raw_transaction_with_priority,
-    sanitize_privy_user_id,
-)
+from sakit.utils.wallet import send_raw_transaction_with_priority
 
 logger = logging.getLogger(__name__)
 
@@ -95,54 +92,6 @@ def _convert_key_to_pkcs8_pem(key_string: str) -> str:  # pragma: no cover
         return "".join(lines[1:-1])
     except (ValueError, TypeError) as e:
         raise ValueError(f"Could not load private key: {e}")
-
-
-async def _get_privy_embedded_wallet(  # pragma: no cover
-    privy_client: AsyncPrivyAPI, user_id: str
-) -> Optional[Dict[str, str]]:
-    """Get Privy embedded wallet info for a user using the official SDK."""
-    try:
-        user = await privy_client.users.get(user_id)
-        linked_accounts = user.linked_accounts or []
-
-        # First, try to find embedded wallet with delegation
-        for acct in linked_accounts:
-            if getattr(acct, "connector_type", None) == "embedded" and getattr(
-                acct, "delegated", False
-            ):
-                wallet_id = getattr(acct, "id", None)
-                address = getattr(acct, "address", None) or getattr(
-                    acct, "public_key", None
-                )
-                if wallet_id and address:
-                    return {"wallet_id": wallet_id, "public_key": address}
-
-        # Then, try to find bot-first wallet (API-created via privy_create_wallet)
-        for acct in linked_accounts:
-            acct_type = getattr(acct, "type", "")
-            if acct_type == "wallet" and getattr(acct, "chain_type", None) == "solana":
-                wallet_id = getattr(acct, "id", None)
-                address = getattr(acct, "address", None) or getattr(
-                    acct, "public_key", None
-                )
-                if wallet_id and address:
-                    return {"wallet_id": wallet_id, "public_key": address}
-            if (
-                acct_type
-                and "solana" in acct_type.lower()
-                and "embedded" in acct_type.lower()
-            ):
-                wallet_id = getattr(acct, "id", None)
-                address = getattr(acct, "address", None) or getattr(
-                    acct, "public_key", None
-                )
-                if wallet_id and address:
-                    return {"wallet_id": wallet_id, "public_key": address}
-
-        return None
-    except Exception as e:
-        logger.error(f"Privy API error getting user {user_id}: {e}")
-        return None
 
 
 async def _privy_sign_transaction(  # pragma: no cover
@@ -274,9 +223,13 @@ class PrivyDFlowPredictionTool(AutoTool):
                         "'positions' - Get user's prediction market positions."
                     ),
                 },
-                "privy_user_id": {
+                "wallet_id": {
                     "type": ["string", "null"],
-                    "description": "Privy user ID (did:privy:xxx format). Required for trading actions. Pass null for discovery actions.",
+                    "description": "Privy wallet ID. Required for trading actions. Pass null for discovery actions.",
+                },
+                "wallet_public_key": {
+                    "type": ["string", "null"],
+                    "description": "Solana public key of the wallet. Required for trading actions. Pass null for discovery actions.",
                 },
                 "query": {
                     "type": ["string", "null"],
@@ -324,7 +277,8 @@ class PrivyDFlowPredictionTool(AutoTool):
             },
             "required": [
                 "action",
-                "privy_user_id",
+                "wallet_id",
+                "wallet_public_key",
                 "query",
                 "event_id",
                 "market_id",
@@ -523,7 +477,8 @@ class PrivyDFlowPredictionTool(AutoTool):
     async def execute(
         self,
         action: str,
-        privy_user_id: Optional[str] = None,
+        wallet_id: Optional[str] = None,
+        wallet_public_key: Optional[str] = None,
         query: Optional[str] = None,
         event_id: Optional[str] = None,
         market_id: Optional[str] = None,
@@ -536,9 +491,6 @@ class PrivyDFlowPredictionTool(AutoTool):
         include_risky: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """Execute a prediction market action using Privy embedded wallet."""
-
-        # Sanitize privy_user_id to handle LLM formatting errors
-        privy_user_id = sanitize_privy_user_id(privy_user_id)
 
         client = self._get_client(include_risky)
 
@@ -616,10 +568,10 @@ class PrivyDFlowPredictionTool(AutoTool):
                     }
                 if not self._rpc_url:
                     return {"status": "error", "message": "rpc_url not configured"}
-                if not privy_user_id:
+                if not wallet_id or not wallet_public_key:
                     return {
                         "status": "error",
-                        "message": "privy_user_id is required for buy action",
+                        "message": "wallet_id and wallet_public_key are required for buy action",
                     }
                 if not market_id and not mint_address:
                     return {
@@ -634,18 +586,10 @@ class PrivyDFlowPredictionTool(AutoTool):
                 if not amount:
                     return {"status": "error", "message": "amount required for buy"}
 
-                # Get Privy client and embedded wallet
+                # Get Privy client
                 privy = self._get_privy_client()
-                wallet = await _get_privy_embedded_wallet(privy, privy_user_id)
-                if not wallet:
-                    return {
-                        "status": "error",
-                        "message": "No delegated Solana wallet found for user. "
-                        "User must have a Privy embedded wallet with delegation enabled.",
-                    }
 
-                wallet_address = wallet["public_key"]
-                wallet_id = wallet["wallet_id"]
+                wallet_address = wallet_public_key
 
                 # Get market to find the outcome mint
                 market = await self._get_market_with_mints(
@@ -738,10 +682,10 @@ class PrivyDFlowPredictionTool(AutoTool):
                     }
                 if not self._rpc_url:
                     return {"status": "error", "message": "rpc_url not configured"}
-                if not privy_user_id:
+                if not wallet_id or not wallet_public_key:
                     return {
                         "status": "error",
-                        "message": "privy_user_id is required for sell action",
+                        "message": "wallet_id and wallet_public_key are required for sell action",
                     }
                 if not market_id and not mint_address:
                     return {
@@ -756,18 +700,10 @@ class PrivyDFlowPredictionTool(AutoTool):
                 if not amount:
                     return {"status": "error", "message": "amount required for sell"}
 
-                # Get Privy client and embedded wallet
+                # Get Privy client
                 privy = self._get_privy_client()
-                wallet = await _get_privy_embedded_wallet(privy, privy_user_id)
-                if not wallet:
-                    return {
-                        "status": "error",
-                        "message": "No delegated Solana wallet found for user. "
-                        "User must have a Privy embedded wallet with delegation enabled.",
-                    }
 
-                wallet_address = wallet["public_key"]
-                wallet_id = wallet["wallet_id"]
+                wallet_address = wallet_public_key
 
                 # Get market to find the outcome mint
                 market = await self._get_market_with_mints(
@@ -833,10 +769,10 @@ class PrivyDFlowPredictionTool(AutoTool):
 
             elif action == "positions":
                 # For positions, we need the user's wallet address and RPC
-                if not privy_user_id:
+                if not wallet_public_key:
                     return {
                         "status": "error",
-                        "message": "privy_user_id is required for positions action",
+                        "message": "wallet_public_key is required for positions action",
                     }
 
                 if not self._rpc_url:
@@ -845,27 +781,9 @@ class PrivyDFlowPredictionTool(AutoTool):
                         "message": "rpc_url must be configured to query positions",
                     }
 
-                # Validate Privy configuration
-                if not self._privy_app_id or not self._privy_app_secret:
-                    return {
-                        "status": "error",
-                        "message": "privy_app_id and privy_app_secret not configured",
-                    }
-
-                # Get Privy client and embedded wallet
-                privy = self._get_privy_client()
-                wallet = await _get_privy_embedded_wallet(privy, privy_user_id)
-                if not wallet:
-                    return {
-                        "status": "error",
-                        "message": "No delegated Solana wallet found for user.",
-                    }
-
-                wallet_address = wallet["public_key"]
-
                 # Query positions via RPC + DFlow outcome mints
                 positions_result = await client.get_positions(
-                    wallet_address=wallet_address,
+                    wallet_address=wallet_public_key,
                     rpc_url=self._rpc_url,
                 )
 

@@ -36,7 +36,8 @@ class TestPrivyDFlowSwapToolSchema:
         assert "properties" in schema
         props = schema["properties"]
 
-        assert "user_id" in props
+        assert "wallet_id" in props
+        assert "wallet_public_key" in props
         assert "input_mint" in props
         assert "output_mint" in props
         assert "amount" in props
@@ -47,7 +48,8 @@ class TestPrivyDFlowSwapToolSchema:
         schema = tool.get_schema()
 
         required = schema.get("required", [])
-        assert "user_id" in required
+        assert "wallet_id" in required
+        assert "wallet_public_key" in required
         assert "input_mint" in required
         assert "output_mint" in required
         assert "amount" in required
@@ -109,7 +111,8 @@ class TestPrivyDFlowSwapToolExecute:
         tool = PrivyDFlowSwapTool()
 
         result = await tool.execute(
-            user_id="did:privy:test123",
+            wallet_id="wallet-123",
+            wallet_public_key="WalletPubkey123",
             input_mint="So11111111111111111111111111111111111111112",
             output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
             amount="1000000000",
@@ -119,42 +122,24 @@ class TestPrivyDFlowSwapToolExecute:
         assert "config" in result["message"].lower()
 
     @pytest.mark.asyncio
-    async def test_execute_no_wallet(self, configured_tool):
-        """Should return error when user has no wallet."""
-        mock_user = MagicMock()
-        mock_user.linked_accounts = []
+    async def test_execute_missing_wallet_params(self, configured_tool):
+        """Should return error when wallet params are missing."""
+        result = await configured_tool.execute(
+            wallet_id="",
+            wallet_public_key="",
+            input_mint="So11111111111111111111111111111111111111112",
+            output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            amount="1000000000",
+        )
 
-        with patch("sakit.privy_dflow_swap.AsyncPrivyAPI") as MockPrivy:
-            mock_privy_instance = AsyncMock()
-            mock_privy_instance.users.get = AsyncMock(return_value=mock_user)
-            mock_privy_instance.close = AsyncMock()
-            MockPrivy.return_value = mock_privy_instance
-
-            result = await configured_tool.execute(
-                user_id="did:privy:test123",
-                input_mint="So11111111111111111111111111111111111111112",
-                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-                amount="1000000000",
-            )
-
-            assert result["status"] == "error"
-            assert "wallet" in result["message"].lower()
+        assert result["status"] == "error"
+        assert "wallet" in result["message"].lower()
 
     @pytest.mark.asyncio
     async def test_execute_dflow_api_error(self, configured_tool):
         """Should return error when DFlow API fails."""
-        mock_user = MagicMock()
-        mock_wallet = MagicMock()
-        mock_wallet.connector_type = "embedded"
-        mock_wallet.delegated = True
-        mock_wallet.id = "wallet123"
-        mock_wallet.address = "WalletAddress123"
-        mock_wallet.public_key = "WalletAddress123"
-        mock_user.linked_accounts = [mock_wallet]
-
         with patch("sakit.privy_dflow_swap.AsyncPrivyAPI") as MockPrivy:
             mock_privy_instance = AsyncMock()
-            mock_privy_instance.users.get = AsyncMock(return_value=mock_user)
             mock_privy_instance.close = AsyncMock()
             MockPrivy.return_value = mock_privy_instance
 
@@ -169,7 +154,8 @@ class TestPrivyDFlowSwapToolExecute:
                 MockDFlow.return_value = mock_dflow_instance
 
                 result = await configured_tool.execute(
-                    user_id="did:privy:test123",
+                    wallet_id="wallet-123",
+                    wallet_public_key="WalletAddress123",
                     input_mint="So11111111111111111111111111111111111111112",
                     output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                     amount="1000000000",
