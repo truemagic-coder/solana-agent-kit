@@ -12,7 +12,6 @@ from unittest.mock import patch, AsyncMock, MagicMock
 from sakit.privy_ultra import (
     PrivyUltraTool,
     PrivyUltraPlugin,
-    get_privy_embedded_wallet,
     get_plugin,
 )
 
