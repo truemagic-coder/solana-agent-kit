@@ -107,11 +107,6 @@ class TestPrivyUltraQuoteToolSchema:
 class TestPrivyUltraQuoteToolConfigure:
     """Test configuration method."""
 
-    def test_configure_stores_privy_config(self, quote_tool):
-        """Should store Privy configuration."""
-        assert quote_tool.app_id == "test-app-id"
-        assert quote_tool.app_secret == "test-app-secret"
-
     def test_configure_stores_jupiter_config(self, quote_tool):
         """Should store Jupiter configuration."""
         assert quote_tool.jupiter_api_key == "test-jupiter-key"
@@ -314,15 +309,11 @@ class TestPrivyUltraQuotePlugin:
         config = {
             "tools": {
                 "privy_ultra_quote": {
-                    "app_id": "test-app-id",
-                    "app_secret": "test-app-secret",
                     "jupiter_api_key": "test-api-key",
                 }
             }
         }
         plugin.configure(config)
-        assert plugin._tool.app_id == "test-app-id"
-        assert plugin._tool.app_secret == "test-app-secret"
         assert plugin._tool.jupiter_api_key == "test-api-key"
 
     def test_plugin_get_tools(self):
