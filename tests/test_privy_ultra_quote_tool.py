@@ -222,7 +222,7 @@ class TestPrivyUltraQuoteToolExecute:
 
     @pytest.mark.asyncio
     async def test_execute_with_payer(self, quote_tool_with_payer):
-        """Should include payer in get_order call.""""
+        """Should include payer in get_order call."""
         mock_order = MagicMock()
         mock_order.input_mint = "So11111111111111111111111111111111111111112"
         mock_order.output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
