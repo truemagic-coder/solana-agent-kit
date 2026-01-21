@@ -26,10 +26,7 @@ from solders.transaction import VersionedTransaction  # type: ignore
 from solders.message import to_bytes_versioned  # type: ignore
 
 from sakit.utils.dflow import DFlowSwap
-from sakit.utils.wallet import (
-    send_raw_transaction_with_priority,
-    sanitize_privy_user_id,
-)
+from sakit.utils.wallet import send_raw_transaction_with_priority
 
 logger = logging.getLogger(__name__)
 
@@ -86,54 +83,6 @@ def _convert_key_to_pkcs8_pem(key_string: str) -> str:  # pragma: no cover
         return "".join(lines[1:-1])
     except (ValueError, TypeError) as e:
         raise ValueError(f"Could not load private key: {e}")
-
-
-async def _get_privy_embedded_wallet(  # pragma: no cover
-    privy_client: AsyncPrivyAPI, user_id: str
-) -> Optional[Dict[str, str]]:
-    """Get Privy embedded wallet info for a user using the official SDK."""
-    try:
-        user = await privy_client.users.get(user_id)
-        linked_accounts = user.linked_accounts or []
-
-        # First, try to find embedded wallet with delegation
-        for acct in linked_accounts:
-            if getattr(acct, "connector_type", None) == "embedded" and getattr(
-                acct, "delegated", False
-            ):
-                wallet_id = getattr(acct, "id", None)
-                address = getattr(acct, "address", None) or getattr(
-                    acct, "public_key", None
-                )
-                if wallet_id and address:
-                    return {"wallet_id": wallet_id, "public_key": address}
-
-        # Then, try to find bot-first wallet (API-created via privy_create_wallet)
-        for acct in linked_accounts:
-            acct_type = getattr(acct, "type", "")
-            if acct_type == "wallet" and getattr(acct, "chain_type", None) == "solana":
-                wallet_id = getattr(acct, "id", None)
-                address = getattr(acct, "address", None) or getattr(
-                    acct, "public_key", None
-                )
-                if wallet_id and address:
-                    return {"wallet_id": wallet_id, "public_key": address}
-            if (
-                acct_type
-                and "solana" in acct_type.lower()
-                and "embedded" in acct_type.lower()
-            ):
-                wallet_id = getattr(acct, "id", None)
-                address = getattr(acct, "address", None) or getattr(
-                    acct, "public_key", None
-                )
-                if wallet_id and address:
-                    return {"wallet_id": wallet_id, "public_key": address}
-
-        return None
-    except Exception as e:
-        logger.error(f"Privy API error getting user {user_id}: {e}")
-        return None
 
 
 async def _privy_sign_transaction(  # pragma: no cover
@@ -219,9 +168,13 @@ class PrivyDFlowSwapTool(AutoTool):
         return {
             "type": "object",
             "properties": {
-                "user_id": {
+                "wallet_id": {
                     "type": "string",
-                    "description": "Privy user id (DID like 'did:privy:xxx'). Get this from privy_get_user_by_telegram's 'result.user_id' field. REQUIRED.",
+                    "description": "Privy wallet ID. REQUIRED.",
+                },
+                "wallet_public_key": {
+                    "type": "string",
+                    "description": "Solana public key of the wallet. REQUIRED.",
                 },
                 "input_mint": {
                     "type": "string",
@@ -241,7 +194,7 @@ class PrivyDFlowSwapTool(AutoTool):
                     "default": 0,
                 },
             },
-            "required": ["user_id", "input_mint", "output_mint", "amount"],
+            "required": ["wallet_id", "wallet_public_key", "input_mint", "output_mint", "amount"],
             "additionalProperties": False,
         }
 
@@ -257,14 +210,15 @@ class PrivyDFlowSwapTool(AutoTool):
 
     async def execute(  # pragma: no cover
         self,
-        user_id: str,
+        wallet_id: str,
+        wallet_public_key: str,
         input_mint: str,
         output_mint: str,
         amount: str,
         slippage_bps: int = 0,
     ) -> Dict[str, Any]:
-        # Sanitize user_id to handle LLM formatting errors
-        user_id = sanitize_privy_user_id(user_id) or user_id
+        if not wallet_id or not wallet_public_key:
+            return {"status": "error", "message": "wallet_id and wallet_public_key are required."}
 
         if not all([self._app_id, self._app_secret, self._signing_key]):
             return {"status": "error", "message": "Privy config missing."}
@@ -276,16 +230,7 @@ class PrivyDFlowSwapTool(AutoTool):
         )
 
         try:
-            # Get user's embedded wallet
-            wallet_info = await _get_privy_embedded_wallet(privy_client, user_id)
-            if not wallet_info:
-                return {
-                    "status": "error",
-                    "message": "No delegated embedded wallet found for user.",
-                }
-
-            wallet_id = wallet_info["wallet_id"]
-            public_key = wallet_info["public_key"]
+            public_key = wallet_public_key
 
             # Initialize DFlow client
             dflow = DFlowSwap()

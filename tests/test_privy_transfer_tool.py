@@ -58,13 +58,15 @@ class TestPrivyTransferToolSchema:
     def test_schema_has_required_properties(self, transfer_tool):
         """Should include all required properties."""
         schema = transfer_tool.get_schema()
-        assert "user_id" in schema["properties"]
+        assert "wallet_id" in schema["properties"]
+        assert "wallet_public_key" in schema["properties"]
         assert "to_address" in schema["properties"]
         assert "amount" in schema["properties"]
         assert "mint" in schema["properties"]
         assert "memo" in schema["properties"]
         assert set(schema["required"]) == {
-            "user_id",
+            "wallet_id",
+            "wallet_public_key",
             "to_address",
             "amount",
             "mint",
@@ -74,7 +76,8 @@ class TestPrivyTransferToolSchema:
     def test_schema_property_types(self, transfer_tool):
         """Should have correct property types."""
         schema = transfer_tool.get_schema()
-        assert schema["properties"]["user_id"]["type"] == "string"
+        assert schema["properties"]["wallet_id"]["type"] == "string"
+        assert schema["properties"]["wallet_public_key"]["type"] == "string"
         assert schema["properties"]["to_address"]["type"] == "string"
         assert schema["properties"]["amount"]["type"] == "number"
         assert schema["properties"]["mint"]["type"] == "string"
@@ -100,10 +103,25 @@ class TestPrivyTransferToolExecute:
     """Test execute method."""
 
     @pytest.mark.asyncio
+    async def test_execute_missing_wallet_params(self, transfer_tool):
+        """Should return error when wallet params are missing."""
+        result = await transfer_tool.execute(
+            wallet_id="",
+            wallet_public_key="",
+            to_address="Recipient123...abc",
+            amount=1.0,
+            mint="So11111111111111111111111111111111111111112",
+        )
+
+        assert result["status"] == "error"
+        assert "wallet_id" in result["message"].lower() or "wallet_public_key" in result["message"].lower()
+
+    @pytest.mark.asyncio
     async def test_execute_missing_config_error(self, transfer_tool_incomplete):
         """Should return error when config is incomplete."""
         result = await transfer_tool_incomplete.execute(
-            user_id="did:privy:user123",
+            wallet_id="wallet-123",
+            wallet_public_key="WalletPubkey123",
             to_address="Recipient123...abc",
             amount=1.0,
             mint="So11111111111111111111111111111111111111112",
@@ -113,37 +131,9 @@ class TestPrivyTransferToolExecute:
         assert "config" in result["message"].lower()
 
     @pytest.mark.asyncio
-    async def test_execute_no_wallet_found_error(self, transfer_tool):
-        """Should return error when no delegated wallet found."""
-        with patch(
-            "sakit.privy_transfer.get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            result = await transfer_tool.execute(
-                user_id="did:privy:user123",
-                to_address="Recipient123...abc",
-                amount=1.0,
-                mint="So11111111111111111111111111111111111111112",
-            )
-
-            assert result["status"] == "error"
-            assert "wallet" in result["message"].lower()
-
-    @pytest.mark.asyncio
     async def test_execute_success(self, transfer_tool):
         """Should return success on successful transfer."""
-        mock_wallet_info = {
-            "wallet_id": "wallet-123",
-            "public_key": "WalletPubkey123...abc",
-        }
-
         with (
-            patch(
-                "sakit.privy_transfer.get_privy_embedded_wallet",
-                new_callable=AsyncMock,
-                return_value=mock_wallet_info,
-            ),
             patch("sakit.privy_transfer.SolanaWalletClient") as MockWallet,
             patch("sakit.privy_transfer.TokenTransferManager") as MockTransfer,
             patch(
@@ -161,7 +151,8 @@ class TestPrivyTransferToolExecute:
             MockTransfer.transfer = AsyncMock(return_value=mock_tx)
 
             result = await transfer_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="WalletPubkey123...abc",
                 to_address="Recipient123...abc",
                 amount=1.0,
                 mint="So11111111111111111111111111111111111111112",
@@ -172,24 +163,13 @@ class TestPrivyTransferToolExecute:
     @pytest.mark.asyncio
     async def test_execute_exception_handling(self, transfer_tool):
         """Should return error on exception."""
-        mock_wallet_info = {
-            "wallet_id": "wallet-123",
-            "public_key": "WalletPubkey123...abc",
-        }
-
-        with (
-            patch(
-                "sakit.privy_transfer.get_privy_embedded_wallet",
-                new_callable=AsyncMock,
-                return_value=mock_wallet_info,
-            ),
-            patch(
-                "sakit.privy_transfer.SolanaWalletClient",
-                side_effect=Exception("Connection error"),
-            ),
+        with patch(
+            "sakit.privy_transfer.SolanaWalletClient",
+            side_effect=Exception("Connection error"),
         ):
             result = await transfer_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="WalletPubkey123...abc",
                 to_address="Recipient123...abc",
                 amount=1.0,
                 mint="So11111111111111111111111111111111111111112",

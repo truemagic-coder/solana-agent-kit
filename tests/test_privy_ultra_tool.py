@@ -66,12 +66,14 @@ class TestPrivyUltraToolSchema:
     def test_schema_has_required_properties(self, ultra_tool):
         """Should include all required properties."""
         schema = ultra_tool.get_schema()
-        assert "user_id" in schema["properties"]
+        assert "wallet_id" in schema["properties"]
+        assert "wallet_public_key" in schema["properties"]
         assert "input_mint" in schema["properties"]
         assert "output_mint" in schema["properties"]
         assert "amount" in schema["properties"]
         assert set(schema["required"]) == {
-            "user_id",
+            "wallet_id",
+            "wallet_public_key",
             "input_mint",
             "output_mint",
             "amount",
@@ -80,7 +82,8 @@ class TestPrivyUltraToolSchema:
     def test_schema_property_types(self, ultra_tool):
         """Should have correct property types."""
         schema = ultra_tool.get_schema()
-        assert schema["properties"]["user_id"]["type"] == "string"
+        assert schema["properties"]["wallet_id"]["type"] == "string"
+        assert schema["properties"]["wallet_public_key"]["type"] == "string"
         assert schema["properties"]["input_mint"]["type"] == "string"
         assert schema["properties"]["output_mint"]["type"] == "string"
         assert schema["properties"]["amount"]["type"] == "integer"
@@ -114,10 +117,25 @@ class TestPrivyUltraToolExecute:
     """Test execute method."""
 
     @pytest.mark.asyncio
+    async def test_execute_missing_wallet_params(self, ultra_tool):
+        """Should return error when wallet params are missing."""
+        result = await ultra_tool.execute(
+            wallet_id="",
+            wallet_public_key="",
+            input_mint="So11111111111111111111111111111111111111112",
+            output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            amount=1000000000,
+        )
+
+        assert result["status"] == "error"
+        assert "wallet_id" in result["message"].lower() or "wallet_public_key" in result["message"].lower()
+
+    @pytest.mark.asyncio
     async def test_execute_missing_config_error(self, ultra_tool_incomplete):
         """Should return error when config is incomplete."""
         result = await ultra_tool_incomplete.execute(
-            user_id="did:privy:user123",
+            wallet_id="wallet-123",
+            wallet_public_key="WalletPubkey123",
             input_mint="So11111111111111111111111111111111111111112",
             output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
             amount=1000000000,
@@ -127,48 +145,19 @@ class TestPrivyUltraToolExecute:
         assert "config" in result["message"].lower()
 
     @pytest.mark.asyncio
-    async def test_execute_no_wallet_found_error(self, ultra_tool):
-        """Should return error when no delegated wallet found."""
-        with patch(
-            "sakit.privy_ultra.get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            result = await ultra_tool.execute(
-                user_id="did:privy:user123",
-                input_mint="So11111111111111111111111111111111111111112",
-                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-                amount=1000000000,
-            )
-
-            assert result["status"] == "error"
-            assert "wallet" in result["message"].lower()
-
-    @pytest.mark.asyncio
     async def test_execute_no_transaction_error(self, ultra_tool):
         """Should return error when no transaction returned."""
-        mock_wallet_info = {
-            "wallet_id": "wallet-123",
-            "public_key": "WalletPubkey123...abc",
-        }
-
         mock_order = MagicMock()
         mock_order.transaction = None
 
-        with (
-            patch(
-                "sakit.privy_ultra.get_privy_embedded_wallet",
-                new_callable=AsyncMock,
-                return_value=mock_wallet_info,
-            ),
-            patch("sakit.privy_ultra.JupiterUltra") as MockUltra,
-        ):
+        with patch("sakit.privy_ultra.JupiterUltra") as MockUltra:
             mock_instance = AsyncMock()
             mock_instance.get_order = AsyncMock(return_value=mock_order)
             MockUltra.return_value = mock_instance
 
             result = await ultra_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="WalletPubkey123...abc",
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                 amount=1000000000,
@@ -176,24 +165,6 @@ class TestPrivyUltraToolExecute:
 
             assert result["status"] == "error"
             assert "transaction" in result["message"].lower()
-
-    @pytest.mark.asyncio
-    async def test_execute_no_wallet_found(self, ultra_tool):
-        """Should return error when no wallet found."""
-        with patch(
-            "sakit.privy_ultra.get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            result = await ultra_tool.execute(
-                user_id="did:privy:user123",
-                input_mint="So11111111111111111111111111111111111111112",
-                output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-                amount=1000000000,
-            )
-
-            assert result["status"] == "error"
-            assert "wallet" in result["message"].lower()
 
 
 class TestPrivyUltraPlugin:

@@ -219,14 +219,16 @@ class TestToolInitialization:
         assert privy_prediction_tool_no_config._include_risky is False
 
     def test_get_schema(self, privy_prediction_tool):
-        """Schema should have required action field and privy_user_id."""
+        """Schema should have required action field and wallet params."""
         schema = privy_prediction_tool.get_schema()
         assert schema["type"] == "object"
         assert "action" in schema["properties"]
-        assert "privy_user_id" in schema["properties"]
+        assert "wallet_id" in schema["properties"]
+        assert "wallet_public_key" in schema["properties"]
         # OpenAI strict mode requires all properties in required array
         assert "action" in schema["required"]
-        assert "privy_user_id" in schema["required"]
+        assert "wallet_id" in schema["required"]
+        assert "wallet_public_key" in schema["required"]
         assert schema["additionalProperties"] is False
 
 
@@ -349,7 +351,8 @@ class TestTradingValidation:
         """Buy without app_id should return error."""
         result = await privy_prediction_tool_no_config.execute(
             action="buy",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             market_id="TEST",
             side="YES",
             amount=10,
@@ -363,7 +366,8 @@ class TestTradingValidation:
         privy_prediction_tool._privy_app_secret = None
         result = await privy_prediction_tool.execute(
             action="buy",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             market_id="TEST",
             side="YES",
             amount=10,
@@ -377,7 +381,8 @@ class TestTradingValidation:
         privy_prediction_tool._signing_key = None
         result = await privy_prediction_tool.execute(
             action="buy",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             market_id="TEST",
             side="YES",
             amount=10,
@@ -391,7 +396,8 @@ class TestTradingValidation:
         privy_prediction_tool._rpc_url = None
         result = await privy_prediction_tool.execute(
             action="buy",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             market_id="TEST",
             side="YES",
             amount=10,
@@ -400,19 +406,19 @@ class TestTradingValidation:
         assert "rpc_url" in result["message"]
 
     @pytest.mark.asyncio
-    async def test_buy_missing_user_id(self, privy_prediction_tool):
-        """Buy without privy_user_id should return error."""
+    async def test_buy_missing_wallet_id(self, privy_prediction_tool):
+        """Buy without wallet_id should return error."""
         result = await privy_prediction_tool.execute(
             action="buy", market_id="TEST", side="YES", amount=10
         )
         assert result["status"] == "error"
-        assert "privy_user_id is required" in result["message"]
+        assert "wallet_id" in result["message"] or "wallet_public_key" in result["message"]
 
     @pytest.mark.asyncio
     async def test_buy_missing_market_id(self, privy_prediction_tool):
         """Buy without market_id should return error."""
         result = await privy_prediction_tool.execute(
-            action="buy", privy_user_id="did:privy:test", side="YES", amount=10
+            action="buy", wallet_id="wallet-123", wallet_public_key="PublicKey123", side="YES", amount=10
         )
         assert result["status"] == "error"
         assert "market_id or mint_address required" in result["message"]
@@ -422,7 +428,8 @@ class TestTradingValidation:
         """Buy without side should return error."""
         result = await privy_prediction_tool.execute(
             action="buy",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             market_id="TEST",
             amount=10,
         )
@@ -434,7 +441,8 @@ class TestTradingValidation:
         """Buy without amount should return error."""
         result = await privy_prediction_tool.execute(
             action="buy",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             market_id="TEST",
             side="YES",
         )
@@ -442,19 +450,19 @@ class TestTradingValidation:
         assert "amount required" in result["message"]
 
     @pytest.mark.asyncio
-    async def test_sell_missing_user_id(self, privy_prediction_tool):
-        """Sell without privy_user_id should return error."""
+    async def test_sell_missing_wallet_id(self, privy_prediction_tool):
+        """Sell without wallet_id should return error."""
         result = await privy_prediction_tool.execute(
             action="sell", market_id="TEST", side="YES", amount=10
         )
         assert result["status"] == "error"
-        assert "privy_user_id is required" in result["message"]
+        assert "wallet_id" in result["message"] or "wallet_public_key" in result["message"]
 
     @pytest.mark.asyncio
     async def test_sell_missing_market_id(self, privy_prediction_tool):
         """Sell without market_id should return error."""
         result = await privy_prediction_tool.execute(
-            action="sell", privy_user_id="did:privy:test", side="YES", amount=10
+            action="sell", wallet_id="wallet-123", wallet_public_key="PublicKey123", side="YES", amount=10
         )
         assert result["status"] == "error"
         assert "market_id or mint_address required" in result["message"]
@@ -464,7 +472,8 @@ class TestTradingValidation:
         """Sell without side should return error."""
         result = await privy_prediction_tool.execute(
             action="sell",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             market_id="TEST",
             amount=10,
         )
@@ -476,7 +485,8 @@ class TestTradingValidation:
         """Sell without amount should return error."""
         result = await privy_prediction_tool.execute(
             action="sell",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             market_id="TEST",
             side="YES",
         )
@@ -493,11 +503,11 @@ class TestPositionsAction:
     """Test positions action."""
 
     @pytest.mark.asyncio
-    async def test_positions_missing_user_id(self, privy_prediction_tool):
-        """Positions without privy_user_id should return error."""
+    async def test_positions_missing_wallet_public_key(self, privy_prediction_tool):
+        """Positions without wallet_public_key should return error."""
         result = await privy_prediction_tool.execute(action="positions")
         assert result["status"] == "error"
-        assert "privy_user_id is required" in result["message"]
+        assert "wallet_public_key" in result["message"]
 
     @pytest.mark.asyncio
     async def test_positions_missing_privy_config(
@@ -505,7 +515,7 @@ class TestPositionsAction:
     ):
         """Positions without config should return error (rpc_url checked first)."""
         result = await privy_prediction_tool_no_config.execute(
-            action="positions", privy_user_id="did:privy:test"
+            action="positions", wallet_id="wallet-123", wallet_public_key="PublicKey123"
         )
         assert result["status"] == "error"
         # rpc_url is checked first in the new implementation
@@ -588,33 +598,6 @@ class TestMarketMintsExtraction:
 
 
 # =============================================================================
-# BUY ACTION - NO WALLET FOUND TESTS
-# =============================================================================
-
-
-class TestBuyNoWallet:
-    """Test buy action when no wallet is found."""
-
-    @pytest.mark.asyncio
-    async def test_buy_no_wallet_found(self, privy_prediction_tool):
-        """Buy should fail if user has no delegated wallet."""
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = None
-            result = await privy_prediction_tool.execute(
-                action="buy",
-                privy_user_id="did:privy:test",
-                market_id="TEST",
-                side="YES",
-                amount=10,
-            )
-            assert result["status"] == "error"
-            assert "No delegated Solana wallet" in result["message"]
-
-
-# =============================================================================
 # BUY ACTION - SAFETY CHECK TESTS
 # =============================================================================
 
@@ -630,28 +613,21 @@ class TestBuySafetyCheck:
             "recommendation": "AVOID",
             "warnings": ["Low volume"],
         }
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = {
-                "wallet_id": "test-wallet-id",
-                "public_key": "TestPublicKey123",
-            }
-            with patch.object(
-                DFlowPredictionClient, "get_market", new_callable=AsyncMock
-            ) as mock_get:
-                mock_get.return_value = sample_market
-                result = await privy_prediction_tool.execute(
-                    action="buy",
-                    privy_user_id="did:privy:test",
-                    market_id="TEST",
-                    side="YES",
-                    amount=10,
-                )
-                assert result["status"] == "error"
-                assert "LOW" in result["message"]
-                assert "safety" in result
+        with patch.object(
+            DFlowPredictionClient, "get_market", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = sample_market
+            result = await privy_prediction_tool.execute(
+                action="buy",
+                wallet_id="wallet-123",
+                wallet_public_key="TestPublicKey123",
+                market_id="TEST",
+                side="YES",
+                amount=10,
+            )
+            assert result["status"] == "error"
+            assert "LOW" in result["message"]
+            assert "safety" in result
 
 
 # =============================================================================
@@ -666,54 +642,20 @@ class TestBuyMissingMint:
     async def test_buy_missing_yes_mint(self, privy_prediction_tool, sample_market):
         """Buy should fail if YES mint not found."""
         sample_market["accounts"] = {}  # No mints
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = {
-                "wallet_id": "test-wallet-id",
-                "public_key": "TestPublicKey123",
-            }
-            with patch.object(
-                DFlowPredictionClient, "get_market", new_callable=AsyncMock
-            ) as mock_get:
-                mock_get.return_value = sample_market
-                result = await privy_prediction_tool.execute(
-                    action="buy",
-                    privy_user_id="did:privy:test",
-                    market_id="TEST",
-                    side="YES",
-                    amount=10,
-                )
-                assert result["status"] == "error"
-                assert "Could not find YES outcome mint" in result["message"]
-
-
-# =============================================================================
-# SELL ACTION - NO WALLET FOUND TESTS
-# =============================================================================
-
-
-class TestSellNoWallet:
-    """Test sell action when no wallet is found."""
-
-    @pytest.mark.asyncio
-    async def test_sell_no_wallet_found(self, privy_prediction_tool):
-        """Sell should fail if user has no delegated wallet."""
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = None
+        with patch.object(
+            DFlowPredictionClient, "get_market", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = sample_market
             result = await privy_prediction_tool.execute(
-                action="sell",
-                privy_user_id="did:privy:test",
+                action="buy",
+                wallet_id="wallet-123",
+                wallet_public_key="TestPublicKey123",
                 market_id="TEST",
                 side="YES",
                 amount=10,
             )
             assert result["status"] == "error"
-            assert "No delegated Solana wallet" in result["message"]
+            assert "Could not find YES outcome mint" in result["message"]
 
 
 # =============================================================================
@@ -729,7 +671,8 @@ class TestSellConfigValidation:
         """Sell without app_id should return error."""
         result = await privy_prediction_tool_no_config.execute(
             action="sell",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             market_id="TEST",
             side="YES",
             amount=10,
@@ -743,7 +686,8 @@ class TestSellConfigValidation:
         privy_prediction_tool._privy_app_secret = None
         result = await privy_prediction_tool.execute(
             action="sell",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             market_id="TEST",
             side="YES",
             amount=10,
@@ -757,7 +701,8 @@ class TestSellConfigValidation:
         privy_prediction_tool._signing_key = None
         result = await privy_prediction_tool.execute(
             action="sell",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             market_id="TEST",
             side="YES",
             amount=10,
@@ -771,7 +716,8 @@ class TestSellConfigValidation:
         privy_prediction_tool._rpc_url = None
         result = await privy_prediction_tool.execute(
             action="sell",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             market_id="TEST",
             side="YES",
             amount=10,
@@ -792,27 +738,20 @@ class TestSellMissingMint:
     async def test_sell_missing_no_mint(self, privy_prediction_tool, sample_market):
         """Sell should fail if NO mint not found."""
         sample_market["accounts"] = {}  # No mints
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = {
-                "wallet_id": "test-wallet-id",
-                "public_key": "TestPublicKey123",
-            }
-            with patch.object(
-                DFlowPredictionClient, "get_market", new_callable=AsyncMock
-            ) as mock_get:
-                mock_get.return_value = sample_market
-                result = await privy_prediction_tool.execute(
-                    action="sell",
-                    privy_user_id="did:privy:test",
-                    market_id="TEST",
-                    side="NO",
-                    amount=10,
-                )
-                assert result["status"] == "error"
-                assert "Could not find NO outcome mint" in result["message"]
+        with patch.object(
+            DFlowPredictionClient, "get_market", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = sample_market
+            result = await privy_prediction_tool.execute(
+                action="sell",
+                wallet_id="wallet-123",
+                wallet_public_key="TestPublicKey123",
+                market_id="TEST",
+                side="NO",
+                amount=10,
+            )
+            assert result["status"] == "error"
+            assert "Could not find NO outcome mint" in result["message"]
 
 
 # =============================================================================
@@ -879,46 +818,39 @@ class TestBuySuccessfulExecution:
             price_impact_pct="0.1",
         )
 
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = {
-                "wallet_id": "test-wallet-id",
-                "public_key": "TestPublicKey123",
-            }
+        with patch.object(
+            DFlowPredictionClient, "get_market", new_callable=AsyncMock
+        ) as mock_get_market:
+            mock_get_market.return_value = market_with_mints
             with patch.object(
-                DFlowPredictionClient, "get_market", new_callable=AsyncMock
-            ) as mock_get_market:
-                mock_get_market.return_value = market_with_mints
+                DFlowPredictionClient,
+                "get_prediction_order",
+                new_callable=AsyncMock,
+            ) as mock_order:
+                mock_order.return_value = {"order": "data"}
                 with patch.object(
                     DFlowPredictionClient,
-                    "get_prediction_order",
+                    "execute_prediction_order_blocking",
                     new_callable=AsyncMock,
-                ) as mock_order:
-                    mock_order.return_value = {"order": "data"}
-                    with patch.object(
-                        DFlowPredictionClient,
-                        "execute_prediction_order_blocking",
-                        new_callable=AsyncMock,
-                    ) as mock_execute:
-                        mock_execute.return_value = success_result
-                        result = await privy_prediction_tool.execute(
-                            action="buy",
-                            privy_user_id="did:privy:test",
-                            market_id="TEST",
-                            side="YES",
-                            amount=10,
-                        )
-                        assert result["status"] == "success"
-                        assert result["action"] == "buy"
-                        assert result["side"] == "YES"
-                        assert result["amount_in"] == "10 USDC"
-                        assert result["tokens_received"] == "25.5"
-                        assert result["signature"] == "TestSignature123abc"
-                        assert result["execution_mode"] == "sync"
-                        assert result["wallet"] == "TestPublicKey123"
-                        assert "safety" in result
+                ) as mock_execute:
+                    mock_execute.return_value = success_result
+                    result = await privy_prediction_tool.execute(
+                        action="buy",
+                        wallet_id="wallet-123",
+                        wallet_public_key="TestPublicKey123",
+                        market_id="TEST",
+                        side="YES",
+                        amount=10,
+                    )
+                    assert result["status"] == "success"
+                    assert result["action"] == "buy"
+                    assert result["side"] == "YES"
+                    assert result["amount_in"] == "10 USDC"
+                    assert result["tokens_received"] == "25.5"
+                    assert result["signature"] == "TestSignature123abc"
+                    assert result["execution_mode"] == "sync"
+                    assert result["wallet"] == "TestPublicKey123"
+                    assert "safety" in result
 
     @pytest.mark.asyncio
     async def test_buy_no_success(self, privy_prediction_tool, market_with_mints):
@@ -933,40 +865,33 @@ class TestBuySuccessfulExecution:
             price_impact_pct="0.2",
         )
 
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = {
-                "wallet_id": "test-wallet-id",
-                "public_key": "TestPublicKey123",
-            }
+        with patch.object(
+            DFlowPredictionClient, "get_market", new_callable=AsyncMock
+        ) as mock_get_market:
+            mock_get_market.return_value = market_with_mints
             with patch.object(
-                DFlowPredictionClient, "get_market", new_callable=AsyncMock
-            ) as mock_get_market:
-                mock_get_market.return_value = market_with_mints
+                DFlowPredictionClient,
+                "get_prediction_order",
+                new_callable=AsyncMock,
+            ) as mock_order:
+                mock_order.return_value = {"order": "data"}
                 with patch.object(
                     DFlowPredictionClient,
-                    "get_prediction_order",
+                    "execute_prediction_order_blocking",
                     new_callable=AsyncMock,
-                ) as mock_order:
-                    mock_order.return_value = {"order": "data"}
-                    with patch.object(
-                        DFlowPredictionClient,
-                        "execute_prediction_order_blocking",
-                        new_callable=AsyncMock,
-                    ) as mock_execute:
-                        mock_execute.return_value = success_result
-                        result = await privy_prediction_tool.execute(
-                            action="buy",
-                            privy_user_id="did:privy:test",
-                            market_id="TEST",
-                            side="NO",
-                            amount=10,
-                        )
-                        assert result["status"] == "success"
-                        assert result["side"] == "NO"
-                        assert result["tokens_received"] == "15.3"
+                ) as mock_execute:
+                    mock_execute.return_value = success_result
+                    result = await privy_prediction_tool.execute(
+                        action="buy",
+                        wallet_id="wallet-123",
+                        wallet_public_key="TestPublicKey123",
+                        market_id="TEST",
+                        side="NO",
+                        amount=10,
+                    )
+                    assert result["status"] == "success"
+                    assert result["side"] == "NO"
+                    assert result["tokens_received"] == "15.3"
 
     @pytest.mark.asyncio
     async def test_buy_execution_failure(
@@ -984,40 +909,33 @@ class TestBuySuccessfulExecution:
             error="Insufficient liquidity",
         )
 
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = {
-                "wallet_id": "test-wallet-id",
-                "public_key": "TestPublicKey123",
-            }
+        with patch.object(
+            DFlowPredictionClient, "get_market", new_callable=AsyncMock
+        ) as mock_get_market:
+            mock_get_market.return_value = market_with_mints
             with patch.object(
-                DFlowPredictionClient, "get_market", new_callable=AsyncMock
-            ) as mock_get_market:
-                mock_get_market.return_value = market_with_mints
+                DFlowPredictionClient,
+                "get_prediction_order",
+                new_callable=AsyncMock,
+            ) as mock_order:
+                mock_order.return_value = {"order": "data"}
                 with patch.object(
                     DFlowPredictionClient,
-                    "get_prediction_order",
+                    "execute_prediction_order_blocking",
                     new_callable=AsyncMock,
-                ) as mock_order:
-                    mock_order.return_value = {"order": "data"}
-                    with patch.object(
-                        DFlowPredictionClient,
-                        "execute_prediction_order_blocking",
-                        new_callable=AsyncMock,
-                    ) as mock_execute:
-                        mock_execute.return_value = failure_result
-                        result = await privy_prediction_tool.execute(
-                            action="buy",
-                            privy_user_id="did:privy:test",
-                            market_id="TEST",
-                            side="YES",
-                            amount=10,
-                        )
-                        assert result["status"] == "error"
-                        assert "Insufficient liquidity" in result["message"]
-                        assert result["signature"] == "FailedSig789"
+                ) as mock_execute:
+                    mock_execute.return_value = failure_result
+                    result = await privy_prediction_tool.execute(
+                        action="buy",
+                        wallet_id="wallet-123",
+                        wallet_public_key="TestPublicKey123",
+                        market_id="TEST",
+                        side="YES",
+                        amount=10,
+                    )
+                    assert result["status"] == "error"
+                    assert "Insufficient liquidity" in result["message"]
+                    assert result["signature"] == "FailedSig789"
 
 
 # =============================================================================
@@ -1048,45 +966,38 @@ class TestSellSuccessfulExecution:
             price_impact_pct="0.5",
         )
 
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = {
-                "wallet_id": "test-wallet-id",
-                "public_key": "TestPublicKey123",
-            }
+        with patch.object(
+            DFlowPredictionClient, "get_market", new_callable=AsyncMock
+        ) as mock_get_market:
+            mock_get_market.return_value = market_with_mints
             with patch.object(
-                DFlowPredictionClient, "get_market", new_callable=AsyncMock
-            ) as mock_get_market:
-                mock_get_market.return_value = market_with_mints
+                DFlowPredictionClient,
+                "get_prediction_order",
+                new_callable=AsyncMock,
+            ) as mock_order:
+                mock_order.return_value = {"order": "data"}
                 with patch.object(
                     DFlowPredictionClient,
-                    "get_prediction_order",
+                    "execute_prediction_order_blocking",
                     new_callable=AsyncMock,
-                ) as mock_order:
-                    mock_order.return_value = {"order": "data"}
-                    with patch.object(
-                        DFlowPredictionClient,
-                        "execute_prediction_order_blocking",
-                        new_callable=AsyncMock,
-                    ) as mock_execute:
-                        mock_execute.return_value = success_result
-                        result = await privy_prediction_tool.execute(
-                            action="sell",
-                            privy_user_id="did:privy:test",
-                            market_id="TEST",
-                            side="YES",
-                            amount=10,
-                        )
-                        assert result["status"] == "success"
-                        assert result["action"] == "sell"
-                        assert result["side"] == "YES"
-                        assert result["tokens_sold"] == "10 YES"
-                        assert result["usdc_received"] == "3.75"
-                        assert result["signature"] == "SellSignature123"
-                        assert result["execution_mode"] == "sync"
-                        assert result["wallet"] == "TestPublicKey123"
+                ) as mock_execute:
+                    mock_execute.return_value = success_result
+                    result = await privy_prediction_tool.execute(
+                        action="sell",
+                        wallet_id="wallet-123",
+                        wallet_public_key="TestPublicKey123",
+                        market_id="TEST",
+                        side="YES",
+                        amount=10,
+                    )
+                    assert result["status"] == "success"
+                    assert result["action"] == "sell"
+                    assert result["side"] == "YES"
+                    assert result["tokens_sold"] == "10 YES"
+                    assert result["usdc_received"] == "3.75"
+                    assert result["signature"] == "SellSignature123"
+                    assert result["execution_mode"] == "sync"
+                    assert result["wallet"] == "TestPublicKey123"
 
     @pytest.mark.asyncio
     async def test_sell_no_success(self, privy_prediction_tool, market_with_mints):
@@ -1101,41 +1012,34 @@ class TestSellSuccessfulExecution:
             price_impact_pct="0.3",
         )
 
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = {
-                "wallet_id": "test-wallet-id",
-                "public_key": "TestPublicKey123",
-            }
+        with patch.object(
+            DFlowPredictionClient, "get_market", new_callable=AsyncMock
+        ) as mock_get_market:
+            mock_get_market.return_value = market_with_mints
             with patch.object(
-                DFlowPredictionClient, "get_market", new_callable=AsyncMock
-            ) as mock_get_market:
-                mock_get_market.return_value = market_with_mints
+                DFlowPredictionClient,
+                "get_prediction_order",
+                new_callable=AsyncMock,
+            ) as mock_order:
+                mock_order.return_value = {"order": "data"}
                 with patch.object(
                     DFlowPredictionClient,
-                    "get_prediction_order",
+                    "execute_prediction_order_blocking",
                     new_callable=AsyncMock,
-                ) as mock_order:
-                    mock_order.return_value = {"order": "data"}
-                    with patch.object(
-                        DFlowPredictionClient,
-                        "execute_prediction_order_blocking",
-                        new_callable=AsyncMock,
-                    ) as mock_execute:
-                        mock_execute.return_value = success_result
-                        result = await privy_prediction_tool.execute(
-                            action="sell",
-                            privy_user_id="did:privy:test",
-                            market_id="TEST",
-                            side="NO",
-                            amount=10,
-                        )
-                        assert result["status"] == "success"
-                        assert result["side"] == "NO"
-                        assert result["tokens_sold"] == "10 NO"
-                        assert result["usdc_received"] == "6.50"
+                ) as mock_execute:
+                    mock_execute.return_value = success_result
+                    result = await privy_prediction_tool.execute(
+                        action="sell",
+                        wallet_id="wallet-123",
+                        wallet_public_key="TestPublicKey123",
+                        market_id="TEST",
+                        side="NO",
+                        amount=10,
+                    )
+                    assert result["status"] == "success"
+                    assert result["side"] == "NO"
+                    assert result["tokens_sold"] == "10 NO"
+                    assert result["usdc_received"] == "6.50"
 
     @pytest.mark.asyncio
     async def test_sell_execution_failure(
@@ -1153,40 +1057,33 @@ class TestSellSuccessfulExecution:
             error="Insufficient balance",
         )
 
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = {
-                "wallet_id": "test-wallet-id",
-                "public_key": "TestPublicKey123",
-            }
+        with patch.object(
+            DFlowPredictionClient, "get_market", new_callable=AsyncMock
+        ) as mock_get_market:
+            mock_get_market.return_value = market_with_mints
             with patch.object(
-                DFlowPredictionClient, "get_market", new_callable=AsyncMock
-            ) as mock_get_market:
-                mock_get_market.return_value = market_with_mints
+                DFlowPredictionClient,
+                "get_prediction_order",
+                new_callable=AsyncMock,
+            ) as mock_order:
+                mock_order.return_value = {"order": "data"}
                 with patch.object(
                     DFlowPredictionClient,
-                    "get_prediction_order",
+                    "execute_prediction_order_blocking",
                     new_callable=AsyncMock,
-                ) as mock_order:
-                    mock_order.return_value = {"order": "data"}
-                    with patch.object(
-                        DFlowPredictionClient,
-                        "execute_prediction_order_blocking",
-                        new_callable=AsyncMock,
-                    ) as mock_execute:
-                        mock_execute.return_value = failure_result
-                        result = await privy_prediction_tool.execute(
-                            action="sell",
-                            privy_user_id="did:privy:test",
-                            market_id="TEST",
-                            side="YES",
-                            amount=10,
-                        )
-                        assert result["status"] == "error"
-                        assert "Insufficient balance" in result["message"]
-                        assert result["signature"] == "FailedSellSig789"
+                ) as mock_execute:
+                    mock_execute.return_value = failure_result
+                    result = await privy_prediction_tool.execute(
+                        action="sell",
+                        wallet_id="wallet-123",
+                        wallet_public_key="TestPublicKey123",
+                        market_id="TEST",
+                        side="YES",
+                        amount=10,
+                    )
+                    assert result["status"] == "error"
+                    assert "Insufficient balance" in result["message"]
+                    assert result["signature"] == "FailedSellSig789"
 
 
 # =============================================================================
@@ -1200,116 +1097,95 @@ class TestPositionsSuccessfulExecution:
     @pytest.mark.asyncio
     async def test_positions_with_positions_found(self, privy_prediction_tool):
         """Positions should return actual positions when found."""
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = {
-                "wallet_id": "test-wallet-id",
-                "public_key": "TestPublicKey123",
+        with patch.object(
+            DFlowPredictionClient, "get_positions", new_callable=AsyncMock
+        ) as mock_positions:
+            mock_positions.return_value = {
+                "status": "success",
+                "wallet": "TestPublicKey123",
+                "position_count": 2,
+                "positions": [
+                    {
+                        "mint": "Mint1",
+                        "ticker": "PRES-2028-HARRIS",
+                        "side": "YES",
+                        "amount": "1000000",
+                        "ui_amount": 1.0,
+                        "decimals": 6,
+                    },
+                    {
+                        "mint": "Mint2",
+                        "ticker": "BTC-100K-2025",
+                        "side": "NO",
+                        "amount": "5000000",
+                        "ui_amount": 5.0,
+                        "decimals": 6,
+                    },
+                ],
+                "hint": "Each position represents outcome tokens.",
             }
-            with patch.object(
-                DFlowPredictionClient, "get_positions", new_callable=AsyncMock
-            ) as mock_positions:
-                mock_positions.return_value = {
-                    "status": "success",
-                    "wallet": "TestPublicKey123",
-                    "position_count": 2,
-                    "positions": [
-                        {
-                            "mint": "Mint1",
-                            "ticker": "PRES-2028-HARRIS",
-                            "side": "YES",
-                            "amount": "1000000",
-                            "ui_amount": 1.0,
-                            "decimals": 6,
-                        },
-                        {
-                            "mint": "Mint2",
-                            "ticker": "BTC-100K-2025",
-                            "side": "NO",
-                            "amount": "5000000",
-                            "ui_amount": 5.0,
-                            "decimals": 6,
-                        },
-                    ],
-                    "hint": "Each position represents outcome tokens.",
-                }
-                result = await privy_prediction_tool.execute(
-                    action="positions",
-                    privy_user_id="did:privy:test",
-                )
-                assert result["status"] == "success"
-                assert result["wallet"] == "TestPublicKey123"
-                assert result["position_count"] == 2
-                assert len(result["positions"]) == 2
-                assert result["positions"][0]["ticker"] == "PRES-2028-HARRIS"
-                assert result["positions"][0]["side"] == "YES"
-                mock_positions.assert_called_once_with(
-                    wallet_address="TestPublicKey123",
-                    rpc_url="https://mainnet.helius-rpc.com/?api-key=test-key",
-                )
+            result = await privy_prediction_tool.execute(
+                action="positions",
+                wallet_id="wallet-123",
+                wallet_public_key="TestPublicKey123",
+            )
+            assert result["status"] == "success"
+            assert result["wallet"] == "TestPublicKey123"
+            assert result["position_count"] == 2
+            assert len(result["positions"]) == 2
+            assert result["positions"][0]["ticker"] == "PRES-2028-HARRIS"
+            assert result["positions"][0]["side"] == "YES"
+            mock_positions.assert_called_once_with(
+                wallet_address="TestPublicKey123",
+                rpc_url="https://mainnet.helius-rpc.com/?api-key=test-key",
+            )
 
     @pytest.mark.asyncio
     async def test_positions_with_no_positions(self, privy_prediction_tool):
         """Positions should return empty list when no positions."""
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = {
-                "wallet_id": "test-wallet-id",
-                "public_key": "TestPublicKey123",
+        with patch.object(
+            DFlowPredictionClient, "get_positions", new_callable=AsyncMock
+        ) as mock_positions:
+            mock_positions.return_value = {
+                "status": "success",
+                "wallet": "TestPublicKey123",
+                "position_count": 0,
+                "positions": [],
+                "hint": "No prediction market positions found.",
             }
-            with patch.object(
-                DFlowPredictionClient, "get_positions", new_callable=AsyncMock
-            ) as mock_positions:
-                mock_positions.return_value = {
-                    "status": "success",
-                    "wallet": "TestPublicKey123",
-                    "position_count": 0,
-                    "positions": [],
-                    "hint": "No prediction market positions found.",
-                }
-                result = await privy_prediction_tool.execute(
-                    action="positions",
-                    privy_user_id="did:privy:test",
-                )
-                assert result["status"] == "success"
-                assert result["position_count"] == 0
-                assert result["positions"] == []
+            result = await privy_prediction_tool.execute(
+                action="positions",
+                wallet_id="wallet-123",
+                wallet_public_key="TestPublicKey123",
+            )
+            assert result["status"] == "success"
+            assert result["position_count"] == 0
+            assert result["positions"] == []
 
     @pytest.mark.asyncio
     async def test_positions_rpc_error(self, privy_prediction_tool):
         """Positions should return error when RPC fails."""
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = {
-                "wallet_id": "test-wallet-id",
-                "public_key": "TestPublicKey123",
+        with patch.object(
+            DFlowPredictionClient, "get_positions", new_callable=AsyncMock
+        ) as mock_positions:
+            mock_positions.return_value = {
+                "status": "error",
+                "message": "Failed to query token accounts: RPC error: 503",
             }
-            with patch.object(
-                DFlowPredictionClient, "get_positions", new_callable=AsyncMock
-            ) as mock_positions:
-                mock_positions.return_value = {
-                    "status": "error",
-                    "message": "Failed to query token accounts: RPC error: 503",
-                }
-                result = await privy_prediction_tool.execute(
-                    action="positions",
-                    privy_user_id="did:privy:test",
-                )
-                assert result["status"] == "error"
-                assert "RPC error" in result["message"]
+            result = await privy_prediction_tool.execute(
+                action="positions",
+                wallet_id="wallet-123",
+                wallet_public_key="TestPublicKey123",
+            )
+            assert result["status"] == "error"
+            assert "RPC error" in result["message"]
 
     @pytest.mark.asyncio
-    async def test_positions_missing_user_id(self, privy_prediction_tool):
-        """Positions without privy_user_id should return error."""
+    async def test_positions_missing_wallet_params(self, privy_prediction_tool):
+        """Positions without wallet_id/wallet_public_key should return error."""
         result = await privy_prediction_tool.execute(action="positions")
         assert result["status"] == "error"
-        assert "privy_user_id is required" in result["message"]
+        assert "wallet_id" in result["message"] or "wallet_public_key" in result["message"]
 
     @pytest.mark.asyncio
     async def test_positions_missing_rpc_url(self, privy_prediction_tool_no_config):
@@ -1329,7 +1205,8 @@ class TestPositionsSuccessfulExecution:
         )
         result = await tool.execute(
             action="positions",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="TestPublicKey123",
         )
         assert result["status"] == "error"
         assert "rpc_url must be configured" in result["message"]
@@ -1339,7 +1216,8 @@ class TestPositionsSuccessfulExecution:
         """Positions without config should return error (rpc_url checked first)."""
         result = await privy_prediction_tool_no_config.execute(
             action="positions",
-            privy_user_id="did:privy:test",
+            wallet_id="wallet-123",
+            wallet_public_key="TestPublicKey123",
         )
         assert result["status"] == "error"
         # rpc_url is checked first in the new implementation
@@ -1347,39 +1225,44 @@ class TestPositionsSuccessfulExecution:
 
     @pytest.mark.asyncio
     async def test_positions_missing_privy_credentials(self):
-        """Positions with rpc_url but missing Privy credentials should error."""
+        """Positions with rpc_url but missing Privy credentials should still work (wallet params provided)."""
         tool = PrivyDFlowPredictionTool()
         tool.configure(
             {
                 "tools": {
                     "privy_dflow_prediction": {
                         "rpc_url": "https://api.mainnet-beta.solana.com",
-                        # No app_id or app_secret
+                        # No app_id or app_secret - but not needed with wallet params
                     }
                 }
             }
         )
-        result = await tool.execute(
-            action="positions",
-            privy_user_id="did:privy:test",
-        )
-        assert result["status"] == "error"
-        assert "not configured" in result["message"]
+        with patch.object(
+            DFlowPredictionClient, "get_positions", new_callable=AsyncMock
+        ) as mock_positions:
+            mock_positions.return_value = {
+                "status": "success",
+                "wallet": "TestPublicKey123",
+                "position_count": 0,
+                "positions": [],
+            }
+            result = await tool.execute(
+                action="positions",
+                wallet_id="wallet-123",
+                wallet_public_key="TestPublicKey123",
+            )
+            assert result["status"] == "success"
 
     @pytest.mark.asyncio
-    async def test_positions_no_wallet(self, privy_prediction_tool):
-        """Positions should fail when no wallet found."""
-        with patch(
-            "sakit.privy_dflow_prediction._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-        ) as mock_wallet:
-            mock_wallet.return_value = None
-            result = await privy_prediction_tool.execute(
-                action="positions",
-                privy_user_id="did:privy:test",
-            )
-            assert result["status"] == "error"
-            assert "No delegated Solana wallet" in result["message"]
+    async def test_positions_missing_wallet_public_key(self, privy_prediction_tool):
+        """Positions should fail when wallet_public_key is missing."""
+        result = await privy_prediction_tool.execute(
+            action="positions",
+            wallet_id="wallet-123",
+            # Missing wallet_public_key
+        )
+        assert result["status"] == "error"
+        assert "wallet_public_key" in result["message"]
 
 
 # =============================================================================

@@ -23,10 +23,7 @@ from solders.message import to_bytes_versioned
 
 from sakit.utils.ultra import JupiterUltra
 from sakit.utils.trigger import replace_blockhash_in_transaction, get_fresh_blockhash
-from sakit.utils.wallet import (
-    send_raw_transaction_with_priority,
-    sanitize_privy_user_id,
-)
+from sakit.utils.wallet import send_raw_transaction_with_priority
 
 logger = logging.getLogger(__name__)
 
@@ -104,90 +101,6 @@ def convert_key_to_pkcs8_pem(key_string: str) -> str:  # pragma: no cover
             f"Could not load private key. Expected base64-encoded PKCS#8 or SEC1 format. "
             f"Generate with: openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256. Error: {e}"
         )
-
-
-async def get_privy_embedded_wallet(  # pragma: no cover
-    privy_client: AsyncPrivyAPI, user_id: str
-) -> Optional[Dict[str, str]]:
-    """Get Privy embedded wallet info for a user using the official SDK.
-
-    Supports both:
-    - App-first wallets (SDK-created): connector_type == "embedded" with delegated == True
-    - Bot-first wallets (API-created): type == "wallet" with chain_type == "solana"
-    """
-    try:
-        user = await privy_client.users.get(user_id)
-        linked_accounts = user.linked_accounts or []
-        logger.info(f"Privy user {user_id} has {len(linked_accounts)} linked accounts")
-
-        # Log all account types for debugging
-        for i, acct in enumerate(linked_accounts):
-            acct_type = getattr(acct, "type", "unknown")
-            connector_type = getattr(acct, "connector_type", "none")
-            chain_type = getattr(acct, "chain_type", "none")
-            delegated = getattr(acct, "delegated", False)
-            has_id = hasattr(acct, "id") and acct.id is not None
-            has_address = hasattr(acct, "address") and acct.address is not None
-            has_public_key = hasattr(acct, "public_key") and acct.public_key is not None
-            logger.info(
-                f"  Account {i}: type={acct_type}, connector_type={connector_type}, "
-                f"chain_type={chain_type}, delegated={delegated}, "
-                f"has_id={has_id}, has_address={has_address}, has_public_key={has_public_key}"
-            )
-
-        # First, try to find embedded wallet with delegation
-        for acct in linked_accounts:
-            if getattr(acct, "connector_type", None) == "embedded" and getattr(
-                acct, "delegated", False
-            ):
-                wallet_id = getattr(acct, "id", None)
-                # Use 'address' field if 'public_key' is null (common for API-created wallets)
-                address = getattr(acct, "address", None) or getattr(
-                    acct, "public_key", None
-                )
-                if wallet_id and address:
-                    logger.info(
-                        f"Found embedded delegated wallet: {wallet_id}, address: {address}"
-                    )
-                    return {"wallet_id": wallet_id, "public_key": address}
-
-        # Then, try to find bot-first wallet (API-created via privy_create_wallet)
-        # These have type == "wallet" and include chain_type
-        for acct in linked_accounts:
-            acct_type = getattr(acct, "type", "")
-            # Check for Solana embedded wallets created via API
-            if acct_type == "wallet" and getattr(acct, "chain_type", None) == "solana":
-                wallet_id = getattr(acct, "id", None)
-                # API wallets use "address" field, SDK wallets use "public_key"
-                address = getattr(acct, "address", None) or getattr(
-                    acct, "public_key", None
-                )
-                if wallet_id and address:
-                    logger.info(
-                        f"Found bot-first wallet: {wallet_id}, address: {address}"
-                    )
-                    return {"wallet_id": wallet_id, "public_key": address}
-            # Also check for solana_embedded_wallet type
-            if (
-                acct_type
-                and "solana" in acct_type.lower()
-                and "embedded" in acct_type.lower()
-            ):
-                wallet_id = getattr(acct, "id", None)
-                address = getattr(acct, "address", None) or getattr(
-                    acct, "public_key", None
-                )
-                if wallet_id and address:
-                    logger.info(
-                        f"Found solana_embedded_wallet: {wallet_id}, address: {address}"
-                    )
-                    return {"wallet_id": wallet_id, "public_key": address}
-
-        logger.warning(f"No suitable wallet found for user {user_id}")
-        return None
-    except Exception as e:
-        logger.error(f"Privy API error getting user {user_id}: {e}")
-        raise
 
 
 async def privy_sign_transaction(  # pragma: no cover
@@ -306,9 +219,13 @@ class PrivyUltraTool(AutoTool):
         return {
             "type": "object",
             "properties": {
-                "user_id": {
+                "wallet_id": {
                     "type": "string",
-                    "description": "Privy user id (DID like 'did:privy:xxx'). Get this from privy_get_user_by_telegram's 'result.user_id' field. REQUIRED.",
+                    "description": "Privy wallet ID. REQUIRED.",
+                },
+                "wallet_public_key": {
+                    "type": "string",
+                    "description": "Solana public key of the wallet. REQUIRED.",
                 },
                 "input_mint": {
                     "type": "string",
@@ -323,7 +240,7 @@ class PrivyUltraTool(AutoTool):
                     "description": "The amount of input token to swap (in smallest units, e.g., lamports for SOL).",
                 },
             },
-            "required": ["user_id", "input_mint", "output_mint", "amount"],
+            "required": ["wallet_id", "wallet_public_key", "input_mint", "output_mint", "amount"],
             "additionalProperties": False,
         }
 
@@ -465,13 +382,14 @@ class PrivyUltraTool(AutoTool):
 
     async def execute(  # pragma: no cover
         self,
-        user_id: str,
+        wallet_id: str,
+        wallet_public_key: str,
         input_mint: str,
         output_mint: str,
         amount: int,
     ) -> Dict[str, Any]:
-        # Sanitize user_id to handle LLM formatting errors
-        user_id = sanitize_privy_user_id(user_id) or user_id
+        if not wallet_id or not wallet_public_key:
+            return {"status": "error", "message": "wallet_id and wallet_public_key are required."}
 
         if not all([self.app_id, self.app_secret, self.signing_key]):
             return {"status": "error", "message": "Privy config missing."}
@@ -483,16 +401,7 @@ class PrivyUltraTool(AutoTool):
         )
 
         try:
-            # Get user's embedded wallet
-            wallet_info = await get_privy_embedded_wallet(privy_client, user_id)
-            if not wallet_info:
-                return {
-                    "status": "error",
-                    "message": "No delegated embedded wallet found for user.",
-                }
-
-            wallet_id = wallet_info["wallet_id"]
-            public_key = wallet_info["public_key"]
+            public_key = wallet_public_key
 
             # Check if integrator payer is configured for gasless transactions
             payer_pubkey = None

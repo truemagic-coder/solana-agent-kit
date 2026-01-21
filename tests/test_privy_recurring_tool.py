@@ -11,7 +11,6 @@ from unittest.mock import patch, AsyncMock, MagicMock
 from sakit.privy_recurring import (
     PrivyRecurringTool,
     PrivyRecurringPlugin,
-    _get_privy_embedded_wallet,
     _privy_sign_transaction,
     get_plugin,
 )
@@ -61,123 +60,6 @@ def privy_recurring_tool_with_payer():
         }
     )
     return tool
-
-
-class TestGetPrivyEmbeddedWallet:
-    """Test _get_privy_embedded_wallet function."""
-
-    @pytest.mark.asyncio
-    async def test_finds_embedded_delegated_wallet(self):
-        """Should find embedded delegated wallet with address field."""
-        mock_account = MagicMock()
-        mock_account.type = "wallet"
-        mock_account.id = "wallet-123"
-        mock_account.connector_type = "embedded"
-        mock_account.delegated = True
-        mock_account.address = "WalletAddress123"
-        mock_account.public_key = None
-        mock_account.chain_type = None
-
-        mock_user = MagicMock()
-        mock_user.linked_accounts = [mock_account]
-
-        mock_privy_client = AsyncMock()
-        mock_privy_client.users.get = AsyncMock(return_value=mock_user)
-
-        result = await _get_privy_embedded_wallet(
-            mock_privy_client, "did:privy:user123"
-        )
-
-        assert result is not None
-        assert result["wallet_id"] == "wallet-123"
-        assert result["public_key"] == "WalletAddress123"
-
-    @pytest.mark.asyncio
-    async def test_finds_bot_first_wallet(self):
-        """Should find bot-first wallet (API-created)."""
-        mock_account = MagicMock()
-        mock_account.type = "wallet"
-        mock_account.id = "bot-wallet-456"
-        mock_account.connector_type = None
-        mock_account.delegated = False
-        mock_account.chain_type = "solana"
-        mock_account.address = "BotWalletAddress456"
-        mock_account.public_key = None
-
-        mock_user = MagicMock()
-        mock_user.linked_accounts = [mock_account]
-
-        mock_privy_client = AsyncMock()
-        mock_privy_client.users.get = AsyncMock(return_value=mock_user)
-
-        result = await _get_privy_embedded_wallet(
-            mock_privy_client, "did:privy:user123"
-        )
-
-        assert result is not None
-        assert result["wallet_id"] == "bot-wallet-456"
-        assert result["public_key"] == "BotWalletAddress456"
-
-    @pytest.mark.asyncio
-    async def test_finds_solana_embedded_wallet_type(self):
-        """Should find solana_embedded_wallet type."""
-        mock_account = MagicMock()
-        mock_account.type = "solana_embedded_wallet"
-        mock_account.id = "solana-wallet-789"
-        mock_account.connector_type = None
-        mock_account.delegated = False
-        mock_account.chain_type = None
-        mock_account.address = "SolanaWalletAddress789"
-        mock_account.public_key = None
-
-        mock_user = MagicMock()
-        mock_user.linked_accounts = [mock_account]
-
-        mock_privy_client = AsyncMock()
-        mock_privy_client.users.get = AsyncMock(return_value=mock_user)
-
-        result = await _get_privy_embedded_wallet(
-            mock_privy_client, "did:privy:user123"
-        )
-
-        assert result is not None
-        assert result["wallet_id"] == "solana-wallet-789"
-        assert result["public_key"] == "SolanaWalletAddress789"
-
-    @pytest.mark.asyncio
-    async def test_returns_none_for_no_suitable_wallet(self):
-        """Should return None when no suitable wallet found."""
-        mock_account = MagicMock()
-        mock_account.type = "email"
-        mock_account.connector_type = None
-        mock_account.delegated = False
-        mock_account.chain_type = None
-
-        mock_user = MagicMock()
-        mock_user.linked_accounts = [mock_account]
-
-        mock_privy_client = AsyncMock()
-        mock_privy_client.users.get = AsyncMock(return_value=mock_user)
-
-        result = await _get_privy_embedded_wallet(
-            mock_privy_client, "did:privy:user123"
-        )
-
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_returns_none_on_api_error(self):
-        """Should return None on API error."""
-        mock_privy_client = AsyncMock()
-        mock_privy_client.users.get = AsyncMock(
-            side_effect=Exception("401 Unauthorized")
-        )
-
-        result = await _get_privy_embedded_wallet(
-            mock_privy_client, "did:privy:user123"
-        )
-
-        assert result is None
 
 
 class TestPrivySignTransaction:
@@ -264,11 +146,13 @@ class TestPrivyRecurringToolSchema:
         """Should have correct tool name."""
         assert privy_recurring_tool.name == "privy_recurring"
 
-    def test_schema_has_user_id(self, privy_recurring_tool):
-        """Should require user_id for Privy."""
+    def test_schema_has_wallet_params(self, privy_recurring_tool):
+        """Should require wallet_id and wallet_public_key."""
         schema = privy_recurring_tool.get_schema()
-        assert "user_id" in schema["properties"]
-        assert "user_id" in schema["required"]
+        assert "wallet_id" in schema["properties"]
+        assert "wallet_public_key" in schema["properties"]
+        assert "wallet_id" in schema["required"]
+        assert "wallet_public_key" in schema["required"]
 
     def test_schema_has_actions(self, privy_recurring_tool):
         """Should include action in required properties."""
@@ -334,7 +218,8 @@ class TestPrivyRecurringToolExecute:
         tool.configure({"tools": {"privy_recurring": {}}})
 
         result = await tool.execute(
-            user_id="did:privy:user123",
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
             action="list",
         )
 
@@ -342,17 +227,13 @@ class TestPrivyRecurringToolExecute:
         assert "config" in result["message"].lower()
 
     @pytest.mark.asyncio
-    async def test_execute_no_wallet_found(self, privy_recurring_tool):
-        """Should return error if no delegated wallet found for user."""
-        with patch(
-            "sakit.privy_recurring._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
-                action="list",
-            )
+    async def test_execute_missing_wallet_params(self, privy_recurring_tool):
+        """Should return error if wallet params are missing."""
+        result = await privy_recurring_tool.execute(
+            wallet_id="",
+            wallet_public_key="",
+            action="list",
+        )
 
         assert result["status"] == "error"
         assert "wallet" in result["message"].lower()
@@ -360,18 +241,20 @@ class TestPrivyRecurringToolExecute:
     @pytest.mark.asyncio
     async def test_list_success(self, privy_recurring_tool):
         """Should list active DCA orders for user's wallet."""
-        with patch(
-            "sakit.privy_recurring._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
+        with patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring:
+            mock_instance = MockRecurring.return_value
+            mock_instance.get_orders = AsyncMock(
+                return_value={"success": True, "orders": []}
+            )
+
             result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="PublicKey123",
                 action="list",
             )
 
-        assert result["status"] == "error"
-        assert "wallet" in result["message"].lower()
+        assert result["status"] == "success"
+        assert result["action"] == "list"
 
 
 class TestPrivyRecurringToolCreateAction:
@@ -380,22 +263,13 @@ class TestPrivyRecurringToolCreateAction:
     @pytest.mark.asyncio
     async def test_create_missing_required_params(self, privy_recurring_tool):
         """Should return error if required create params are missing."""
-        mock_wallet = {
-            "wallet_id": "wallet123",
-            "public_key": "PublicKey123",
-        }
-
-        with patch(
-            "sakit.privy_recurring._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-            return_value=mock_wallet,
-        ):
-            result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
-                action="create",
-                input_mint="So11...",
-                # Missing output_mint, in_amount, order_count, frequency
-            )
+        result = await privy_recurring_tool.execute(
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
+            action="create",
+            input_mint="So11...",
+            # Missing output_mint, in_amount, order_count, frequency
+        )
 
         assert result["status"] == "error"
         assert (
@@ -406,11 +280,6 @@ class TestPrivyRecurringToolCreateAction:
     @pytest.mark.asyncio
     async def test_create_order_success(self, privy_recurring_tool):
         """Should successfully create a DCA order."""
-        mock_wallet = {
-            "wallet_id": "wallet123",
-            "public_key": "PublicKey123",
-        }
-
         mock_create_result = MagicMock()
         mock_create_result.success = True
         mock_create_result.transaction = "mock-tx-base64"
@@ -418,11 +287,6 @@ class TestPrivyRecurringToolCreateAction:
         mock_create_result.order = "order-pubkey-123"
 
         with (
-            patch(
-                "sakit.privy_recurring._get_privy_embedded_wallet",
-                new_callable=AsyncMock,
-                return_value=mock_wallet,
-            ),
             patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring,
             patch(
                 "sakit.privy_recurring._privy_sign_transaction",
@@ -439,7 +303,8 @@ class TestPrivyRecurringToolCreateAction:
             mock_instance.execute = AsyncMock(return_value=mock_exec_result)
 
             result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="PublicKey123",
                 action="create",
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
@@ -455,29 +320,18 @@ class TestPrivyRecurringToolCreateAction:
     @pytest.mark.asyncio
     async def test_create_order_no_transaction(self, privy_recurring_tool):
         """Should return error when Jupiter returns no transaction."""
-        mock_wallet = {
-            "wallet_id": "wallet123",
-            "public_key": "PublicKey123",
-        }
-
         mock_create_result = MagicMock()
         mock_create_result.success = True
         mock_create_result.transaction = None
         mock_create_result.request_id = "req-123"
 
-        with (
-            patch(
-                "sakit.privy_recurring._get_privy_embedded_wallet",
-                new_callable=AsyncMock,
-                return_value=mock_wallet,
-            ),
-            patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring,
-        ):
+        with patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring:
             mock_instance = MockRecurring.return_value
             mock_instance.create_order = AsyncMock(return_value=mock_create_result)
 
             result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="PublicKey123",
                 action="create",
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
@@ -492,28 +346,17 @@ class TestPrivyRecurringToolCreateAction:
     @pytest.mark.asyncio
     async def test_create_order_jupiter_error(self, privy_recurring_tool):
         """Should return error when Jupiter API fails."""
-        mock_wallet = {
-            "wallet_id": "wallet123",
-            "public_key": "PublicKey123",
-        }
-
         mock_create_result = MagicMock()
         mock_create_result.success = False
         mock_create_result.error = "Insufficient balance"
 
-        with (
-            patch(
-                "sakit.privy_recurring._get_privy_embedded_wallet",
-                new_callable=AsyncMock,
-                return_value=mock_wallet,
-            ),
-            patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring,
-        ):
+        with patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring:
             mock_instance = MockRecurring.return_value
             mock_instance.create_order = AsyncMock(return_value=mock_create_result)
 
             result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="PublicKey123",
                 action="create",
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
@@ -528,11 +371,6 @@ class TestPrivyRecurringToolCreateAction:
     @pytest.mark.asyncio
     async def test_create_order_signing_failure(self, privy_recurring_tool):
         """Should return error when signing fails."""
-        mock_wallet = {
-            "wallet_id": "wallet123",
-            "public_key": "PublicKey123",
-        }
-
         mock_create_result = MagicMock()
         mock_create_result.success = True
         mock_create_result.transaction = "mock-tx-base64"
@@ -540,11 +378,6 @@ class TestPrivyRecurringToolCreateAction:
         mock_create_result.order = "order-pubkey-123"
 
         with (
-            patch(
-                "sakit.privy_recurring._get_privy_embedded_wallet",
-                new_callable=AsyncMock,
-                return_value=mock_wallet,
-            ),
             patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring,
             patch(
                 "sakit.privy_recurring._privy_sign_transaction",
@@ -556,7 +389,8 @@ class TestPrivyRecurringToolCreateAction:
             mock_instance.create_order = AsyncMock(return_value=mock_create_result)
 
             result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="PublicKey123",
                 action="create",
                 input_mint="So11111111111111111111111111111111111111112",
                 output_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
@@ -575,20 +409,11 @@ class TestPrivyRecurringToolCancelAction:
     @pytest.mark.asyncio
     async def test_cancel_missing_order_pubkey(self, privy_recurring_tool):
         """Should return error if order_pubkey is missing for cancel."""
-        mock_wallet = {
-            "wallet_id": "wallet123",
-            "public_key": "PublicKey123",
-        }
-
-        with patch(
-            "sakit.privy_recurring._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-            return_value=mock_wallet,
-        ):
-            result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
-                action="cancel",
-            )
+        result = await privy_recurring_tool.execute(
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
+            action="cancel",
+        )
 
         assert result["status"] == "error"
         assert "order_pubkey" in result["message"].lower()
@@ -596,19 +421,7 @@ class TestPrivyRecurringToolCancelAction:
     @pytest.mark.asyncio
     async def test_cancel_order_not_owned_by_user(self, privy_recurring_tool):
         """Should reject cancellation of orders not owned by the user."""
-        mock_wallet = {
-            "wallet_id": "wallet123",
-            "public_key": "UserPublicKey123",
-        }
-
-        with (
-            patch(
-                "sakit.privy_recurring._get_privy_embedded_wallet",
-                new_callable=AsyncMock,
-                return_value=mock_wallet,
-            ),
-            patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring,
-        ):
+        with patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring:
             mock_recurring_instance = MockRecurring.return_value
             # User's orders - does NOT include the order they're trying to cancel
             mock_recurring_instance.get_orders = AsyncMock(
@@ -622,7 +435,8 @@ class TestPrivyRecurringToolCancelAction:
             )
 
             result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="UserPublicKey123",
                 action="cancel",
                 order_pubkey="SomeoneElsesDCA789",  # Not in user's orders
             )
@@ -633,22 +447,12 @@ class TestPrivyRecurringToolCancelAction:
     @pytest.mark.asyncio
     async def test_cancel_order_success(self, privy_recurring_tool):
         """Should successfully cancel a DCA order."""
-        mock_wallet = {
-            "wallet_id": "wallet123",
-            "public_key": "UserPublicKey123",
-        }
-
         mock_cancel_result = MagicMock()
         mock_cancel_result.success = True
         mock_cancel_result.transaction = "cancel-tx-base64"
         mock_cancel_result.request_id = "req-cancel-123"
 
         with (
-            patch(
-                "sakit.privy_recurring._get_privy_embedded_wallet",
-                new_callable=AsyncMock,
-                return_value=mock_wallet,
-            ),
             patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring,
             patch(
                 "sakit.privy_recurring._privy_sign_transaction",
@@ -671,7 +475,8 @@ class TestPrivyRecurringToolCancelAction:
             mock_instance.execute = AsyncMock(return_value=mock_exec_result)
 
             result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="UserPublicKey123",
                 action="cancel",
                 order_pubkey="UserOwnedDCA123",
             )
@@ -687,19 +492,7 @@ class TestPrivyRecurringToolListAction:
     @pytest.mark.asyncio
     async def test_list_orders_success(self, privy_recurring_tool):
         """Should successfully list DCA orders."""
-        mock_wallet = {
-            "wallet_id": "wallet123",
-            "public_key": "UserPublicKey123",
-        }
-
-        with (
-            patch(
-                "sakit.privy_recurring._get_privy_embedded_wallet",
-                new_callable=AsyncMock,
-                return_value=mock_wallet,
-            ),
-            patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring,
-        ):
+        with patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring:
             mock_instance = MockRecurring.return_value
             mock_instance.get_orders = AsyncMock(
                 return_value={
@@ -721,7 +514,8 @@ class TestPrivyRecurringToolListAction:
             )
 
             result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="UserPublicKey123",
                 action="list",
             )
 
@@ -735,26 +529,15 @@ class TestPrivyRecurringToolListAction:
     @pytest.mark.asyncio
     async def test_list_orders_empty(self, privy_recurring_tool):
         """Should handle empty order list."""
-        mock_wallet = {
-            "wallet_id": "wallet123",
-            "public_key": "UserPublicKey123",
-        }
-
-        with (
-            patch(
-                "sakit.privy_recurring._get_privy_embedded_wallet",
-                new_callable=AsyncMock,
-                return_value=mock_wallet,
-            ),
-            patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring,
-        ):
+        with patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring:
             mock_instance = MockRecurring.return_value
             mock_instance.get_orders = AsyncMock(
                 return_value={"success": True, "orders": []}
             )
 
             result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="UserPublicKey123",
                 action="list",
             )
 
@@ -765,26 +548,15 @@ class TestPrivyRecurringToolListAction:
     @pytest.mark.asyncio
     async def test_list_orders_api_failure(self, privy_recurring_tool):
         """Should handle API failure when listing orders."""
-        mock_wallet = {
-            "wallet_id": "wallet123",
-            "public_key": "UserPublicKey123",
-        }
-
-        with (
-            patch(
-                "sakit.privy_recurring._get_privy_embedded_wallet",
-                new_callable=AsyncMock,
-                return_value=mock_wallet,
-            ),
-            patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring,
-        ):
+        with patch("sakit.privy_recurring.JupiterRecurring") as MockRecurring:
             mock_instance = MockRecurring.return_value
             mock_instance.get_orders = AsyncMock(
                 return_value={"success": False, "error": "API unavailable"}
             )
 
             result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
+                wallet_id="wallet-123",
+                wallet_public_key="UserPublicKey123",
                 action="list",
             )
 
@@ -798,20 +570,11 @@ class TestPrivyRecurringToolUnknownAction:
     @pytest.mark.asyncio
     async def test_unknown_action(self, privy_recurring_tool):
         """Should return error for unknown action."""
-        mock_wallet = {
-            "wallet_id": "wallet123",
-            "public_key": "PublicKey123",
-        }
-
-        with patch(
-            "sakit.privy_recurring._get_privy_embedded_wallet",
-            new_callable=AsyncMock,
-            return_value=mock_wallet,
-        ):
-            result = await privy_recurring_tool.execute(
-                user_id="did:privy:user123",
-                action="invalid_action",
-            )
+        result = await privy_recurring_tool.execute(
+            wallet_id="wallet-123",
+            wallet_public_key="PublicKey123",
+            action="invalid_action",
+        )
 
         assert result["status"] == "error"
         assert (
