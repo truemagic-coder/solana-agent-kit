@@ -43,6 +43,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Image Generation - Generate images with OpenAI, Grok, or Gemini with uploading to S3 compatible storage
 * Technical Analysis - Comprehensive technical indicators (EMA, SMA, MACD, RSI, Bollinger Bands, etc.) for any token using Birdeye OHLCV data
 * Token Math - Reliable token amount calculations for swaps, limit orders, and transfers (LLMs are bad at math!)
+* Starpay Cards - Issue SOL-funded Visa or Mastercard gift cards with polling status checks
 
 ## 📦 Installation
 
@@ -352,6 +353,28 @@ config = {
 - `deposit` - Deposit SOL/USDC to PrivacyCash (requires wallet_id, amount, token)
 - `withdraw` - Withdraw SOL/USDC from PrivacyCash (requires wallet_id, recipient, amount, token)
 - `balance` - Get private balance (requires wallet_id, token)
+
+### Starpay Cards
+
+This plugin creates Starpay Cards orders, checks status, and polls until completion.
+Responses are automatically redacted to avoid exposing sensitive card data.
+
+```python
+config = {
+    "tools": {
+        "starpay_cards": {
+            "api_key": "your-starpay-api-key", # Required
+            "base_url": "https://www.starpay.cards", # Optional override
+        },
+    },
+}
+```
+
+**Actions:**
+- `create_order` - Create a new card order (requires amount, card_type, email)
+- `check_status` - Check order status (requires order_id)
+- `poll_status` - Poll until completed/failed/expired (requires order_id)
+- `price` - Quote pricing for an amount (requires amount)
 
 ### Privy Ultra
 
