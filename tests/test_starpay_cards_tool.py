@@ -5,8 +5,14 @@ Tests for Star Cards Tool.
 import httpx
 import pytest
 import respx
+from unittest.mock import MagicMock
 
-from sakit.starpay_cards import StarpayCardsTool, _normalize_key, _redact_sensitive
+from sakit.starpay_cards import (
+    StarpayCardsPlugin,
+    StarpayCardsTool,
+    _normalize_key,
+    _redact_sensitive,
+)
 
 
 @pytest.fixture
@@ -313,3 +319,28 @@ class TestStarCardsToolExecute:
             )
             assert result["status"] == "error"
             assert result["message"].startswith("Starpay Cards API error")
+
+
+class TestStarCardsPlugin:
+    def test_plugin_name(self):
+        plugin = StarpayCardsPlugin()
+        assert plugin.name == "starpay_cards"
+
+    def test_plugin_description(self):
+        plugin = StarpayCardsPlugin()
+        assert "starpay" in plugin.description.lower()
+
+    def test_plugin_get_tools_empty_before_init(self):
+        plugin = StarpayCardsPlugin()
+        assert plugin.get_tools() == []
+
+    def test_plugin_initialize_and_configure(self):
+        plugin = StarpayCardsPlugin()
+        mock_registry = MagicMock()
+
+        plugin.initialize(mock_registry)
+        plugin.configure({"tools": {"starpay_cards": {"api_key": "test-key"}}})
+
+        assert plugin._tool is not None
+        tools = plugin.get_tools()
+        assert len(tools) == 1
