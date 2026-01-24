@@ -127,3 +127,163 @@ class TestStarCardsToolExecute:
         )
         assert result["status"] == "error"
         assert "API key" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_create_order_missing_fields(self, star_cards_tool):
+        result = await star_cards_tool.execute(
+            action="create_order",
+            amount=0,
+            card_type="",
+            email="",
+            order_id="",
+            poll_interval_seconds=10,
+            poll_timeout_seconds=600,
+        )
+        assert result["status"] == "error"
+        assert "create_order" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_check_status_missing_order_id(self, star_cards_tool):
+        result = await star_cards_tool.execute(
+            action="check_status",
+            amount=0,
+            card_type="",
+            email="",
+            order_id="",
+            poll_interval_seconds=10,
+            poll_timeout_seconds=600,
+        )
+        assert result["status"] == "error"
+        assert "order_id" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_price_missing_amount(self, star_cards_tool):
+        result = await star_cards_tool.execute(
+            action="price",
+            amount=0,
+            card_type="",
+            email="",
+            order_id="",
+            poll_interval_seconds=10,
+            poll_timeout_seconds=600,
+        )
+        assert result["status"] == "error"
+        assert "amount" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_poll_status_missing_order_id(self, star_cards_tool):
+        result = await star_cards_tool.execute(
+            action="poll_status",
+            amount=0,
+            card_type="",
+            email="",
+            order_id="",
+            poll_interval_seconds=10,
+            poll_timeout_seconds=600,
+        )
+        assert result["status"] == "error"
+        assert "order_id" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_invalid_action(self, star_cards_tool):
+        result = await star_cards_tool.execute(
+            action="nope",
+            amount=0,
+            card_type="",
+            email="",
+            order_id="",
+            poll_interval_seconds=10,
+            poll_timeout_seconds=600,
+        )
+        assert result["status"] == "error"
+        assert "Invalid action" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_create_order_api_error(self, star_cards_tool):
+        with respx.mock:
+            respx.post("https://www.starpay.cards/api/v1/cards/order").respond(
+                500, text="Server error"
+            )
+            result = await star_cards_tool.execute(
+                action="create_order",
+                amount=50,
+                card_type="visa",
+                email="customer@example.com",
+                order_id="",
+                poll_interval_seconds=10,
+                poll_timeout_seconds=600,
+            )
+            assert result["status"] == "error"
+            assert result["message"].startswith("Starpay Cards API error")
+
+    @pytest.mark.asyncio
+    async def test_check_status_api_error(self, star_cards_tool):
+        with respx.mock:
+            respx.get("https://www.starpay.cards/api/v1/cards/order/status").respond(
+                500, text="Server error"
+            )
+            result = await star_cards_tool.execute(
+                action="check_status",
+                amount=0,
+                card_type="",
+                email="",
+                order_id="abc123",
+                poll_interval_seconds=10,
+                poll_timeout_seconds=600,
+            )
+            assert result["status"] == "error"
+            assert result["message"].startswith("Starpay Cards API error")
+
+    @pytest.mark.asyncio
+    async def test_price_api_error(self, star_cards_tool):
+        with respx.mock:
+            respx.get("https://www.starpay.cards/api/v1/cards/price").respond(
+                500, text="Server error"
+            )
+            result = await star_cards_tool.execute(
+                action="price",
+                amount=50,
+                card_type="",
+                email="",
+                order_id="",
+                poll_interval_seconds=10,
+                poll_timeout_seconds=600,
+            )
+            assert result["status"] == "error"
+            assert result["message"].startswith("Starpay Cards API error")
+
+    @pytest.mark.asyncio
+    async def test_poll_status_timeout(self, star_cards_tool):
+        with respx.mock:
+            respx.get("https://www.starpay.cards/api/v1/cards/order/status").respond(
+                200, json={"status": "pending"}
+            )
+            result = await star_cards_tool.execute(
+                action="poll_status",
+                amount=0,
+                card_type="",
+                email="",
+                order_id="abc123",
+                poll_interval_seconds=0.01,
+                poll_timeout_seconds=0,
+            )
+            assert result["status"] == "error"
+            assert "timed out" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_poll_status_api_error(self, star_cards_tool):
+        with respx.mock:
+            respx.get("https://www.starpay.cards/api/v1/cards/order/status").respond(
+                500, text="Server error"
+            )
+            result = await star_cards_tool.execute(
+                action="poll_status",
+                amount=0,
+                card_type="",
+                email="",
+                order_id="abc123",
+                poll_interval_seconds=0.01,
+                poll_timeout_seconds=1,
+            )
+            assert result["status"] == "error"
+            assert result["message"].startswith("Starpay Cards API error")
