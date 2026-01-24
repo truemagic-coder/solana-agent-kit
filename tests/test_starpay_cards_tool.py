@@ -6,7 +6,7 @@ import httpx
 import pytest
 import respx
 
-from sakit.starpay_cards import StarpayCardsTool
+from sakit.starpay_cards import StarpayCardsTool, _normalize_key, _redact_sensitive
 
 
 @pytest.fixture
@@ -24,6 +24,32 @@ class TestStarCardsToolSchema:
         schema = star_cards_tool.get_schema()
         assert "action" in schema["properties"]
         assert "action" in schema["required"]
+
+
+class TestStarCardsToolHelpers:
+    def test_normalize_key(self):
+        assert _normalize_key("Card-Number") == "cardnumber"
+        assert _normalize_key("Exp Month") == "expmonth"
+        assert _normalize_key("cvv") == "cvv"
+
+    def test_redact_sensitive_nested(self):
+        payload = {
+            "cardNumber": "4111111111111111",
+            "cvv": "123",
+            "payment": {"pan": "4000000000000002", "amount": 10},
+            "cards": [
+                {"cvc": "999", "expiry": "12/29"},
+                {"card_number": "5555555555554444"},
+            ],
+        }
+        redacted = _redact_sensitive(payload)
+        assert redacted["cardNumber"] == "[REDACTED]"
+        assert redacted["cvv"] == "[REDACTED]"
+        assert redacted["payment"]["pan"] == "[REDACTED]"
+        assert redacted["payment"]["amount"] == 10
+        assert redacted["cards"][0]["cvc"] == "[REDACTED]"
+        assert redacted["cards"][0]["expiry"] == "[REDACTED]"
+        assert redacted["cards"][1]["card_number"] == "[REDACTED]"
 
 
 class TestStarCardsToolExecute:
