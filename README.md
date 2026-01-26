@@ -1036,7 +1036,7 @@ config = {
 ```
 
 **Parameters:**
-- `token_address` (required) - The token's contract address (mint address on Solana)
+- `address` (required) - The token's contract address (mint address on Solana)
 - `timeframe` (optional) - Candle timeframe: "1m", "5m", "15m", "30m", "1h", "2h", "4h", "8h", "1d" (default: "4h")
 
 **Indicators Returned:**
@@ -1064,47 +1064,82 @@ config = {
 - OBV (On-Balance Volume)
 - VWAP
 
+*Support/Resistance:*
+- Pivot-based supports/resistances (clustered levels)
+
 *Price vs Indicators:*
 Returns percentage difference between current price and key levels (EMA 50/200, Bollinger bands, etc.) for quick analysis.
 
 **Example Response Structure:**
 ```json
 {
-  "token_address": "So11111111111111111111111111111111111111112",
-  "timeframe": "4h",
-  "current_price": 142.50,
-  "symbol": "SOL",
-  "name": "Wrapped SOL",
-  "moving_averages": {
-    "ema_9": 141.23,
-    "ema_21": 140.15,
-    "ema_50": 138.90,
-    "ema_200": 125.45,
-    "sma_20": 140.80,
-    "sma_50": 139.20,
-    "sma_200": 126.30
-  },
-  "momentum": {
-    "macd": {"macd": 1.25, "signal": 0.98, "histogram": 0.27},
-    "rsi": 58.5,
-    "stochastic": {"k": 65.2, "d": 62.1},
-    "adx": {"adx": 28.5, "plus_di": 25.3, "minus_di": 18.7}
-  },
-  "volatility": {
-    "bollinger": {"upper": 148.50, "middle": 140.80, "lower": 133.10, "bandwidth": 10.94, "percent_b": 0.61},
-    "atr": 4.25,
-    "keltner": {"upper": 149.30, "middle": 140.80, "lower": 132.30}
-  },
-  "volume": {
-    "obv": 123456789,
-    "vwap": 141.15
-  },
-  "price_vs_indicators": {
-    "vs_ema_50": 2.59,
-    "vs_ema_200": 13.60,
-    "vs_bb_upper": -4.04,
-    "vs_bb_lower": 7.06
-  }
+    "status": "success",
+    "token": {
+        "address": "So11111111111111111111111111111111111111112",
+        "symbol": "SOL",
+        "name": "Wrapped SOL",
+        "decimals": 9
+    },
+    "analysis": {
+        "timeframe": "4h",
+        "candles_analyzed": 250,
+        "data_start": "2024-01-01T00:00:00+00:00",
+        "data_end": "2024-02-10T04:00:00+00:00"
+    },
+    "current": {
+        "price": 142.50,
+        "price_24h_ago": 140.00,
+        "price_change_24h_percent": 1.79,
+        "market_cap": 100000000000,
+        "liquidity": 25000000000
+    },
+    "trend": {
+        "ema_9": 141.23,
+        "ema_21": 140.15,
+        "ema_50": 138.90,
+        "ema_200": 125.45,
+        "sma_20": 140.80,
+        "sma_50": 139.20,
+        "sma_200": 126.30,
+        "macd": {"macd": 1.25, "signal": 0.98, "histogram": 0.27},
+        "adx": 28.5,
+        "adx_pos": 25.3,
+        "adx_neg": 18.7
+    },
+    "momentum": {
+        "rsi_14": 58.5,
+        "stochastic": {"k": 65.2, "d": 62.1},
+        "cci_20": 92.1,
+        "williams_r_14": -35.0,
+        "roc_12": 1.5,
+        "mfi_14": 54.2
+    },
+    "volatility": {
+        "bollinger": {"upper": 148.50, "middle": 140.80, "lower": 133.10, "bandwidth": 10.94, "percent_b": 0.61},
+        "atr_14": 4.25,
+        "atr_percent": 2.98,
+        "keltner": {"upper": 149.30, "middle": 140.80, "lower": 132.30}
+    },
+    "volume": {
+        "obv": 123456789,
+        "obv_ema_21": 123400000,
+        "volume_sma_20": 5500000,
+        "current_volume": 6200000,
+        "vwap": 141.15
+    },
+    "support_resistance": {
+        "supports": [136.2, 131.8],
+        "resistances": [146.9, 152.3],
+        "pivot_window": 5,
+        "lookback": 200,
+        "tolerance": 0.75
+    },
+    "price_vs_indicators": {
+        "vs_ema_50_percent": 2.59,
+        "vs_ema_200_percent": 13.60,
+        "vs_vwap_percent": 0.95,
+        "vs_bb_middle_percent": 1.21
+    }
 }
 ```
 
