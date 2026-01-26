@@ -20,6 +20,8 @@ from sakit.technical_analysis import (
     _safe_get,
     _safe_get_series,
     _calc_percent_diff,
+    _cluster_levels,
+    _calculate_support_resistance,
 )
 
 
@@ -185,6 +187,7 @@ class TestCalculateIndicators:
         assert "momentum" in result
         assert "volatility" in result
         assert "volume" in result
+        assert "support_resistance" in result
         assert "price_vs_indicators" in result
 
     def test_trend_indicators_present(self, sample_ohlcv_data):
@@ -234,6 +237,17 @@ class TestCalculateIndicators:
         assert "volume_sma_20" in volume
         assert "current_volume" in volume
         assert "vwap" in volume
+
+    def test_support_resistance_structure(self, sample_ohlcv_data):
+        """Support/resistance should include supports and resistances lists."""
+        result = calculate_indicators(sample_ohlcv_data)
+        sr = result["support_resistance"]
+
+        assert "supports" in sr
+        assert "resistances" in sr
+        assert "pivot_window" in sr
+        assert "lookback" in sr
+        assert "tolerance" in sr
 
     def test_macd_structure(self, sample_ohlcv_data):
         """MACD should have line, signal, and histogram."""
@@ -873,6 +887,164 @@ class TestEdgeCases:
         # VWAP should be calculated with DatetimeIndex
         assert result["volume"]["vwap"] is not None
         assert "vs_vwap_percent" in result["price_vs_indicators"]
+
+    def test_vwap_with_timestamp_column_unsorted(self):
+        """Should handle unsorted timestamp column without errors."""
+        np.random.seed(42)
+        n = 250
+        base_price = 100.0
+        prices = [base_price]
+        for _ in range(n - 1):
+            change = np.random.normal(0, 0.02)
+            prices.append(prices[-1] * (1 + change))
+
+        prices = np.array(prices)
+        timestamps = np.arange(1700000000, 1700000000 + n * 3600, 3600)
+        np.random.shuffle(timestamps)
+
+        df = pd.DataFrame(
+            {
+                "open": prices * (1 + np.random.uniform(-0.01, 0.01, n)),
+                "high": prices * (1 + np.random.uniform(0, 0.02, n)),
+                "low": prices * (1 - np.random.uniform(0, 0.02, n)),
+                "close": prices,
+                "volume": np.random.uniform(1000000, 10000000, n),
+                "timestamp": timestamps,
+            }
+        )
+
+        result = calculate_indicators(df)
+
+        assert result["volume"]["vwap"] is not None
+        assert "vs_vwap_percent" in result["price_vs_indicators"]
+
+
+class TestSupportResistanceHelpers:
+    """Tests for support/resistance helper functions."""
+
+    def test_cluster_levels_empty(self):
+        """Should return empty list for empty input."""
+        assert _cluster_levels([], tolerance=0.1) == []
+
+    def test_cluster_levels_groups_by_tolerance(self):
+        """Should cluster levels within tolerance and return cluster means."""
+        levels = [1.0, 1.05, 2.0, 2.1, 5.0]
+        clustered = _cluster_levels(levels, tolerance=0.11)
+
+        assert len(clustered) == 3
+        assert pytest.approx(clustered[0], rel=1e-3) == 1.025
+        assert pytest.approx(clustered[1], rel=1e-3) == 2.05
+        assert clustered[2] == 5.0
+
+    def test_calculate_support_resistance_empty(self):
+        """Should return empty support/resistance for empty DataFrame."""
+        result = _calculate_support_resistance(pd.DataFrame(), None, None)
+
+        assert result["supports"] == []
+        assert result["resistances"] == []
+
+    def test_calculate_support_resistance_insufficient_data(self):
+        """Should return empty support/resistance when not enough data."""
+        df = pd.DataFrame(
+            {
+                "high": [1, 2, 3, 2],
+                "low": [1, 1, 1, 1],
+                "close": [1, 2, 3, 2],
+                "open": [1, 2, 3, 2],
+                "volume": [100, 100, 100, 100],
+            }
+        )
+
+        result = _calculate_support_resistance(df, current_price=2.0, atr_value=None)
+        assert result["supports"] == []
+        assert result["resistances"] == []
+
+    def test_calculate_support_resistance_with_atr(self):
+        """Should compute clustered supports/resistances using ATR tolerance."""
+        highs = [1, 2, 3, 2, 1, 1, 2, 4, 2, 1, 1]
+        lows = [1, 0.5, 0.2, 0.5, 1, 1, 0.6, 0.3, 0.6, 1, 1]
+        prices = [1.2, 1.8, 2.5, 2.0, 1.5, 1.6, 1.9, 2.6, 2.1, 1.7, 1.4]
+
+        df = pd.DataFrame(
+            {
+                "open": prices,
+                "high": highs,
+                "low": lows,
+                "close": prices,
+                "volume": [100] * len(prices),
+            }
+        )
+
+        result = _calculate_support_resistance(
+            df,
+            current_price=2.5,
+            atr_value=0.2,
+            lookback=11,
+            pivot_window=2,
+            max_levels=3,
+        )
+
+        assert result["supports"] == [0.25]
+        assert result["resistances"] == [3.0, 4.0]
+        assert result["tolerance"] == 0.1
+
+    def test_calculate_support_resistance_without_atr(self):
+        """Should fallback to price-based tolerance when ATR is missing."""
+        highs = [1, 2, 3, 2, 1, 1, 2, 4, 2, 1, 1]
+        lows = [1, 0.5, 0.2, 0.5, 1, 1, 0.6, 0.3, 0.6, 1, 1]
+        prices = [1.2, 1.8, 2.5, 2.0, 1.5, 1.6, 1.9, 2.6, 2.1, 1.7, 1.4]
+
+        df = pd.DataFrame(
+            {
+                "open": prices,
+                "high": highs,
+                "low": lows,
+                "close": prices,
+                "volume": [100] * len(prices),
+            }
+        )
+
+        result = _calculate_support_resistance(
+            df,
+            current_price=2.0,
+            atr_value=None,
+            lookback=11,
+            pivot_window=2,
+            max_levels=3,
+        )
+
+        assert result["supports"]
+        assert result["resistances"]
+        assert result["tolerance"] == 2.0 * 0.005
+
+    def test_calculate_support_resistance_without_price_or_atr(self):
+        """Should fallback to zero tolerance and default sorting when price is None."""
+        highs = [1, 2, 3, 2, 1, 1, 2, 4, 2, 1, 1]
+        lows = [1, 0.5, 0.2, 0.5, 1, 1, 0.6, 0.3, 0.6, 1, 1]
+        prices = [1.2, 1.8, 2.5, 2.0, 1.5, 1.6, 1.9, 2.6, 2.1, 1.7, 1.4]
+
+        df = pd.DataFrame(
+            {
+                "open": prices,
+                "high": highs,
+                "low": lows,
+                "close": prices,
+                "volume": [100] * len(prices),
+            }
+        )
+
+        result = _calculate_support_resistance(
+            df,
+            current_price=None,
+            atr_value=None,
+            lookback=11,
+            pivot_window=2,
+            max_levels=5,
+        )
+
+        assert result["supports"] == sorted(result["supports"])
+        assert result["resistances"] == sorted(result["resistances"])
+        assert result["tolerance"] == 0.0
 
 
 # =============================================================================
