@@ -47,6 +47,12 @@ def calculate_indicators(df: pd.DataFrame) -> Dict[str, Any]:
     Returns:
         Dictionary with all indicator values
     """
+    # Ensure datetime index for indicators that expect sorted dates (e.g., VWAP)
+    if "timestamp" in df.columns:
+        df = df.copy()
+        df.index = pd.to_datetime(df["timestamp"], unit="s", utc=True, errors="coerce")
+        df = df.sort_index()
+
     # Get the latest values for each indicator
     latest_idx = -1
 
@@ -189,6 +195,12 @@ def calculate_indicators(df: pd.DataFrame) -> Dict[str, Any]:
                 current_price, bb_middle
             )
 
+    support_resistance = _calculate_support_resistance(
+        df,
+        current_price=current_price,
+        atr_value=atr_value,
+    )
+
     return {
         "trend": {
             "ema_9": _safe_get_series(ema_9, latest_idx),
@@ -241,7 +253,98 @@ def calculate_indicators(df: pd.DataFrame) -> Dict[str, Any]:
             "current_volume": current_volume,
             "vwap": vwap_value,
         },
+        "support_resistance": support_resistance,
         "price_vs_indicators": price_vs,
+    }
+
+
+def _cluster_levels(levels: list[float], tolerance: float) -> list[float]:
+    """Cluster nearby levels within tolerance and return cluster means."""
+    if not levels:
+        return []
+    levels_sorted = sorted(levels)
+    clusters: list[list[float]] = [[levels_sorted[0]]]
+    for level in levels_sorted[1:]:
+        current_cluster = clusters[-1]
+        cluster_mean = sum(current_cluster) / len(current_cluster)
+        if abs(level - cluster_mean) <= tolerance:
+            current_cluster.append(level)
+        else:
+            clusters.append([level])
+    return [float(sum(cluster) / len(cluster)) for cluster in clusters]
+
+
+def _calculate_support_resistance(
+    df: pd.DataFrame,
+    current_price: Optional[float],
+    atr_value: Optional[float],
+    lookback: int = 200,
+    pivot_window: int = 5,
+    max_levels: int = 3,
+    tolerance_percent: float = 0.005,
+) -> Dict[str, Any]:
+    """Calculate support and resistance levels using pivot highs/lows."""
+    if df is None or df.empty:
+        return {
+            "supports": [],
+            "resistances": [],
+            "pivot_window": pivot_window,
+            "lookback": 0,
+            "tolerance": None,
+        }
+
+    data = df.tail(lookback)
+    if len(data) < (pivot_window * 2 + 1):
+        return {
+            "supports": [],
+            "resistances": [],
+            "pivot_window": pivot_window,
+            "lookback": len(data),
+            "tolerance": None,
+        }
+
+    pivot_highs: list[float] = []
+    pivot_lows: list[float] = []
+
+    for i in range(pivot_window, len(data) - pivot_window):
+        window_high = data["high"].iloc[i - pivot_window : i + pivot_window + 1]
+        window_low = data["low"].iloc[i - pivot_window : i + pivot_window + 1]
+
+        high_val = data["high"].iloc[i]
+        low_val = data["low"].iloc[i]
+
+        if pd.notna(high_val) and high_val == window_high.max():
+            pivot_highs.append(float(high_val))
+        if pd.notna(low_val) and low_val == window_low.min():
+            pivot_lows.append(float(low_val))
+
+    tolerance = None
+    if atr_value is not None and atr_value > 0:
+        tolerance = atr_value * 0.5
+    elif current_price is not None and current_price > 0:
+        tolerance = current_price * tolerance_percent
+    else:
+        tolerance = 0.0
+
+    supports = _cluster_levels(pivot_lows, tolerance)
+    resistances = _cluster_levels(pivot_highs, tolerance)
+
+    if current_price is not None:
+        supports = [level for level in supports if level <= current_price]
+        resistances = [level for level in resistances if level >= current_price]
+
+        supports = sorted(supports, key=lambda x: abs(current_price - x))
+        resistances = sorted(resistances, key=lambda x: abs(current_price - x))
+    else:
+        supports = sorted(supports)
+        resistances = sorted(resistances)
+
+    return {
+        "supports": supports[:max_levels],
+        "resistances": resistances[:max_levels],
+        "pivot_window": pivot_window,
+        "lookback": len(data),
+        "tolerance": tolerance,
     }
 
 
@@ -289,6 +392,7 @@ class TechnicalAnalysisTool(AutoTool):
     - Momentum: RSI, Stochastic, CCI, Williams %R, ROC, MFI
     - Volatility: Bollinger Bands, ATR, Keltner Channels
     - Volume: OBV, VWAP, Volume SMA
+    - Support/Resistance: Pivot-based levels
 
     Requires minimum 200 candles for reliable calculation.
     """
@@ -300,8 +404,9 @@ class TechnicalAnalysisTool(AutoTool):
                 "Get comprehensive technical analysis indicators for a token. "
                 "Provides trend indicators (EMA, SMA, MACD, ADX), momentum indicators "
                 "(RSI, Stochastic, CCI, Williams %R, ROC, MFI), volatility indicators "
-                "(Bollinger Bands, ATR, Keltner Channels), and volume indicators "
-                "(OBV, VWAP). Requires token address. Returns raw indicator values "
+                "(Bollinger Bands, ATR, Keltner Channels), volume indicators "
+                "(OBV, VWAP), and support/resistance levels. Requires token address. "
+                "Returns raw indicator values "
                 "without interpretation. Use timeframe parameter to specify candle "
                 "interval (default: 4h). Requires minimum 200 candles of data."
             ),
