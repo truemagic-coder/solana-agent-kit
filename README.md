@@ -19,6 +19,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Solana DFlow Swap - Fast token swaps using DFlow API
 * Jupiter Trigger - Create, cancel, and manage limit orders using Jupiter Trigger API
 * Jupiter Recurring - Create, cancel, and manage DCA orders using Jupiter Recurring API
+* Jupiter Earn - Deposit/withdraw assets and mint/redeem shares using Jupiter Earn API
 * Jupiter Holdings - Get token holdings with USD values for any wallet
 * Jupiter Shield - Get security warnings and risk information for tokens
 * Jupiter Token Search - Search for tokens by symbol, name, or address
@@ -30,6 +31,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Privy Ultra Quote - Preview swap details and price impact before executing swaps with Privy wallets
 * Privy Trigger - Create and manage limit orders with Privy delegated wallets
 * Privy Recurring - Create and manage DCA orders with Privy delegated wallets
+* Privy Jupiter Earn - Earn deposits/withdrawals and share mint/redeem using Privy delegated wallets
 * Privy DFlow Swap - Fast token swaps using DFlow API with Privy delegated wallets
 * Privy Wallet Address - Get the wallet address of a Privy delegated wallet
 * Privy Create User - Create a new Privy user with a linked Telegram account (for bot-first flows)
@@ -231,6 +233,35 @@ config = {
 - **Amount Bounds**: Set min/max output amount limits per order
 - **Flexible Frequency**: Specify interval in seconds
 - **Gasless Transactions**: Optionally pay gas on behalf of users
+
+### Jupiter Earn
+
+This plugin enables Solana Agent to deposit/withdraw assets and mint/redeem shares using Jupiter's Earn (Lend) API.
+
+```python
+config = {
+    "tools": {
+        "jupiter_earn": {
+            "private_key": "my-private-key", # Required - base58 string
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
+            "rpc_url": "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY", # Required - Helius RPC for reliable tx sending
+        },
+    },
+}
+```
+
+**Actions:**
+- `deposit` - Deposit SOL/USDC into Earn (requires asset, amount)
+- `withdraw` - Withdraw SOL/USDC from Earn (requires asset, amount)
+- `mint` - Mint shares for SOL/USDC (requires asset, shares)
+- `redeem` - Redeem shares for SOL/USDC (requires asset, shares)
+- `tokens` - List earn tokens (filtered to SOL/USDC)
+- `positions` - List user positions (filtered to SOL/USDC)
+- `earnings` - Get user earnings (filtered to SOL/USDC)
+
+**Notes:**
+- Only SOL and USDC are supported for earn transactions.
+- Transactions are sent directly via your RPC (Helius recommended).
 
 ### Jupiter Holdings
 
@@ -462,6 +493,30 @@ config = {
 ```
 
 **Actions:** Same as Jupiter Recurring (create, cancel, list)
+
+### Privy Jupiter Earn
+
+This plugin enables Solana Agent to use Jupiter Earn with Privy delegated wallets for deposits, withdrawals, and share mint/redeem.
+
+```python
+config = {
+    "tools": {
+        "privy_jupiter_earn": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "jupiter_api_key": "my-jupiter-api-key", # Required - get free key at portal.jup.ag
+            "rpc_url": "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY", # Required - Helius RPC for reliable tx sending
+        },
+    },
+}
+```
+
+**Actions:** Same as Jupiter Earn (deposit, withdraw, mint, redeem, tokens, positions, earnings)
+
+**Notes:**
+- Only SOL and USDC are supported for earn transactions.
+- Transactions are signed via Privy and sent directly via your RPC.
 
 ### Privy DFlow Swap
 
