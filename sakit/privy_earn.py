@@ -164,12 +164,12 @@ async def _privy_sign_transaction(  # pragma: no cover
         return None
 
 
-class PrivyJupiterEarnTool(AutoTool):
+class PrivyEarnTool(AutoTool):
     """Use Jupiter Earn API with Privy delegated wallets."""
 
     def __init__(self, registry: Optional[ToolRegistry] = None):
         super().__init__(
-            name="privy_jupiter_earn",
+            name="privy_earn",
             description=(
                 "Use Jupiter Earn API with Privy delegated wallets. "
                 "Actions: 'deposit', 'withdraw', 'mint', 'redeem', 'tokens', "
@@ -258,7 +258,7 @@ class PrivyJupiterEarnTool(AutoTool):
 
     def configure(self, config: Dict[str, Any]) -> None:
         super().configure(config)
-        tool_cfg = config.get("tools", {}).get("privy_jupiter_earn", {})
+        tool_cfg = config.get("tools", {}).get("privy_earn", {})
         self._app_id = tool_cfg.get("app_id")
         self._app_secret = tool_cfg.get("app_secret")
         self._signing_key = tool_cfg.get("signing_key")
@@ -486,11 +486,11 @@ class PrivyJupiterEarnTool(AutoTool):
             await privy_client.close()
 
 
-class PrivyJupiterEarnPlugin:
+class PrivyEarnPlugin:
     """Plugin for Jupiter Earn with Privy wallets."""
 
     def __init__(self) -> None:
-        self.name = "privy_jupiter_earn"
+        self.name = "privy_earn"
         self.config = None
         self.tool_registry = None
         self._tool = None
@@ -501,7 +501,7 @@ class PrivyJupiterEarnPlugin:
 
     def initialize(self, tool_registry: ToolRegistry) -> None:  # pragma: no cover
         self.tool_registry = tool_registry
-        self._tool = PrivyJupiterEarnTool(registry=tool_registry)
+        self._tool = PrivyEarnTool(registry=tool_registry)
 
     def configure(self, config: Dict[str, Any]) -> None:  # pragma: no cover
         self.config = config
@@ -513,4 +513,4 @@ class PrivyJupiterEarnPlugin:
 
 
 def get_plugin():  # pragma: no cover
-    return PrivyJupiterEarnPlugin()
+    return PrivyEarnPlugin()

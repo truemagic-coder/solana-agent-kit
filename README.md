@@ -31,7 +31,7 @@ Solana Agent Kit provides a growing library of plugins that enhance your Solana 
 * Privy Ultra Quote - Preview swap details and price impact before executing swaps with Privy wallets
 * Privy Trigger - Create and manage limit orders with Privy delegated wallets
 * Privy Recurring - Create and manage DCA orders with Privy delegated wallets
-* Privy Jupiter Earn - Earn deposits/withdrawals and share mint/redeem using Privy delegated wallets
+* Privy Earn - Earn deposits/withdrawals and share mint/redeem using Privy delegated wallets
 * Privy DFlow Swap - Fast token swaps using DFlow API with Privy delegated wallets
 * Privy Wallet Address - Get the wallet address of a Privy delegated wallet
 * Privy Create User - Create a new Privy user with a linked Telegram account (for bot-first flows)
@@ -494,14 +494,14 @@ config = {
 
 **Actions:** Same as Jupiter Recurring (create, cancel, list)
 
-### Privy Jupiter Earn
+### Privy Earn
 
 This plugin enables Solana Agent to use Jupiter Earn with Privy delegated wallets for deposits, withdrawals, and share mint/redeem.
 
 ```python
 config = {
     "tools": {
-        "privy_jupiter_earn": {
+        "privy_earn": {
             "app_id": "your-privy-app-id", # Required - your Privy application ID
             "app_secret": "your-privy-app-secret", # Required - your Privy application secret
             "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
