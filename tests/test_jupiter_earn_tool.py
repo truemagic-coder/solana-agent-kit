@@ -6,7 +6,6 @@ import base64
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from solders.pubkey import Pubkey
 from solders.keypair import Keypair
 from solders.hash import Hash
 
@@ -162,7 +161,9 @@ class TestJupiterEarnToolExecute:
 
             mock_earn = MagicMock()
             mock_earn.get_deposit_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=bad_instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=bad_instruction
+                )
             )
             MockEarn.return_value = mock_earn
 
@@ -184,14 +185,18 @@ class TestJupiterEarnToolExecute:
         }
         with (
             patch("sakit.jupiter_earn.JupiterEarn") as MockEarn,
-            patch("sakit.jupiter_earn.get_fresh_blockhash", new_callable=AsyncMock) as mock_blockhash,
+            patch(
+                "sakit.jupiter_earn.get_fresh_blockhash", new_callable=AsyncMock
+            ) as mock_blockhash,
             patch("sakit.jupiter_earn.Keypair") as MockKeypair,
         ):
             MockKeypair.from_base58_string.return_value = Keypair()
 
             mock_earn = MagicMock()
             mock_earn.get_deposit_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=instruction
+                )
             )
             MockEarn.return_value = mock_earn
             mock_blockhash.return_value = {"error": "no blockhash"}
@@ -214,7 +219,9 @@ class TestJupiterEarnToolExecute:
         }
         with (
             patch("sakit.jupiter_earn.JupiterEarn") as MockEarn,
-            patch("sakit.jupiter_earn.get_fresh_blockhash", new_callable=AsyncMock) as mock_blockhash,
+            patch(
+                "sakit.jupiter_earn.get_fresh_blockhash", new_callable=AsyncMock
+            ) as mock_blockhash,
             patch(
                 "sakit.jupiter_earn.send_raw_transaction_with_priority",
                 new_callable=AsyncMock,
@@ -225,7 +232,9 @@ class TestJupiterEarnToolExecute:
 
             mock_earn = MagicMock()
             mock_earn.get_deposit_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=instruction
+                )
             )
             MockEarn.return_value = mock_earn
             mock_blockhash.return_value = {"blockhash": Hash.default()}
@@ -249,7 +258,9 @@ class TestJupiterEarnToolExecute:
         }
         with (
             patch("sakit.jupiter_earn.JupiterEarn") as MockEarn,
-            patch("sakit.jupiter_earn.get_fresh_blockhash", new_callable=AsyncMock) as mock_blockhash,
+            patch(
+                "sakit.jupiter_earn.get_fresh_blockhash", new_callable=AsyncMock
+            ) as mock_blockhash,
             patch(
                 "sakit.jupiter_earn.send_raw_transaction_with_priority",
                 new_callable=AsyncMock,
@@ -260,7 +271,9 @@ class TestJupiterEarnToolExecute:
 
             mock_earn = MagicMock()
             mock_earn.get_deposit_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=instruction
+                )
             )
             MockEarn.return_value = mock_earn
             mock_blockhash.return_value = {"blockhash": Hash.default()}
@@ -339,9 +352,7 @@ class TestJupiterEarnToolExecute:
         with patch("sakit.jupiter_earn.Keypair") as MockKeypair:
             MockKeypair.from_base58_string.return_value = Keypair()
 
-            result = await earn_tool.execute(
-                action="earnings",
-                positions=",")
+            result = await earn_tool.execute(action="earnings", positions=",")
 
         assert result["status"] == "error"
         assert "positions" in result["message"].lower()
@@ -355,7 +366,9 @@ class TestJupiterEarnToolExecute:
         }
         with (
             patch("sakit.jupiter_earn.JupiterEarn") as MockEarn,
-            patch("sakit.jupiter_earn.get_fresh_blockhash", new_callable=AsyncMock) as mock_blockhash,
+            patch(
+                "sakit.jupiter_earn.get_fresh_blockhash", new_callable=AsyncMock
+            ) as mock_blockhash,
             patch(
                 "sakit.jupiter_earn.send_raw_transaction_with_priority",
                 new_callable=AsyncMock,
@@ -366,7 +379,9 @@ class TestJupiterEarnToolExecute:
 
             mock_earn = MagicMock()
             mock_earn.get_withdraw_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=instruction
+                )
             )
             MockEarn.return_value = mock_earn
             mock_blockhash.return_value = {"blockhash": Hash.default()}
@@ -389,7 +404,9 @@ class TestJupiterEarnToolExecute:
         }
         with (
             patch("sakit.jupiter_earn.JupiterEarn") as MockEarn,
-            patch("sakit.jupiter_earn.get_fresh_blockhash", new_callable=AsyncMock) as mock_blockhash,
+            patch(
+                "sakit.jupiter_earn.get_fresh_blockhash", new_callable=AsyncMock
+            ) as mock_blockhash,
             patch(
                 "sakit.jupiter_earn.send_raw_transaction_with_priority",
                 new_callable=AsyncMock,
@@ -400,7 +417,9 @@ class TestJupiterEarnToolExecute:
 
             mock_earn = MagicMock()
             mock_earn.get_redeem_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=instruction
+                )
             )
             MockEarn.return_value = mock_earn
             mock_blockhash.return_value = {"blockhash": Hash.default()}

@@ -212,7 +212,9 @@ class TestPrivyJupiterEarnToolExecute:
 
             mock_earn = MagicMock()
             mock_earn.get_deposit_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=bad_instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=bad_instruction
+                )
             )
             MockEarn.return_value = mock_earn
 
@@ -248,7 +250,9 @@ class TestPrivyJupiterEarnToolExecute:
 
             mock_earn = MagicMock()
             mock_earn.get_deposit_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=instruction
+                )
             )
             MockEarn.return_value = mock_earn
             mock_blockhash.return_value = {"error": "no blockhash"}
@@ -290,7 +294,9 @@ class TestPrivyJupiterEarnToolExecute:
 
             mock_earn = MagicMock()
             mock_earn.get_deposit_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=instruction
+                )
             )
             MockEarn.return_value = mock_earn
             mock_blockhash.return_value = {"blockhash": Hash.default()}
@@ -337,7 +343,9 @@ class TestPrivyJupiterEarnToolExecute:
 
             mock_earn = MagicMock()
             mock_earn.get_deposit_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=instruction
+                )
             )
             MockEarn.return_value = mock_earn
             mock_blockhash.return_value = {"blockhash": Hash.default()}
@@ -385,7 +393,9 @@ class TestPrivyJupiterEarnToolExecute:
 
             mock_earn = MagicMock()
             mock_earn.get_deposit_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=instruction
+                )
             )
             MockEarn.return_value = mock_earn
             mock_blockhash.return_value = {"blockhash": Hash.default()}
@@ -642,7 +652,9 @@ class TestPrivyJupiterEarnToolExecute:
 
             mock_earn = MagicMock()
             mock_earn.get_withdraw_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=instruction
+                )
             )
             MockEarn.return_value = mock_earn
             mock_blockhash.return_value = {"blockhash": Hash.default()}
@@ -689,7 +701,9 @@ class TestPrivyJupiterEarnToolExecute:
 
             mock_earn = MagicMock()
             mock_earn.get_redeem_instructions = AsyncMock(
-                return_value=MagicMock(success=True, error=None, instruction=instruction)
+                return_value=MagicMock(
+                    success=True, error=None, instruction=instruction
+                )
             )
             MockEarn.return_value = mock_earn
             mock_blockhash.return_value = {"blockhash": Hash.default()}
