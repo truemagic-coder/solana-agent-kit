@@ -1,5 +1,5 @@
 """
-Tests for Privy Jupiter Earn Tool.
+Tests for Privy Earn Tool.
 """
 
 import base64
@@ -8,9 +8,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from solders.hash import Hash
 
-from sakit.privy_jupiter_earn import (
-    PrivyJupiterEarnTool,
-    PrivyJupiterEarnPlugin,
+from sakit.privy_earn import (
+    PrivyEarnTool,
+    PrivyEarnPlugin,
     SOL_MINT,
     USDC_MINT,
     _build_instruction,
@@ -21,11 +21,11 @@ from sakit.privy_jupiter_earn import (
 
 @pytest.fixture
 def privy_earn_tool():
-    tool = PrivyJupiterEarnTool()
+    tool = PrivyEarnTool()
     tool.configure(
         {
             "tools": {
-                "privy_jupiter_earn": {
+                "privy_earn": {
                     "app_id": "test-app-id",
                     "app_secret": "test-app-secret",
                     "signing_key": "wallet-auth:test-signing-key",
@@ -40,14 +40,14 @@ def privy_earn_tool():
 
 @pytest.fixture
 def privy_earn_tool_incomplete():
-    tool = PrivyJupiterEarnTool()
-    tool.configure({"tools": {"privy_jupiter_earn": {"app_id": "test-app-id"}}})
+    tool = PrivyEarnTool()
+    tool.configure({"tools": {"privy_earn": {"app_id": "test-app-id"}}})
     return tool
 
 
-class TestPrivyJupiterEarnToolSchema:
+class TestPrivyEarnToolSchema:
     def test_tool_name(self, privy_earn_tool):
-        assert privy_earn_tool.name == "privy_jupiter_earn"
+        assert privy_earn_tool.name == "privy_earn"
 
     def test_schema_required_fields(self, privy_earn_tool):
         schema = privy_earn_tool.get_schema()
@@ -56,7 +56,7 @@ class TestPrivyJupiterEarnToolSchema:
         assert "action" in schema["required"]
 
 
-class TestPrivyJupiterEarnToolExecute:
+class TestPrivyEarnToolExecute:
     @pytest.mark.asyncio
     async def test_execute_missing_wallet_params(self, privy_earn_tool):
         result = await privy_earn_tool.execute(
@@ -100,7 +100,7 @@ class TestPrivyJupiterEarnToolExecute:
     async def test_execute_missing_rpc_url(self, privy_earn_tool):
         privy_earn_tool._rpc_url = None
 
-        with patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy:
+        with patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy:
             mock_client = MagicMock()
             mock_client.close = AsyncMock()
             MockPrivy.return_value = mock_client
@@ -118,7 +118,7 @@ class TestPrivyJupiterEarnToolExecute:
 
     @pytest.mark.asyncio
     async def test_execute_invalid_asset(self, privy_earn_tool):
-        with patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy:
+        with patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy:
             mock_client = MagicMock()
             mock_client.close = AsyncMock()
             MockPrivy.return_value = mock_client
@@ -136,7 +136,7 @@ class TestPrivyJupiterEarnToolExecute:
 
     @pytest.mark.asyncio
     async def test_execute_missing_amount(self, privy_earn_tool):
-        with patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy:
+        with patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy:
             mock_client = MagicMock()
             mock_client.close = AsyncMock()
             MockPrivy.return_value = mock_client
@@ -153,7 +153,7 @@ class TestPrivyJupiterEarnToolExecute:
 
     @pytest.mark.asyncio
     async def test_execute_missing_shares(self, privy_earn_tool):
-        with patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy:
+        with patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy:
             mock_client = MagicMock()
             mock_client.close = AsyncMock()
             MockPrivy.return_value = mock_client
@@ -171,8 +171,8 @@ class TestPrivyJupiterEarnToolExecute:
     @pytest.mark.asyncio
     async def test_execute_instruction_error(self, privy_earn_tool):
         with (
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
         ):
             mock_client = MagicMock()
             mock_client.close = AsyncMock()
@@ -203,8 +203,8 @@ class TestPrivyJupiterEarnToolExecute:
             "data": "not-base64",
         }
         with (
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
         ):
             mock_client = MagicMock()
             mock_client.close = AsyncMock()
@@ -237,10 +237,10 @@ class TestPrivyJupiterEarnToolExecute:
             "data": base64.b64encode(b"\x01").decode("utf-8"),
         }
         with (
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
             patch(
-                "sakit.privy_jupiter_earn.get_fresh_blockhash",
+                "sakit.privy_earn.get_fresh_blockhash",
                 new_callable=AsyncMock,
             ) as mock_blockhash,
         ):
@@ -276,14 +276,14 @@ class TestPrivyJupiterEarnToolExecute:
             "data": base64.b64encode(b"\x01").decode("utf-8"),
         }
         with (
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
             patch(
-                "sakit.privy_jupiter_earn.get_fresh_blockhash",
+                "sakit.privy_earn.get_fresh_blockhash",
                 new_callable=AsyncMock,
             ) as mock_blockhash,
             patch(
-                "sakit.privy_jupiter_earn._privy_sign_transaction",
+                "sakit.privy_earn._privy_sign_transaction",
                 new_callable=AsyncMock,
                 return_value=None,
             ),
@@ -321,19 +321,19 @@ class TestPrivyJupiterEarnToolExecute:
         }
         signed_tx = base64.b64encode(b"signed").decode("utf-8")
         with (
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
             patch(
-                "sakit.privy_jupiter_earn.get_fresh_blockhash",
+                "sakit.privy_earn.get_fresh_blockhash",
                 new_callable=AsyncMock,
             ) as mock_blockhash,
             patch(
-                "sakit.privy_jupiter_earn._privy_sign_transaction",
+                "sakit.privy_earn._privy_sign_transaction",
                 new_callable=AsyncMock,
                 return_value=signed_tx,
             ),
             patch(
-                "sakit.privy_jupiter_earn.send_raw_transaction_with_priority",
+                "sakit.privy_earn.send_raw_transaction_with_priority",
                 new_callable=AsyncMock,
             ) as mock_send,
         ):
@@ -371,19 +371,19 @@ class TestPrivyJupiterEarnToolExecute:
         }
         signed_tx = base64.b64encode(b"signed").decode("utf-8")
         with (
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
             patch(
-                "sakit.privy_jupiter_earn.get_fresh_blockhash",
+                "sakit.privy_earn.get_fresh_blockhash",
                 new_callable=AsyncMock,
             ) as mock_blockhash,
             patch(
-                "sakit.privy_jupiter_earn._privy_sign_transaction",
+                "sakit.privy_earn._privy_sign_transaction",
                 new_callable=AsyncMock,
                 return_value=signed_tx,
             ),
             patch(
-                "sakit.privy_jupiter_earn.send_raw_transaction_with_priority",
+                "sakit.privy_earn.send_raw_transaction_with_priority",
                 new_callable=AsyncMock,
             ) as mock_send,
         ):
@@ -421,8 +421,8 @@ class TestPrivyJupiterEarnToolExecute:
         ]
 
         with (
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
         ):
             mock_earn = MagicMock()
             mock_earn.get_tokens = AsyncMock(
@@ -446,8 +446,8 @@ class TestPrivyJupiterEarnToolExecute:
     @pytest.mark.asyncio
     async def test_tokens_error(self, privy_earn_tool):
         with (
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
         ):
             mock_earn = MagicMock()
             mock_earn.get_tokens = AsyncMock(
@@ -471,8 +471,8 @@ class TestPrivyJupiterEarnToolExecute:
     @pytest.mark.asyncio
     async def test_positions_error(self, privy_earn_tool):
         with (
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
         ):
             mock_earn = MagicMock()
             mock_earn.get_positions = AsyncMock(
@@ -497,8 +497,8 @@ class TestPrivyJupiterEarnToolExecute:
     @pytest.mark.asyncio
     async def test_positions_defaults_to_wallet(self, privy_earn_tool):
         with (
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
         ):
             mock_earn = MagicMock()
             mock_earn.get_positions = AsyncMock(
@@ -521,7 +521,7 @@ class TestPrivyJupiterEarnToolExecute:
 
     @pytest.mark.asyncio
     async def test_earnings_requires_positions(self, privy_earn_tool):
-        with patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy:
+        with patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy:
             mock_client = MagicMock()
             mock_client.close = AsyncMock()
             MockPrivy.return_value = mock_client
@@ -537,7 +537,7 @@ class TestPrivyJupiterEarnToolExecute:
 
     @pytest.mark.asyncio
     async def test_earnings_empty_positions_list(self, privy_earn_tool):
-        with patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy:
+        with patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy:
             mock_client = MagicMock()
             mock_client.close = AsyncMock()
             MockPrivy.return_value = mock_client
@@ -555,8 +555,8 @@ class TestPrivyJupiterEarnToolExecute:
     @pytest.mark.asyncio
     async def test_earnings_error(self, privy_earn_tool):
         with (
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
         ):
             mock_earn = MagicMock()
             mock_earn.get_earnings = AsyncMock(
@@ -582,8 +582,8 @@ class TestPrivyJupiterEarnToolExecute:
     @pytest.mark.asyncio
     async def test_earnings_default_user(self, privy_earn_tool):
         with (
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
         ):
             mock_earn = MagicMock()
             mock_earn.get_earnings = AsyncMock(
@@ -607,7 +607,7 @@ class TestPrivyJupiterEarnToolExecute:
 
     @pytest.mark.asyncio
     async def test_unknown_action(self, privy_earn_tool):
-        with patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy:
+        with patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy:
             mock_client = MagicMock()
             mock_client.close = AsyncMock()
             MockPrivy.return_value = mock_client
@@ -630,19 +630,19 @@ class TestPrivyJupiterEarnToolExecute:
         }
         signed_tx = base64.b64encode(b"signed").decode("utf-8")
         with (
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
             patch(
-                "sakit.privy_jupiter_earn.get_fresh_blockhash",
+                "sakit.privy_earn.get_fresh_blockhash",
                 new_callable=AsyncMock,
             ) as mock_blockhash,
             patch(
-                "sakit.privy_jupiter_earn._privy_sign_transaction",
+                "sakit.privy_earn._privy_sign_transaction",
                 new_callable=AsyncMock,
                 return_value=signed_tx,
             ),
             patch(
-                "sakit.privy_jupiter_earn.send_raw_transaction_with_priority",
+                "sakit.privy_earn.send_raw_transaction_with_priority",
                 new_callable=AsyncMock,
             ) as mock_send,
         ):
@@ -679,19 +679,19 @@ class TestPrivyJupiterEarnToolExecute:
         }
         signed_tx = base64.b64encode(b"signed").decode("utf-8")
         with (
-            patch("sakit.privy_jupiter_earn.AsyncPrivyAPI") as MockPrivy,
-            patch("sakit.privy_jupiter_earn.JupiterEarn") as MockEarn,
+            patch("sakit.privy_earn.AsyncPrivyAPI") as MockPrivy,
+            patch("sakit.privy_earn.JupiterEarn") as MockEarn,
             patch(
-                "sakit.privy_jupiter_earn.get_fresh_blockhash",
+                "sakit.privy_earn.get_fresh_blockhash",
                 new_callable=AsyncMock,
             ) as mock_blockhash,
             patch(
-                "sakit.privy_jupiter_earn._privy_sign_transaction",
+                "sakit.privy_earn._privy_sign_transaction",
                 new_callable=AsyncMock,
                 return_value=signed_tx,
             ),
             patch(
-                "sakit.privy_jupiter_earn.send_raw_transaction_with_priority",
+                "sakit.privy_earn.send_raw_transaction_with_priority",
                 new_callable=AsyncMock,
             ) as mock_send,
         ):
@@ -720,21 +720,21 @@ class TestPrivyJupiterEarnToolExecute:
         assert result["status"] == "success"
 
 
-class TestPrivyJupiterEarnPlugin:
+class TestPrivyEarnPlugin:
     def test_plugin_name(self):
-        plugin = PrivyJupiterEarnPlugin()
-        assert plugin.name == "privy_jupiter_earn"
+        plugin = PrivyEarnPlugin()
+        assert plugin.name == "privy_earn"
 
     def test_plugin_description(self):
-        plugin = PrivyJupiterEarnPlugin()
+        plugin = PrivyEarnPlugin()
         assert "jupiter" in plugin.description.lower()
 
     def test_get_plugin(self):
         plugin = get_plugin()
-        assert plugin.name == "privy_jupiter_earn"
+        assert plugin.name == "privy_earn"
 
 
-class TestPrivyJupiterEarnHelpers:
+class TestPrivyEarnHelpers:
     def test_normalize_asset(self):
         assert _normalize_asset("sol") == SOL_MINT
         assert _normalize_asset("USDC") == USDC_MINT
