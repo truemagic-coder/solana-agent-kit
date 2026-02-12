@@ -64,7 +64,9 @@ class TokenTransferManager:
 
             fee_payer_keypair = getattr(wallet, "fee_payer", None)
             tx_payer_pubkey = (
-                fee_payer_keypair.pubkey() if (no_signer and fee_payer_keypair) else wallet_pubkey
+                fee_payer_keypair.pubkey()
+                if (no_signer and fee_payer_keypair)
+                else wallet_pubkey
             )
 
             if mint == "So11111111111111111111111111111111111111112":
@@ -117,7 +119,9 @@ class TokenTransferManager:
                         fee_payer_pubkey = fee_payer_keypair.pubkey()
                         for i, signer_pk in enumerate(signer_keys):
                             if signer_pk == fee_payer_pubkey:
-                                signatures[i] = fee_payer_keypair.sign_message(msg_bytes)
+                                signatures[i] = fee_payer_keypair.sign_message(
+                                    msg_bytes
+                                )
                                 break
 
                     return VersionedTransaction.populate(
@@ -295,7 +299,9 @@ class TokenTransferManager:
                         fee_payer_pubkey = fee_payer_keypair.pubkey()
                         for i, signer_pk in enumerate(signer_keys):
                             if signer_pk == fee_payer_pubkey:
-                                signatures[i] = fee_payer_keypair.sign_message(msg_bytes)
+                                signatures[i] = fee_payer_keypair.sign_message(
+                                    msg_bytes
+                                )
                                 break
 
                     return VersionedTransaction.populate(

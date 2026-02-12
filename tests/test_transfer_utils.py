@@ -191,9 +191,7 @@ class TestTokenTransferManager:
         # 2) destination ATA existence check (missing => value is None)
         async def get_account_info_side_effect(pubkey):
             if pubkey is mint_pubkey_obj:
-                return MagicMock(
-                    value=MagicMock(owner=SPL_TOKEN_PROGRAM_ID)
-                )
+                return MagicMock(value=MagicMock(owner=SPL_TOKEN_PROGRAM_ID))
             if pubkey is to_ata_pubkey_obj:
                 return MagicMock(value=None)
             return MagicMock(value=None)
@@ -233,9 +231,13 @@ class TestTokenTransferManager:
 
             async def get_accounts_by_owner_side_effect(owner_pubkey):
                 if owner_pubkey is wallet_pubkey_obj:
-                    return MagicMock(value=[MagicMock(pubkey=MagicMock(name="from_ata"))])
+                    return MagicMock(
+                        value=[MagicMock(pubkey=MagicMock(name="from_ata"))]
+                    )
                 if owner_pubkey is fee_payer_pubkey_obj:
-                    return MagicMock(value=[MagicMock(pubkey=MagicMock(name="fee_ata"))])
+                    return MagicMock(
+                        value=[MagicMock(pubkey=MagicMock(name="fee_ata"))]
+                    )
                 return MagicMock(value=[])
 
             mock_token_instance.get_accounts_by_owner = AsyncMock(
