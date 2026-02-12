@@ -169,7 +169,7 @@ class SolanaUltraTool(AutoTool):
             send_result = await send_raw_transaction_with_priority(
                 rpc_url=self._rpc_url,
                 tx_bytes=signed_tx_bytes,
-                skip_preflight=False,  # Run preflight to catch signature/signer errors
+                skip_preflight=True,  # Some RPCs don't support preflight simulation
                 skip_confirmation=False,  # Wait for confirmation - blockhash is from our RPC
                 confirm_timeout=30.0,
             )

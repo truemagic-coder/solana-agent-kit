@@ -389,7 +389,7 @@ class PrivyEarnTool(AutoTool):
                 send_result = await send_raw_transaction_with_priority(
                     rpc_url=self._rpc_url,
                     tx_bytes=base64.b64decode(signed_tx),
-                    skip_preflight=False,
+                    skip_preflight=True,
                     skip_confirmation=False,
                     confirm_timeout=30.0,
                 )
