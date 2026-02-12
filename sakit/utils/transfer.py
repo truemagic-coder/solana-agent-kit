@@ -21,6 +21,7 @@ LAMPORTS_PER_SOL = 10**9
 SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 MEMO_PROGRAM_ID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
+SYSTEM_PROGRAM_ID = "11111111111111111111111111111111"
 
 
 def make_memo_instruction(memo: str) -> Instruction:  # pragma: no cover
@@ -33,6 +34,22 @@ def make_memo_instruction(memo: str) -> Instruction:  # pragma: no cover
 
 class TokenTransferManager:
     @staticmethod
+    async def _is_valid_ata_owner(
+        wallet: SolanaWalletClient, owner_pubkey: Pubkey
+    ) -> bool:
+        try:
+            if not owner_pubkey.is_on_curve():
+                return False
+            info = await wallet.client.get_account_info(owner_pubkey)
+            value = getattr(info, "value", None)
+            if not value:
+                return True
+            return str(value.owner) == SYSTEM_PROGRAM_ID
+        except Exception:
+            # Never block transfers due to RPC/account lookup issues.
+            return True
+
+    @staticmethod
     async def transfer(  # pragma: no cover
         wallet: SolanaWalletClient,
         to: str,
@@ -40,7 +57,7 @@ class TokenTransferManager:
         mint: str,
         provider: str = None,
         no_signer: bool = False,
-        fee_percentage: float = 0.85,
+        fee_percentage: float = 0.0,
         memo: str = "",
     ) -> Transaction:
         """
@@ -52,7 +69,7 @@ class TokenTransferManager:
         :param mint: Optional mint address for SPL or Token2022 token
         :param provider: Provider for the transaction, default is None
         :param no_signer: If True, doesn't sign the transaction with the wallet's keypair
-        :param fee_percentage: Percentage of the transfer amount to be used as a fee (default is 0.85% for SOL transfers)
+        :param fee_percentage: Optional percentage of the transfer amount to be used as a fee (default 0.0 = no fees)
         :param memo: Optional memo for the transaction
         :return: Transaction object ready for submission
         """
@@ -84,17 +101,19 @@ class TokenTransferManager:
                     ix_memo = make_memo_instruction(memo)
                     ixs.append(ix_memo)
 
-                if wallet.fee_payer:
-                    ix_fee = transfer(
-                        TransferParams(
-                            from_pubkey=wallet_pubkey,
-                            to_pubkey=wallet.fee_payer.pubkey(),
-                            lamports=int(
-                                amount * LAMPORTS_PER_SOL * (fee_percentage / 100)
-                            ),
-                        )
+                if wallet.fee_payer and fee_percentage > 0:
+                    fee_lamports = int(
+                        amount * LAMPORTS_PER_SOL * (fee_percentage / 100)
                     )
-                    ixs.append(ix_fee)
+                    if fee_lamports > 0:
+                        ix_fee = transfer(
+                            TransferParams(
+                                from_pubkey=wallet_pubkey,
+                                to_pubkey=wallet.fee_payer.pubkey(),
+                                lamports=fee_lamports,
+                            )
+                        )
+                        ixs.append(ix_fee)
 
                 if no_signer:
                     blockhash_response = await wallet.client.get_latest_blockhash(
@@ -241,7 +260,7 @@ class TokenTransferManager:
                 )
                 ixs.append(ix_spl)
 
-                if wallet.fee_payer:
+                if wallet.fee_payer and fee_percentage > 0:
                     fee_amount = int(
                         amount * (10**mint_info.decimals) * (fee_percentage / 100)
                     )
@@ -250,45 +269,48 @@ class TokenTransferManager:
                     # Also avoid generating a 0-amount token transfer (common for dust amounts).
                     if fee_amount > 0:
                         fee_payer_pubkey = wallet.fee_payer.pubkey()
-                        to_fee_ata = get_associated_token_address(
-                            fee_payer_pubkey,
-                            mint_pubkey,
-                            token_program_id=program_id,
-                        )
 
-                        to_fee_ata_info = await wallet.client.get_account_info(
-                            to_fee_ata
-                        )
-                        if not getattr(to_fee_ata_info, "value", None):
-                            create_fee_ata_ix = create_associated_token_account(
-                                payer=tx_payer_pubkey,
-                                owner=fee_payer_pubkey,
-                                mint=mint_pubkey,
+                        # Some deployments configure `fee_payer` to a non-wallet address
+                        # (e.g., a token account). The associated token program rejects
+                        # creating ATAs for non-system-owned owners, which would fail the
+                        # entire transfer. Treat token fee collection as best-effort.
+                        if not await TokenTransferManager._is_valid_ata_owner(
+                            wallet, fee_payer_pubkey
+                        ):
+                            logging.warning(
+                                "Skipping token fee collection: fee_payer is not a valid ATA owner"
+                            )
+                        else:
+                            to_fee_ata = get_associated_token_address(
+                                fee_payer_pubkey,
+                                mint_pubkey,
                                 token_program_id=program_id,
                             )
-                            ixs.append(create_fee_ata_ix)
 
-                        ix_fee = spl_transfer(
-                            SPLTransferParams(
-                                program_id=program_id,
-                                source=from_ata,
-                                mint=mint_pubkey,
-                                dest=to_fee_ata,
-                                owner=wallet_pubkey,
-                                amount=fee_amount,
-                                decimals=mint_info.decimals,
+                            to_fee_ata_info = await wallet.client.get_account_info(
+                                to_fee_ata
                             )
-                        )
-                        ixs.append(ix_fee)
+                            if not getattr(to_fee_ata_info, "value", None):
+                                create_fee_ata_ix = create_associated_token_account(
+                                    payer=tx_payer_pubkey,
+                                    owner=fee_payer_pubkey,
+                                    mint=mint_pubkey,
+                                    token_program_id=program_id,
+                                )
+                                ixs.append(create_fee_ata_ix)
 
-                    webhook_fee = transfer(
-                        TransferParams(
-                            from_pubkey=wallet_pubkey,
-                            to_pubkey=wallet.fee_payer.pubkey(),
-                            lamports=int(0.0001 * LAMPORTS_PER_SOL),
-                        )
-                    )
-                    ixs.append(webhook_fee)
+                            ix_fee = spl_transfer(
+                                SPLTransferParams(
+                                    program_id=program_id,
+                                    source=from_ata,
+                                    mint=mint_pubkey,
+                                    dest=to_fee_ata,
+                                    owner=wallet_pubkey,
+                                    amount=fee_amount,
+                                    decimals=mint_info.decimals,
+                                )
+                            )
+                            ixs.append(ix_fee)
 
                 if memo:
                     ix_memo = make_memo_instruction(memo)

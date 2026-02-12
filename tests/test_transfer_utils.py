@@ -171,6 +171,7 @@ class TestTokenTransferManager:
         fee_ata_pubkey_obj = MagicMock(name="fee_ata")
 
         fee_payer_pubkey_obj = MagicMock(name="fee_payer_pubkey")
+        fee_payer_pubkey_obj.is_on_curve.return_value = True
         fee_payer_keypair = MagicMock(name="fee_payer_keypair")
         fee_payer_keypair.pubkey.return_value = fee_payer_pubkey_obj
         fee_payer_signature = b"\x11" * 64
@@ -190,12 +191,17 @@ class TestTokenTransferManager:
         # get_account_info is called for:
         # 1) mint owner (SPL token program)
         # 2) destination ATA existence check (missing => value is None)
+        # 3) fee payer account owner check (system-owned)
         # 3) fee payer ATA existence check (present => value is not None)
         async def get_account_info_side_effect(pubkey):
             if pubkey is mint_pubkey_obj:
                 return MagicMock(value=MagicMock(owner=SPL_TOKEN_PROGRAM_ID))
             if pubkey is to_ata_pubkey_obj:
                 return MagicMock(value=None)
+            if pubkey is fee_payer_pubkey_obj:
+                return MagicMock(
+                    value=MagicMock(owner="11111111111111111111111111111111")
+                )
             if pubkey is fee_ata_pubkey_obj:
                 return MagicMock(value=MagicMock())
             return MagicMock(value=None)
@@ -272,6 +278,7 @@ class TestTokenTransferManager:
                 amount=1.0,
                 mint=usdc_mint,
                 no_signer=True,
+                fee_percentage=1.0,
             )
 
             # ATA creation should use fee payer as payer
@@ -300,6 +307,7 @@ class TestTokenTransferManager:
         fee_ata_pubkey_obj = MagicMock(name="fee_ata")
 
         fee_payer_pubkey_obj = MagicMock(name="fee_payer_pubkey")
+        fee_payer_pubkey_obj.is_on_curve.return_value = True
         fee_payer_keypair = MagicMock(name="fee_payer_keypair")
         fee_payer_keypair.pubkey.return_value = fee_payer_pubkey_obj
 
@@ -319,6 +327,10 @@ class TestTokenTransferManager:
                 return MagicMock(value=MagicMock(owner=SPL_TOKEN_PROGRAM_ID))
             if pubkey is to_ata_pubkey_obj:
                 return MagicMock(value=MagicMock())
+            if pubkey is fee_payer_pubkey_obj:
+                return MagicMock(
+                    value=MagicMock(owner="11111111111111111111111111111111")
+                )
             if pubkey is fee_ata_pubkey_obj:
                 return MagicMock(value=None)
             return MagicMock(value=None)
@@ -384,6 +396,7 @@ class TestTokenTransferManager:
                 amount=1.0,
                 mint=usdc_mint,
                 no_signer=True,
+                fee_percentage=1.0,
             )
 
             # Should have created fee payer ATA (owner=fee_payer_pubkey)
@@ -392,6 +405,119 @@ class TestTokenTransferManager:
             assert any(
                 kwargs.get("owner") is fee_payer_pubkey_obj for kwargs in create_calls
             )
+
+    @pytest.mark.asyncio
+    async def test_transfer_spl_token_skips_fee_collection_for_non_system_fee_payer(
+        self,
+    ):
+        """Should not try to create/transfer token fees when fee_payer is program-owned."""
+        from sakit.utils.transfer import TokenTransferManager, SPL_TOKEN_PROGRAM_ID
+
+        wallet_pubkey_obj = MagicMock(name="wallet_pubkey")
+        to_pubkey_obj = MagicMock(name="to_pubkey")
+        mint_pubkey_obj = MagicMock(name="mint_pubkey")
+        program_id_obj = MagicMock(name="program_id")
+        to_ata_pubkey_obj = MagicMock(name="to_ata")
+
+        fee_payer_pubkey_obj = MagicMock(name="fee_payer_pubkey")
+        fee_payer_pubkey_obj.is_on_curve.return_value = True
+        fee_payer_keypair = MagicMock(name="fee_payer_keypair")
+        fee_payer_keypair.pubkey.return_value = fee_payer_pubkey_obj
+
+        mock_wallet = MagicMock()
+        mock_wallet.pubkey = wallet_pubkey_obj
+        mock_wallet.keypair = None
+        mock_wallet.fee_payer = fee_payer_keypair
+        mock_wallet.client = AsyncMock()
+
+        mock_wallet.client.get_latest_blockhash = AsyncMock(
+            return_value=MagicMock(value=MagicMock(blockhash="blockhash123"))
+        )
+
+        # mint owner is SPL token program; recipient ATA exists; fee payer is NOT system-owned
+        async def get_account_info_side_effect(pubkey):
+            if pubkey is mint_pubkey_obj:
+                return MagicMock(value=MagicMock(owner=SPL_TOKEN_PROGRAM_ID))
+            if pubkey is to_ata_pubkey_obj:
+                return MagicMock(value=MagicMock())
+            if pubkey is fee_payer_pubkey_obj:
+                return MagicMock(
+                    value=MagicMock(
+                        owner="SomeProgram111111111111111111111111111111111"
+                    )
+                )
+            return MagicMock(value=None)
+
+        mock_wallet.client.get_account_info = AsyncMock(
+            side_effect=get_account_info_side_effect
+        )
+
+        with (
+            patch("sakit.utils.transfer.Pubkey") as MockPubkey,
+            patch("sakit.utils.transfer.AsyncToken") as MockToken,
+            patch("sakit.utils.transfer.get_associated_token_address") as mock_get_ata,
+            patch(
+                "sakit.utils.transfer.create_associated_token_account"
+            ) as mock_create_ata,
+            patch("sakit.utils.transfer.spl_transfer") as mock_spl_transfer,
+            patch("sakit.utils.transfer.transfer") as mock_sys_transfer,
+            patch("sakit.utils.transfer.Message") as MockMessage,
+            patch("sakit.utils.transfer.VersionedTransaction") as MockVTx,
+            patch("sakit.utils.transfer.NullSigner") as MockNullSigner,
+            patch("sakit.utils.transfer.to_bytes_versioned") as mock_to_bytes,
+        ):
+            MockPubkey.from_string.side_effect = [
+                to_pubkey_obj,
+                mint_pubkey_obj,
+                program_id_obj,
+            ]
+
+            mock_get_ata.side_effect = [to_ata_pubkey_obj]
+
+            mock_token_instance = AsyncMock()
+            mock_token_instance.get_accounts_by_owner = AsyncMock(
+                return_value=MagicMock(
+                    value=[MagicMock(pubkey=MagicMock(name="from_ata"))]
+                )
+            )
+            mock_token_instance.get_mint_info = AsyncMock(
+                return_value=MagicMock(decimals=6)
+            )
+            MockToken.return_value = mock_token_instance
+
+            mock_create_ata.return_value = MagicMock(name="create_ata_ix")
+            mock_spl_transfer.return_value = MagicMock(name="spl_transfer_ix")
+            mock_sys_transfer.return_value = MagicMock(name="webhook_fee_ix")
+
+            mock_msg = MagicMock(name="msg")
+            mock_msg.header = MagicMock(num_required_signatures=1)
+            mock_msg.account_keys = [fee_payer_pubkey_obj]
+            MockMessage.new_with_blockhash.return_value = mock_msg
+            mock_to_bytes.return_value = b"message_bytes"
+
+            mock_null_signer = MagicMock()
+            mock_null_signer.sign_message.return_value = b"\x00" * 64
+            MockNullSigner.return_value = mock_null_signer
+            MockVTx.populate.return_value = MagicMock(name="versioned_tx")
+
+            usdc_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+
+            await TokenTransferManager.transfer(
+                wallet=mock_wallet,
+                to="RecipientPubkey123",
+                amount=1.0,
+                mint=usdc_mint,
+                no_signer=True,
+                fee_percentage=1.0,
+            )
+
+            # Destination ATA creation may happen, but fee ATA creation must be skipped.
+            create_calls = [call.kwargs for call in mock_create_ata.call_args_list]
+            assert not any(
+                kwargs.get("owner") is fee_payer_pubkey_obj for kwargs in create_calls
+            )
+            # Token transfer instruction should only be built once (main transfer).
+            assert mock_spl_transfer.call_count == 1
 
     @pytest.mark.asyncio
     async def test_transfer_with_helius_priority_fee(self):
@@ -529,3 +655,87 @@ class TestTokenTransferManager:
                 "unsupported" in str(exc_info.value).lower()
                 or "fail" in str(exc_info.value).lower()
             )
+
+    @pytest.mark.asyncio
+    async def test_is_valid_ata_owner_off_curve_false(self):
+        from sakit.utils.transfer import TokenTransferManager
+
+        mock_wallet = MagicMock()
+        mock_wallet.client = AsyncMock()
+
+        owner_pubkey = MagicMock(name="owner_pubkey")
+        owner_pubkey.is_on_curve.return_value = False
+
+        assert (
+            await TokenTransferManager._is_valid_ata_owner(mock_wallet, owner_pubkey)
+        ) is False
+        mock_wallet.client.get_account_info.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_is_valid_ata_owner_missing_account_true(self):
+        from sakit.utils.transfer import TokenTransferManager
+
+        mock_wallet = MagicMock()
+        mock_wallet.client = AsyncMock()
+        mock_wallet.client.get_account_info = AsyncMock(
+            return_value=MagicMock(value=None)
+        )
+
+        owner_pubkey = MagicMock(name="owner_pubkey")
+        owner_pubkey.is_on_curve.return_value = True
+
+        assert (
+            await TokenTransferManager._is_valid_ata_owner(mock_wallet, owner_pubkey)
+        ) is True
+
+    @pytest.mark.asyncio
+    async def test_is_valid_ata_owner_system_owned_true(self):
+        from sakit.utils.transfer import TokenTransferManager, SYSTEM_PROGRAM_ID
+
+        mock_wallet = MagicMock()
+        mock_wallet.client = AsyncMock()
+        mock_wallet.client.get_account_info = AsyncMock(
+            return_value=MagicMock(value=MagicMock(owner=SYSTEM_PROGRAM_ID))
+        )
+
+        owner_pubkey = MagicMock(name="owner_pubkey")
+        owner_pubkey.is_on_curve.return_value = True
+
+        assert (
+            await TokenTransferManager._is_valid_ata_owner(mock_wallet, owner_pubkey)
+        ) is True
+
+    @pytest.mark.asyncio
+    async def test_is_valid_ata_owner_non_system_owned_false(self):
+        from sakit.utils.transfer import TokenTransferManager
+
+        mock_wallet = MagicMock()
+        mock_wallet.client = AsyncMock()
+        mock_wallet.client.get_account_info = AsyncMock(
+            return_value=MagicMock(value=MagicMock(owner="SomeProgram111"))
+        )
+
+        owner_pubkey = MagicMock(name="owner_pubkey")
+        owner_pubkey.is_on_curve.return_value = True
+
+        assert (
+            await TokenTransferManager._is_valid_ata_owner(mock_wallet, owner_pubkey)
+        ) is False
+
+    @pytest.mark.asyncio
+    async def test_is_valid_ata_owner_rpc_exception_true(self):
+        from sakit.utils.transfer import TokenTransferManager
+
+        mock_wallet = MagicMock()
+        mock_wallet.client = AsyncMock()
+        mock_wallet.client.get_account_info = AsyncMock(
+            side_effect=Exception("rpc down")
+        )
+
+        owner_pubkey = MagicMock(name="owner_pubkey")
+        owner_pubkey.is_on_curve.return_value = True
+
+        # On RPC issues we treat as valid to avoid blocking transfers.
+        assert (
+            await TokenTransferManager._is_valid_ata_owner(mock_wallet, owner_pubkey)
+        ) is True

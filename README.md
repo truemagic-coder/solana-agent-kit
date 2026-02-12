@@ -347,7 +347,7 @@ config = {
 
 ### Privy Transfer
 
-This plugin enables Solana Agent to transfer SOL and SPL tokens using Privy delegated wallets. The fee_payer wallet pays for transaction fees, enabling gasless transfers for users.
+This plugin enables Solana Agent to transfer SOL and SPL tokens using Privy delegated wallets. The fee_payer wallet sponsors transaction fees, enabling gasless transfers for users.
 
 ```python
 config = {
