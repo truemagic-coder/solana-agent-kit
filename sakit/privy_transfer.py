@@ -174,7 +174,7 @@ class PrivyTransferTool(AutoTool):
         self.signing_key = tool_cfg.get("signing_key")
         self.rpc_url = tool_cfg.get("rpc_url")
         self.fee_payer = tool_cfg.get("fee_payer")
-        self.fee_percentage = tool_cfg.get("fee_percentage", 0.85)  # Default 0.85% fee
+        self.fee_percentage = tool_cfg.get("fee_percentage", 0.0)  # Default: no fees
 
     async def execute(
         self,
