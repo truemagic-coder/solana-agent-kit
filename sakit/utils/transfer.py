@@ -242,26 +242,44 @@ class TokenTransferManager:
                 ixs.append(ix_spl)
 
                 if wallet.fee_payer:
-                    to_fee_ata = (
-                        (await token.get_accounts_by_owner(wallet.fee_payer.pubkey()))
-                        .value[0]
-                        .pubkey
-                    )
                     fee_amount = int(
                         amount * (10**mint_info.decimals) * (fee_percentage / 100)
                     )
-                    ix_fee = spl_transfer(
-                        SPLTransferParams(
-                            program_id=program_id,
-                            source=from_ata,
-                            mint=mint_pubkey,
-                            dest=to_fee_ata,
-                            owner=wallet_pubkey,
-                            amount=fee_amount,
-                            decimals=mint_info.decimals,
+
+                    # Fee payer may not yet have an ATA for this mint; create it if needed.
+                    # Also avoid generating a 0-amount token transfer (common for dust amounts).
+                    if fee_amount > 0:
+                        fee_payer_pubkey = wallet.fee_payer.pubkey()
+                        to_fee_ata = get_associated_token_address(
+                            fee_payer_pubkey,
+                            mint_pubkey,
+                            token_program_id=program_id,
                         )
-                    )
-                    ixs.append(ix_fee)
+
+                        to_fee_ata_info = await wallet.client.get_account_info(
+                            to_fee_ata
+                        )
+                        if not getattr(to_fee_ata_info, "value", None):
+                            create_fee_ata_ix = create_associated_token_account(
+                                payer=tx_payer_pubkey,
+                                owner=fee_payer_pubkey,
+                                mint=mint_pubkey,
+                                token_program_id=program_id,
+                            )
+                            ixs.append(create_fee_ata_ix)
+
+                        ix_fee = spl_transfer(
+                            SPLTransferParams(
+                                program_id=program_id,
+                                source=from_ata,
+                                mint=mint_pubkey,
+                                dest=to_fee_ata,
+                                owner=wallet_pubkey,
+                                amount=fee_amount,
+                                decimals=mint_info.decimals,
+                            )
+                        )
+                        ixs.append(ix_fee)
 
                     webhook_fee = transfer(
                         TransferParams(
