@@ -8,6 +8,7 @@ from solders.compute_budget import set_compute_unit_limit
 from solders.system_program import TransferParams, transfer
 from solders.null_signer import NullSigner
 from solders.instruction import Instruction
+from solders.keypair import Keypair
 from spl.token.async_client import AsyncToken
 from spl.token.instructions import (
     transfer_checked as spl_transfer,
@@ -101,7 +102,7 @@ class TokenTransferManager:
                     ix_memo = make_memo_instruction(memo)
                     ixs.append(ix_memo)
 
-                if wallet.fee_payer and fee_percentage > 0:
+                if fee_payer_keypair and fee_percentage > 0:
                     fee_lamports = int(
                         amount * LAMPORTS_PER_SOL * (fee_percentage / 100)
                     )
@@ -109,7 +110,7 @@ class TokenTransferManager:
                         ix_fee = transfer(
                             TransferParams(
                                 from_pubkey=wallet_pubkey,
-                                to_pubkey=wallet.fee_payer.pubkey(),
+                                to_pubkey=fee_payer_keypair.pubkey(),
                                 lamports=fee_lamports,
                             )
                         )
@@ -217,9 +218,8 @@ class TokenTransferManager:
                         f"Unsupported token program: {owner}. Supported programs are SPL Token and Token 2022."
                     )
 
-                token = AsyncToken(
-                    wallet.client, mint_pubkey, program_id, wallet.fee_payer
-                )
+                token_payer = fee_payer_keypair or wallet_keypair or Keypair()
+                token = AsyncToken(wallet.client, mint_pubkey, program_id, token_payer)
 
                 ixs = []
 
@@ -260,7 +260,7 @@ class TokenTransferManager:
                 )
                 ixs.append(ix_spl)
 
-                if wallet.fee_payer and fee_percentage > 0:
+                if fee_payer_keypair and fee_percentage > 0:
                     fee_amount = int(
                         amount * (10**mint_info.decimals) * (fee_percentage / 100)
                     )
@@ -268,7 +268,7 @@ class TokenTransferManager:
                     # Fee payer may not yet have an ATA for this mint; create it if needed.
                     # Also avoid generating a 0-amount token transfer (common for dust amounts).
                     if fee_amount > 0:
-                        fee_payer_pubkey = wallet.fee_payer.pubkey()
+                        fee_payer_pubkey = fee_payer_keypair.pubkey()
 
                         # Some deployments configure `fee_payer` to a non-wallet address
                         # (e.g., a token account). The associated token program rejects

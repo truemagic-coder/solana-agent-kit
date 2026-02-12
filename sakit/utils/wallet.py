@@ -76,6 +76,7 @@ class SolanaWalletClient:
         self.rpc_url = rpc_url
         self.keypair = keypair
         self.pubkey = pubkey
+        self.fee_payer: Optional[Keypair] = None
         if pubkey:
             self.pubkey = Pubkey.from_string(pubkey)
         elif keypair:
