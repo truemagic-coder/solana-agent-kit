@@ -56,6 +56,18 @@ class TestSolanaWalletClientInit:
 
             assert wallet.rpc_url == "https://api.mainnet-beta.solana.com"
 
+    def test_init_fee_payer_defaults_to_none(self):
+        """Should always set fee_payer attribute (default None)."""
+        from sakit.utils.wallet import SolanaWalletClient
+
+        with patch("sakit.utils.wallet.AsyncClient"):
+            wallet = SolanaWalletClient(
+                rpc_url="https://api.mainnet-beta.solana.com",
+            )
+
+            assert hasattr(wallet, "fee_payer")
+            assert wallet.fee_payer is None
+
 
 class TestSolanaWalletClientSignMessage:
     """Test sign_message method."""
