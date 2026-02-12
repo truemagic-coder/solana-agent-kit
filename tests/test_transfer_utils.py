@@ -655,3 +655,87 @@ class TestTokenTransferManager:
                 "unsupported" in str(exc_info.value).lower()
                 or "fail" in str(exc_info.value).lower()
             )
+
+    @pytest.mark.asyncio
+    async def test_is_valid_ata_owner_off_curve_false(self):
+        from sakit.utils.transfer import TokenTransferManager
+
+        mock_wallet = MagicMock()
+        mock_wallet.client = AsyncMock()
+
+        owner_pubkey = MagicMock(name="owner_pubkey")
+        owner_pubkey.is_on_curve.return_value = False
+
+        assert (
+            await TokenTransferManager._is_valid_ata_owner(mock_wallet, owner_pubkey)
+        ) is False
+        mock_wallet.client.get_account_info.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_is_valid_ata_owner_missing_account_true(self):
+        from sakit.utils.transfer import TokenTransferManager
+
+        mock_wallet = MagicMock()
+        mock_wallet.client = AsyncMock()
+        mock_wallet.client.get_account_info = AsyncMock(
+            return_value=MagicMock(value=None)
+        )
+
+        owner_pubkey = MagicMock(name="owner_pubkey")
+        owner_pubkey.is_on_curve.return_value = True
+
+        assert (
+            await TokenTransferManager._is_valid_ata_owner(mock_wallet, owner_pubkey)
+        ) is True
+
+    @pytest.mark.asyncio
+    async def test_is_valid_ata_owner_system_owned_true(self):
+        from sakit.utils.transfer import TokenTransferManager, SYSTEM_PROGRAM_ID
+
+        mock_wallet = MagicMock()
+        mock_wallet.client = AsyncMock()
+        mock_wallet.client.get_account_info = AsyncMock(
+            return_value=MagicMock(value=MagicMock(owner=SYSTEM_PROGRAM_ID))
+        )
+
+        owner_pubkey = MagicMock(name="owner_pubkey")
+        owner_pubkey.is_on_curve.return_value = True
+
+        assert (
+            await TokenTransferManager._is_valid_ata_owner(mock_wallet, owner_pubkey)
+        ) is True
+
+    @pytest.mark.asyncio
+    async def test_is_valid_ata_owner_non_system_owned_false(self):
+        from sakit.utils.transfer import TokenTransferManager
+
+        mock_wallet = MagicMock()
+        mock_wallet.client = AsyncMock()
+        mock_wallet.client.get_account_info = AsyncMock(
+            return_value=MagicMock(value=MagicMock(owner="SomeProgram111"))
+        )
+
+        owner_pubkey = MagicMock(name="owner_pubkey")
+        owner_pubkey.is_on_curve.return_value = True
+
+        assert (
+            await TokenTransferManager._is_valid_ata_owner(mock_wallet, owner_pubkey)
+        ) is False
+
+    @pytest.mark.asyncio
+    async def test_is_valid_ata_owner_rpc_exception_true(self):
+        from sakit.utils.transfer import TokenTransferManager
+
+        mock_wallet = MagicMock()
+        mock_wallet.client = AsyncMock()
+        mock_wallet.client.get_account_info = AsyncMock(
+            side_effect=Exception("rpc down")
+        )
+
+        owner_pubkey = MagicMock(name="owner_pubkey")
+        owner_pubkey.is_on_curve.return_value = True
+
+        # On RPC issues we treat as valid to avoid blocking transfers.
+        assert (
+            await TokenTransferManager._is_valid_ata_owner(mock_wallet, owner_pubkey)
+        ) is True
