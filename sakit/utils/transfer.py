@@ -62,6 +62,13 @@ class TokenTransferManager:
             wallet_pubkey = wallet.pubkey
             wallet_keypair = wallet.keypair
 
+            fee_payer_keypair = getattr(wallet, "fee_payer", None)
+            tx_payer_pubkey = (
+                fee_payer_keypair.pubkey()
+                if (no_signer and fee_payer_keypair)
+                else wallet_pubkey
+            )
+
             if mint == "So11111111111111111111111111111111111111112":
                 ixs = []
                 ix_transfer = transfer(
@@ -96,17 +103,31 @@ class TokenTransferManager:
                     recent_blockhash = blockhash_response.value.blockhash
                     msg = Message.new_with_blockhash(
                         instructions=ixs,
-                        payer=wallet_pubkey,
+                        payer=tx_payer_pubkey,
                         blockhash=recent_blockhash,
                     )
-                    sig = NullSigner(wallet_pubkey).sign_message(
-                        to_bytes_versioned(msg)
-                    )
-                    transaction = VersionedTransaction.populate(
+
+                    msg_bytes = to_bytes_versioned(msg)
+                    num_signers = msg.header.num_required_signatures
+                    signer_keys = list(msg.account_keys)[:num_signers]
+                    signatures = [
+                        NullSigner(signer_pk).sign_message(msg_bytes)
+                        for signer_pk in signer_keys
+                    ]
+
+                    if fee_payer_keypair:
+                        fee_payer_pubkey = fee_payer_keypair.pubkey()
+                        for i, signer_pk in enumerate(signer_keys):
+                            if signer_pk == fee_payer_pubkey:
+                                signatures[i] = fee_payer_keypair.sign_message(
+                                    msg_bytes
+                                )
+                                break
+
+                    return VersionedTransaction.populate(
                         message=msg,
-                        signatures=[sig],
+                        signatures=signatures,
                     )
-                    return transaction
 
                 blockhash_response = await wallet.client.get_latest_blockhash(
                     commitment=Finalized,
@@ -191,12 +212,13 @@ class TokenTransferManager:
                     to_pubkey, mint_pubkey, token_program_id=program_id
                 )
 
-                # Check if the destination ATA exists
-                ata_accounts = await token.get_accounts_by_owner(to_pubkey)
-                if not ata_accounts.value:
-                    # ATA doesn't exist, create it
+                # Check if the *specific* destination ATA exists.
+                # NOTE: get_accounts_by_owner can return non-ATA token accounts;
+                # we always transfer to the canonical ATA, so we must ensure it exists.
+                to_ata_info = await wallet.client.get_account_info(to_ata)
+                if not getattr(to_ata_info, "value", None):
                     create_ata_ix = create_associated_token_account(
-                        payer=wallet_pubkey,
+                        payer=tx_payer_pubkey,
                         owner=to_pubkey,
                         mint=mint_pubkey,
                         token_program_id=program_id,
@@ -261,17 +283,31 @@ class TokenTransferManager:
                     recent_blockhash = blockhash_response.value.blockhash
                     msg = Message.new_with_blockhash(
                         instructions=ixs,
-                        payer=wallet_pubkey,
+                        payer=tx_payer_pubkey,
                         blockhash=recent_blockhash,
                     )
-                    sig = NullSigner(wallet_pubkey).sign_message(
-                        to_bytes_versioned(msg)
-                    )
-                    transaction = VersionedTransaction.populate(
+
+                    msg_bytes = to_bytes_versioned(msg)
+                    num_signers = msg.header.num_required_signatures
+                    signer_keys = list(msg.account_keys)[:num_signers]
+                    signatures = [
+                        NullSigner(signer_pk).sign_message(msg_bytes)
+                        for signer_pk in signer_keys
+                    ]
+
+                    if fee_payer_keypair:
+                        fee_payer_pubkey = fee_payer_keypair.pubkey()
+                        for i, signer_pk in enumerate(signer_keys):
+                            if signer_pk == fee_payer_pubkey:
+                                signatures[i] = fee_payer_keypair.sign_message(
+                                    msg_bytes
+                                )
+                                break
+
+                    return VersionedTransaction.populate(
                         message=msg,
-                        signatures=[sig],
+                        signatures=signatures,
                     )
-                    return transaction
 
                 blockhash_response = await wallet.client.get_latest_blockhash(
                     commitment=Finalized,
