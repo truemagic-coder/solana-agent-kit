@@ -86,7 +86,9 @@ class TestKaminoReferralInstructionBuilders:
         assert bytes(instruction.data[:8]) == INIT_USER_METADATA_DISCRIMINATOR
         assert instruction.accounts[0].pubkey == Pubkey.from_string(WALLET)
         assert instruction.accounts[2].pubkey == derive_kamino_user_metadata_pda(WALLET)
-        assert instruction.accounts[3].pubkey == derive_kamino_user_metadata_pda(REFERRER)
+        assert instruction.accounts[3].pubkey == derive_kamino_user_metadata_pda(
+            REFERRER
+        )
         assert bytes(instruction.data[8:]) == bytes(Pubkey.from_string(LOOKUP_TABLE))
 
     def test_init_referrer_state_instruction(self):
@@ -95,9 +97,16 @@ class TestKaminoReferralInstructionBuilders:
             short_url="kamino_ref",
         )
 
-        assert bytes(instruction.data[:8]) == INIT_REFERRER_STATE_AND_SHORT_URL_DISCRIMINATOR
-        assert instruction.accounts[1].pubkey == derive_kamino_referrer_state_pda(WALLET)
-        assert instruction.accounts[2].pubkey == derive_kamino_short_url_pda("kamino_ref")
+        assert (
+            bytes(instruction.data[:8])
+            == INIT_REFERRER_STATE_AND_SHORT_URL_DISCRIMINATOR
+        )
+        assert instruction.accounts[1].pubkey == derive_kamino_referrer_state_pda(
+            WALLET
+        )
+        assert instruction.accounts[2].pubkey == derive_kamino_short_url_pda(
+            "kamino_ref"
+        )
         assert instruction.accounts[3].pubkey == derive_kamino_user_metadata_pda(WALLET)
 
     def test_withdraw_referrer_fees_instruction(self):
@@ -111,12 +120,20 @@ class TestKaminoReferralInstructionBuilders:
         )
 
         assert bytes(instruction.data) == WITHDRAW_REFERRER_FEES_DISCRIMINATOR
-        assert instruction.accounts[1].pubkey == derive_kamino_referrer_token_state_pda(WALLET, RESERVE)
-        assert instruction.accounts[4].pubkey == derive_kamino_reserve_liquidity_supply_pda(RESERVE)
+        assert instruction.accounts[1].pubkey == derive_kamino_referrer_token_state_pda(
+            WALLET, RESERVE
+        )
+        assert instruction.accounts[
+            4
+        ].pubkey == derive_kamino_reserve_liquidity_supply_pda(RESERVE)
         assert instruction.accounts[6].pubkey == Pubkey.from_string(MARKET)
-        assert instruction.accounts[7].pubkey == derive_kamino_lending_market_authority_pda(MARKET)
+        assert instruction.accounts[
+            7
+        ].pubkey == derive_kamino_lending_market_authority_pda(MARKET)
 
-    def test_init_user_metadata_instruction_defaults_fee_payer_and_missing_referrer(self):
+    def test_init_user_metadata_instruction_defaults_fee_payer_and_missing_referrer(
+        self,
+    ):
         instruction = build_kamino_init_user_metadata_instruction(
             owner=WALLET,
             user_lookup_table=LOOKUP_TABLE,
@@ -184,7 +201,10 @@ class TestKaminoApiHelpers:
         error_client.__aexit__.return_value = False
         error_client.get = AsyncMock(return_value=error_response)
 
-        with patch("sakit.utils.kamino.httpx.AsyncClient", side_effect=[success_client, error_client, RuntimeError("boom")]):
+        with patch(
+            "sakit.utils.kamino.httpx.AsyncClient",
+            side_effect=[success_client, error_client, RuntimeError("boom")],
+        ):
             success = await api._get("kvaults/vaults", params={"page": 1})
             failure = await api._get("/missing")
             exception = await api._get("/explode")
@@ -216,7 +236,10 @@ class TestKaminoApiHelpers:
         error_client.__aexit__.return_value = False
         error_client.post = AsyncMock(return_value=error_response)
 
-        with patch("sakit.utils.kamino.httpx.AsyncClient", side_effect=[success_client, error_client, RuntimeError("explode")]):
+        with patch(
+            "sakit.utils.kamino.httpx.AsyncClient",
+            side_effect=[success_client, error_client, RuntimeError("explode")],
+        ):
             success = await api._post("/ok", body={"x": 1})
             failure = await api._post("/bad")
             exception = await api._post("/explode")
@@ -236,7 +259,12 @@ class TestKaminoApiHelpers:
 
         assert api._parse_response(json_response) == {"result": [1, 2, 3]}
         assert api._parse_response(text_response) == {"text": "plain-text"}
-        assert api._format_error("GET", "/x", MagicMock(status_code=500, text="oops"), {"error": "kaput"}) == "Kamino GET /x failed: 500 - kaput"
+        assert (
+            api._format_error(
+                "GET", "/x", MagicMock(status_code=500, text="oops"), {"error": "kaput"}
+            )
+            == "Kamino GET /x failed: 500 - kaput"
+        )
 
         success = api._as_transaction_response(
             {"success": True, "data": {"transaction": "tx", "requestId": "req"}}
@@ -261,8 +289,16 @@ class TestKaminoApiHelpers:
     async def test_api_methods_forward_to_get_and_post(self):
         api = KaminoAPI()
         with (
-            patch.object(api, "_get", new=AsyncMock(return_value={"success": True, "data": {}})) as mock_get,
-            patch.object(api, "_post", new=AsyncMock(return_value={"success": True, "data": {"transaction": "tx"}})) as mock_post,
+            patch.object(
+                api, "_get", new=AsyncMock(return_value={"success": True, "data": {}})
+            ) as mock_get,
+            patch.object(
+                api,
+                "_post",
+                new=AsyncMock(
+                    return_value={"success": True, "data": {"transaction": "tx"}}
+                ),
+            ) as mock_post,
         ):
             await api.list_vaults()
             await api.list_markets()
@@ -273,22 +309,36 @@ class TestKaminoApiHelpers:
             await api.api_post("/custom", body={"b": 2})
             await api.build_earn_deposit(WALLET, "vault", "1")
             await api.build_earn_withdraw(WALLET, "vault", "1")
-            await api.build_borrow_deposit(WALLET, MARKET, RESERVE, "1", referrer=REFERRER, referral_code="code")
+            await api.build_borrow_deposit(
+                WALLET, MARKET, RESERVE, "1", referrer=REFERRER, referral_code="code"
+            )
             await api.build_borrow_borrow(WALLET, MARKET, RESERVE, "1")
             await api.build_borrow_repay(WALLET, MARKET, RESERVE, "1")
             await api.build_borrow_withdraw(WALLET, MARKET, RESERVE, "1")
 
         assert mock_get.await_count == 6
         assert mock_post.await_count == 7
-        deposit_body = next(call.args[1] for call in mock_post.await_args_list if call.args[0] == "/ktx/klend/deposit")
+        deposit_body = next(
+            call.args[1]
+            for call in mock_post.await_args_list
+            if call.args[0] == "/ktx/klend/deposit"
+        )
         assert deposit_body["referrer"] == REFERRER
         assert deposit_body["shortUrl"] == "code"
 
     @pytest.mark.asyncio
     async def test_build_borrow_deposit_omits_optional_referral_fields_when_empty(self):
         api = KaminoAPI()
-        with patch.object(api, "_post", new=AsyncMock(return_value={"success": True, "data": {"transaction": "tx"}})) as mock_post:
-            await api.build_borrow_deposit(WALLET, MARKET, RESERVE, "1", referrer="", referral_code="")
+        with patch.object(
+            api,
+            "_post",
+            new=AsyncMock(
+                return_value={"success": True, "data": {"transaction": "tx"}}
+            ),
+        ) as mock_post:
+            await api.build_borrow_deposit(
+                WALLET, MARKET, RESERVE, "1", referrer="", referral_code=""
+            )
 
         assert mock_post.await_args.args[0] == "/ktx/klend/deposit"
         assert mock_post.await_args.args[1] == {
@@ -312,20 +362,31 @@ class TestKaminoUtilityHelpers:
         )
 
         assert await _account_exists(client, Pubkey.from_string(WALLET)) is True
-        assert await _resolve_token_program_pubkey(client, Pubkey.from_string(MINT)) == TOKEN_2022_PROGRAM_ID
-        assert await _resolve_token_program_pubkey(client, Pubkey.from_string(MINT)) == SPL_TOKEN_PROGRAM_ID
+        assert (
+            await _resolve_token_program_pubkey(client, Pubkey.from_string(MINT))
+            == TOKEN_2022_PROGRAM_ID
+        )
+        assert (
+            await _resolve_token_program_pubkey(client, Pubkey.from_string(MINT))
+            == SPL_TOKEN_PROGRAM_ID
+        )
 
     @pytest.mark.asyncio
     async def test_compile_placeholder_transaction_branches(self):
         signer = Keypair()
         instruction = build_kamino_refresh_reserve_instruction(MARKET, RESERVE)
 
-        assert await _compile_placeholder_transaction("https://rpc.example.com", signer.pubkey(), []) == {
+        assert await _compile_placeholder_transaction(
+            "https://rpc.example.com", signer.pubkey(), []
+        ) == {
             "status": "error",
             "message": "No instructions to compile.",
         }
 
-        with patch("sakit.utils.kamino.get_fresh_blockhash", new=AsyncMock(return_value={"error": "rpc down"})):
+        with patch(
+            "sakit.utils.kamino.get_fresh_blockhash",
+            new=AsyncMock(return_value={"error": "rpc down"}),
+        ):
             failure = await _compile_placeholder_transaction(
                 "https://rpc.example.com", signer.pubkey(), [instruction]
             )
@@ -335,7 +396,10 @@ class TestKaminoUtilityHelpers:
             "message": "Failed to get blockhash: rpc down",
         }
 
-        with patch("sakit.utils.kamino.get_fresh_blockhash", new=AsyncMock(return_value={"blockhash": str(Pubkey.default())})):
+        with patch(
+            "sakit.utils.kamino.get_fresh_blockhash",
+            new=AsyncMock(return_value={"blockhash": str(Pubkey.default())}),
+        ):
             success = await _compile_placeholder_transaction(
                 "https://rpc.example.com", signer.pubkey(), [instruction]
             )
@@ -361,8 +425,13 @@ class TestKaminoUtilityHelpers:
         mock_client.close = AsyncMock()
         mock_client.get_slot = AsyncMock(return_value=MagicMock(value=None))
 
-        with patch("sakit.utils.kamino.AsyncClient", return_value=mock_client), pytest.raises(ValueError, match="recent slot"):
-            await _build_create_lookup_table_instruction("https://rpc.example.com", WALLET)
+        with (
+            patch("sakit.utils.kamino.AsyncClient", return_value=mock_client),
+            pytest.raises(ValueError, match="recent slot"),
+        ):
+            await _build_create_lookup_table_instruction(
+                "https://rpc.example.com", WALLET
+            )
 
     def test_small_helper_functions(self):
         assert _borsh_string("ab") == b"\x02\x00\x00\x00ab"
@@ -427,7 +496,10 @@ class TestKaminoReferralTransactionBuilders:
         mock_client.close = AsyncMock()
         mock_client.get_account_info = AsyncMock(return_value=MagicMock(value=None))
 
-        with patch("sakit.utils.kamino.AsyncClient", return_value=mock_client), pytest.raises(ValueError, match="was not found"):
+        with (
+            patch("sakit.utils.kamino.AsyncClient", return_value=mock_client),
+            pytest.raises(ValueError, match="was not found"),
+        ):
             await fetch_kamino_reserve_metadata(
                 rpc_url="https://rpc.example.com",
                 reserve=RESERVE,
@@ -442,11 +514,18 @@ class TestKaminoReferralTransactionBuilders:
             patch("sakit.utils.kamino.AsyncClient", return_value=mock_client),
             patch(
                 "sakit.utils.kamino._build_create_lookup_table_instruction",
-                new=AsyncMock(return_value=(MagicMock(name="create_lut_ix"), Pubkey.from_string(LOOKUP_TABLE))),
+                new=AsyncMock(
+                    return_value=(
+                        MagicMock(name="create_lut_ix"),
+                        Pubkey.from_string(LOOKUP_TABLE),
+                    )
+                ),
             ),
             patch(
                 "sakit.utils.kamino._compile_placeholder_transaction",
-                new=AsyncMock(return_value={"status": "success", "transaction": "tx-base64"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "transaction": "tx-base64"}
+                ),
             ) as mock_compile,
         ):
             result = await build_kamino_create_lookup_table_transaction(
@@ -463,11 +542,18 @@ class TestKaminoReferralTransactionBuilders:
         with (
             patch(
                 "sakit.utils.kamino._build_create_lookup_table_instruction",
-                new=AsyncMock(return_value=(MagicMock(name="create_lut_ix"), Pubkey.from_string(LOOKUP_TABLE))),
+                new=AsyncMock(
+                    return_value=(
+                        MagicMock(name="create_lut_ix"),
+                        Pubkey.from_string(LOOKUP_TABLE),
+                    )
+                ),
             ),
             patch(
                 "sakit.utils.kamino._compile_placeholder_transaction",
-                new=AsyncMock(return_value={"status": "error", "message": "compile failed"}),
+                new=AsyncMock(
+                    return_value={"status": "error", "message": "compile failed"}
+                ),
             ),
         ):
             result = await build_kamino_create_lookup_table_transaction(
@@ -484,14 +570,23 @@ class TestKaminoReferralTransactionBuilders:
 
         with (
             patch("sakit.utils.kamino.AsyncClient", return_value=mock_client),
-            patch("sakit.utils.kamino._account_exists", new=AsyncMock(return_value=False)),
+            patch(
+                "sakit.utils.kamino._account_exists", new=AsyncMock(return_value=False)
+            ),
             patch(
                 "sakit.utils.kamino._build_create_lookup_table_instruction",
-                new=AsyncMock(return_value=(MagicMock(name="create_lut_ix"), Pubkey.from_string(LOOKUP_TABLE))),
+                new=AsyncMock(
+                    return_value=(
+                        MagicMock(name="create_lut_ix"),
+                        Pubkey.from_string(LOOKUP_TABLE),
+                    )
+                ),
             ),
             patch(
                 "sakit.utils.kamino._compile_placeholder_transaction",
-                new=AsyncMock(return_value={"status": "success", "transaction": "tx-base64"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "transaction": "tx-base64"}
+                ),
             ) as mock_compile,
         ):
             result = await build_kamino_init_user_metadata_transaction(
@@ -512,7 +607,9 @@ class TestKaminoReferralTransactionBuilders:
 
         with (
             patch("sakit.utils.kamino.AsyncClient", return_value=mock_client),
-            patch("sakit.utils.kamino._account_exists", new=AsyncMock(return_value=True)),
+            patch(
+                "sakit.utils.kamino._account_exists", new=AsyncMock(return_value=True)
+            ),
         ):
             existing = await build_kamino_init_user_metadata_transaction(
                 rpc_url="https://rpc.example.com",
@@ -526,10 +623,14 @@ class TestKaminoReferralTransactionBuilders:
         mock_client.close = AsyncMock()
         with (
             patch("sakit.utils.kamino.AsyncClient", return_value=mock_client),
-            patch("sakit.utils.kamino._account_exists", new=AsyncMock(return_value=False)),
+            patch(
+                "sakit.utils.kamino._account_exists", new=AsyncMock(return_value=False)
+            ),
             patch(
                 "sakit.utils.kamino._compile_placeholder_transaction",
-                new=AsyncMock(return_value={"status": "error", "message": "compile failed"}),
+                new=AsyncMock(
+                    return_value={"status": "error", "message": "compile failed"}
+                ),
             ),
         ):
             compile_error = await build_kamino_init_user_metadata_transaction(
@@ -547,14 +648,24 @@ class TestKaminoReferralTransactionBuilders:
 
         with (
             patch("sakit.utils.kamino.AsyncClient", return_value=mock_client),
-            patch("sakit.utils.kamino._account_exists", new=AsyncMock(side_effect=[False, False])),
+            patch(
+                "sakit.utils.kamino._account_exists",
+                new=AsyncMock(side_effect=[False, False]),
+            ),
             patch(
                 "sakit.utils.kamino._build_create_lookup_table_instruction",
-                new=AsyncMock(return_value=(MagicMock(name="create_lut_ix"), Pubkey.from_string(LOOKUP_TABLE))),
+                new=AsyncMock(
+                    return_value=(
+                        MagicMock(name="create_lut_ix"),
+                        Pubkey.from_string(LOOKUP_TABLE),
+                    )
+                ),
             ),
             patch(
                 "sakit.utils.kamino._compile_placeholder_transaction",
-                new=AsyncMock(return_value={"status": "success", "transaction": "tx-base64"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "transaction": "tx-base64"}
+                ),
             ) as mock_compile,
         ):
             result = await build_kamino_referrer_setup_transaction(
@@ -568,7 +679,10 @@ class TestKaminoReferralTransactionBuilders:
         instructions = mock_compile.await_args.args[2]
         assert len(instructions) == 3
         assert bytes(instructions[1].data[:8]) == INIT_USER_METADATA_DISCRIMINATOR
-        assert bytes(instructions[2].data[:8]) == INIT_REFERRER_STATE_AND_SHORT_URL_DISCRIMINATOR
+        assert (
+            bytes(instructions[2].data[:8])
+            == INIT_REFERRER_STATE_AND_SHORT_URL_DISCRIMINATOR
+        )
 
     @pytest.mark.asyncio
     async def test_referrer_setup_uses_existing_lookup_table_without_creating_one(self):
@@ -577,11 +691,19 @@ class TestKaminoReferralTransactionBuilders:
 
         with (
             patch("sakit.utils.kamino.AsyncClient", return_value=mock_client),
-            patch("sakit.utils.kamino._account_exists", new=AsyncMock(side_effect=[False, False])),
-            patch("sakit.utils.kamino._build_create_lookup_table_instruction", new=AsyncMock()) as mock_create,
+            patch(
+                "sakit.utils.kamino._account_exists",
+                new=AsyncMock(side_effect=[False, False]),
+            ),
+            patch(
+                "sakit.utils.kamino._build_create_lookup_table_instruction",
+                new=AsyncMock(),
+            ) as mock_create,
             patch(
                 "sakit.utils.kamino._compile_placeholder_transaction",
-                new=AsyncMock(return_value={"status": "success", "transaction": "tx-base64"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "transaction": "tx-base64"}
+                ),
             ) as mock_compile,
         ):
             result = await build_kamino_referrer_setup_transaction(
@@ -610,7 +732,10 @@ class TestKaminoReferralTransactionBuilders:
         mock_client.close = AsyncMock()
         with (
             patch("sakit.utils.kamino.AsyncClient", return_value=mock_client),
-            patch("sakit.utils.kamino._account_exists", new=AsyncMock(side_effect=[True, True])),
+            patch(
+                "sakit.utils.kamino._account_exists",
+                new=AsyncMock(side_effect=[True, True]),
+            ),
         ):
             existing = await build_kamino_referrer_setup_transaction(
                 rpc_url="https://rpc.example.com",
@@ -626,10 +751,15 @@ class TestKaminoReferralTransactionBuilders:
         mock_client.close = AsyncMock()
         with (
             patch("sakit.utils.kamino.AsyncClient", return_value=mock_client),
-            patch("sakit.utils.kamino._account_exists", new=AsyncMock(side_effect=[True, False])),
+            patch(
+                "sakit.utils.kamino._account_exists",
+                new=AsyncMock(side_effect=[True, False]),
+            ),
             patch(
                 "sakit.utils.kamino._compile_placeholder_transaction",
-                new=AsyncMock(return_value={"status": "error", "message": "compile failed"}),
+                new=AsyncMock(
+                    return_value={"status": "error", "message": "compile failed"}
+                ),
             ),
         ):
             compile_error = await build_kamino_referrer_setup_transaction(
@@ -648,11 +778,23 @@ class TestKaminoReferralTransactionBuilders:
 
         with (
             patch("sakit.utils.kamino.AsyncClient", return_value=mock_client),
-            patch("sakit.utils.kamino._resolve_token_program_pubkey", new=AsyncMock(return_value=Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))),
-            patch("sakit.utils.kamino._account_exists", new=AsyncMock(side_effect=[False, False])),
+            patch(
+                "sakit.utils.kamino._resolve_token_program_pubkey",
+                new=AsyncMock(
+                    return_value=Pubkey.from_string(
+                        "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+                    )
+                ),
+            ),
+            patch(
+                "sakit.utils.kamino._account_exists",
+                new=AsyncMock(side_effect=[False, False]),
+            ),
             patch(
                 "sakit.utils.kamino._compile_placeholder_transaction",
-                new=AsyncMock(return_value={"status": "success", "transaction": "tx-base64"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "transaction": "tx-base64"}
+                ),
             ) as mock_compile,
         ):
             result = await build_kamino_withdraw_referrer_fees_transaction(
@@ -680,10 +822,15 @@ class TestKaminoReferralTransactionBuilders:
 
         with (
             patch("sakit.utils.kamino.AsyncClient", return_value=mock_client),
-            patch("sakit.utils.kamino._account_exists", new=AsyncMock(side_effect=[True, True])),
+            patch(
+                "sakit.utils.kamino._account_exists",
+                new=AsyncMock(side_effect=[True, True]),
+            ),
             patch(
                 "sakit.utils.kamino._compile_placeholder_transaction",
-                new=AsyncMock(return_value={"status": "error", "message": "compile failed"}),
+                new=AsyncMock(
+                    return_value={"status": "error", "message": "compile failed"}
+                ),
             ),
         ):
             result = await build_kamino_withdraw_referrer_fees_transaction(

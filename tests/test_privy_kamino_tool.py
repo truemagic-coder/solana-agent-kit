@@ -64,7 +64,15 @@ class TestPrivyKaminoToolExecute:
         assert missing_privy == {"status": "error", "message": "Privy config missing."}
 
         tool.configure(
-            {"tools": {"privy_kamino": {"app_id": "a", "app_secret": "b", "signing_key": "wallet-auth:k"}}}
+            {
+                "tools": {
+                    "privy_kamino": {
+                        "app_id": "a",
+                        "app_secret": "b",
+                        "signing_key": "wallet-auth:k",
+                    }
+                }
+            }
         )
         missing_rpc = await tool.execute(
             wallet_id="wallet-1",
@@ -79,7 +87,9 @@ class TestPrivyKaminoToolExecute:
     async def test_list_markets_success(self, privy_kamino_tool):
         with patch("sakit.privy_kamino.KaminoAPI") as MockKamino:
             mock_api = MagicMock()
-            mock_api.list_markets = AsyncMock(return_value={"success": True, "data": [{"market": "A"}]})
+            mock_api.list_markets = AsyncMock(
+                return_value={"success": True, "data": [{"market": "A"}]}
+            )
             MockKamino.return_value = mock_api
 
             result = await privy_kamino_tool.execute(
@@ -99,7 +109,9 @@ class TestPrivyKaminoToolExecute:
             patch.object(
                 privy_kamino_tool,
                 "_sign_and_send",
-                new=AsyncMock(return_value={"status": "success", "signature": "sig-123"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "signature": "sig-123"}
+                ),
             ),
         ):
             mock_api = MagicMock()
@@ -135,14 +147,18 @@ class TestPrivyKaminoToolExecute:
         assert call.kwargs["referral_code"] == "ref-abc"
 
     @pytest.mark.asyncio
-    async def test_borrow_deposit_uses_config_referral_defaults(self, privy_kamino_tool):
+    async def test_borrow_deposit_uses_config_referral_defaults(
+        self, privy_kamino_tool
+    ):
         with (
             patch("sakit.privy_kamino.KaminoAPI") as MockKamino,
             patch("sakit.privy_kamino.AsyncPrivyAPI") as MockPrivy,
             patch.object(
                 privy_kamino_tool,
                 "_sign_and_send",
-                new=AsyncMock(return_value={"status": "success", "signature": "sig-defaults"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "signature": "sig-defaults"}
+                ),
             ),
         ):
             mock_api = MagicMock()
@@ -179,20 +195,62 @@ class TestPrivyKaminoToolExecute:
     async def test_read_actions_and_unknown_action(self, privy_kamino_tool):
         with patch("sakit.privy_kamino.KaminoAPI") as MockKamino:
             mock_api = MagicMock()
-            mock_api.list_vaults = AsyncMock(return_value={"success": True, "data": [{"vault": "A"}]})
-            mock_api.get_oracle_prices = AsyncMock(return_value={"success": False, "error": "oracle down"})
-            mock_api.get_user_vault_positions = AsyncMock(return_value={"success": True, "data": [{"p": 1}]})
-            mock_api.get_user_obligations = AsyncMock(return_value={"success": True, "data": [{"o": 1}]})
-            mock_api.api_get = AsyncMock(return_value={"success": True, "data": {"ok": True}})
-            mock_api.api_post = AsyncMock(return_value={"success": True, "data": {"posted": True}})
+            mock_api.list_vaults = AsyncMock(
+                return_value={"success": True, "data": [{"vault": "A"}]}
+            )
+            mock_api.get_oracle_prices = AsyncMock(
+                return_value={"success": False, "error": "oracle down"}
+            )
+            mock_api.get_user_vault_positions = AsyncMock(
+                return_value={"success": True, "data": [{"p": 1}]}
+            )
+            mock_api.get_user_obligations = AsyncMock(
+                return_value={"success": True, "data": [{"o": 1}]}
+            )
+            mock_api.api_get = AsyncMock(
+                return_value={"success": True, "data": {"ok": True}}
+            )
+            mock_api.api_post = AsyncMock(
+                return_value={"success": True, "data": {"posted": True}}
+            )
             MockKamino.return_value = mock_api
 
-            vaults = await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="list_vaults")
-            oracle_failure = await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="oracle_prices", params_json='{"symbol":"SOL"}')
-            positions = await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="vault_positions", user_pubkey="u")
-            obligations = await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="user_obligations", market="m", user_pubkey="u")
-            api_get = await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="api_get", path="/x", params_json='{"a":1}')
-            api_post = await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="api_post", path="/x", body_json='{"b":2}')
+            vaults = await privy_kamino_tool.execute(
+                wallet_id="w", wallet_public_key="p", action="list_vaults"
+            )
+            oracle_failure = await privy_kamino_tool.execute(
+                wallet_id="w",
+                wallet_public_key="p",
+                action="oracle_prices",
+                params_json='{"symbol":"SOL"}',
+            )
+            positions = await privy_kamino_tool.execute(
+                wallet_id="w",
+                wallet_public_key="p",
+                action="vault_positions",
+                user_pubkey="u",
+            )
+            obligations = await privy_kamino_tool.execute(
+                wallet_id="w",
+                wallet_public_key="p",
+                action="user_obligations",
+                market="m",
+                user_pubkey="u",
+            )
+            api_get = await privy_kamino_tool.execute(
+                wallet_id="w",
+                wallet_public_key="p",
+                action="api_get",
+                path="/x",
+                params_json='{"a":1}',
+            )
+            api_post = await privy_kamino_tool.execute(
+                wallet_id="w",
+                wallet_public_key="p",
+                action="api_post",
+                path="/x",
+                body_json='{"b":2}',
+            )
 
         assert vaults["status"] == "success"
         assert oracle_failure["status"] == "error"
@@ -200,13 +258,64 @@ class TestPrivyKaminoToolExecute:
         assert obligations["data"] == [{"o": 1}]
         assert api_get["path"] == "/x"
         assert api_post["data"] == {"posted": True}
-        assert (await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="vault_positions", user_pubkey=""))["status"] == "error"
-        assert (await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="user_obligations", market="", user_pubkey=""))["status"] == "error"
-        assert (await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="api_get", path="", params_json=""))["status"] == "error"
-        assert (await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="api_post", path="", body_json=""))["status"] == "error"
-        assert (await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="api_get", path="/x", params_json="[]"))["status"] == "error"
-        assert (await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="api_post", path="/x", body_json="[]"))["status"] == "error"
-        assert (await privy_kamino_tool.execute(wallet_id="w", wallet_public_key="p", action="not_real"))["status"] == "error"
+        assert (
+            await privy_kamino_tool.execute(
+                wallet_id="w",
+                wallet_public_key="p",
+                action="vault_positions",
+                user_pubkey="",
+            )
+        )["status"] == "error"
+        assert (
+            await privy_kamino_tool.execute(
+                wallet_id="w",
+                wallet_public_key="p",
+                action="user_obligations",
+                market="",
+                user_pubkey="",
+            )
+        )["status"] == "error"
+        assert (
+            await privy_kamino_tool.execute(
+                wallet_id="w",
+                wallet_public_key="p",
+                action="api_get",
+                path="",
+                params_json="",
+            )
+        )["status"] == "error"
+        assert (
+            await privy_kamino_tool.execute(
+                wallet_id="w",
+                wallet_public_key="p",
+                action="api_post",
+                path="",
+                body_json="",
+            )
+        )["status"] == "error"
+        assert (
+            await privy_kamino_tool.execute(
+                wallet_id="w",
+                wallet_public_key="p",
+                action="api_get",
+                path="/x",
+                params_json="[]",
+            )
+        )["status"] == "error"
+        assert (
+            await privy_kamino_tool.execute(
+                wallet_id="w",
+                wallet_public_key="p",
+                action="api_post",
+                path="/x",
+                body_json="[]",
+            )
+        )["status"] == "error"
+        assert (
+            await privy_kamino_tool.execute(
+                wallet_id="w", wallet_public_key="p", action="not_real"
+            )
+        )["status"] == "error"
 
     @pytest.mark.asyncio
     async def test_oracle_prices_invalid_json(self, privy_kamino_tool):
@@ -236,7 +345,9 @@ class TestPrivyKaminoToolExecute:
             patch.object(
                 privy_kamino_tool,
                 "_sign_and_send",
-                new=AsyncMock(return_value={"status": "success", "signature": "sig-setup"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "signature": "sig-setup"}
+                ),
             ),
         ):
             mock_privy_client = MagicMock()
@@ -273,7 +384,9 @@ class TestPrivyKaminoToolExecute:
             patch.object(
                 privy_kamino_tool,
                 "_sign_and_send",
-                new=AsyncMock(return_value={"status": "success", "signature": "sig-lut"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "signature": "sig-lut"}
+                ),
             ),
         ):
             mock_privy_client = MagicMock()
@@ -292,7 +405,9 @@ class TestPrivyKaminoToolExecute:
         assert mock_create.await_count == 1
 
     @pytest.mark.asyncio
-    async def test_init_user_metadata_uses_config_default_referrer(self, privy_kamino_tool):
+    async def test_init_user_metadata_uses_config_default_referrer(
+        self, privy_kamino_tool
+    ):
         with (
             patch("sakit.privy_kamino.AsyncPrivyAPI") as MockPrivy,
             patch(
@@ -308,7 +423,9 @@ class TestPrivyKaminoToolExecute:
             patch.object(
                 privy_kamino_tool,
                 "_sign_and_send",
-                new=AsyncMock(return_value={"status": "success", "signature": "sig-meta"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "signature": "sig-meta"}
+                ),
             ),
         ):
             mock_privy_client = MagicMock()
@@ -323,10 +440,15 @@ class TestPrivyKaminoToolExecute:
 
         assert result["status"] == "success"
         assert result["referrer"] == privy_kamino_tool._managed_referrer
-        assert mock_init.await_args.kwargs["referrer"] == privy_kamino_tool._managed_referrer
+        assert (
+            mock_init.await_args.kwargs["referrer"]
+            == privy_kamino_tool._managed_referrer
+        )
 
     @pytest.mark.asyncio
-    async def test_borrow_deposit_runs_internal_referral_automation_when_configured(self):
+    async def test_borrow_deposit_runs_internal_referral_automation_when_configured(
+        self,
+    ):
         referrer_signer = Keypair()
         tool = PrivyKaminoTool()
         tool.configure(
@@ -374,7 +496,9 @@ class TestPrivyKaminoToolExecute:
             patch.object(
                 tool,
                 "_sign_and_send",
-                new=AsyncMock(return_value={"status": "success", "signature": "sig-user"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "signature": "sig-user"}
+                ),
             ),
             patch.object(
                 tool,
@@ -431,7 +555,10 @@ class TestPrivyKaminoPlugin:
 
     def test_plugin_description_and_configure(self):
         plugin = PrivyKaminoPlugin()
-        assert plugin.description == "Plugin for Kamino operations using Privy delegated wallets."
+        assert (
+            plugin.description
+            == "Plugin for Kamino operations using Privy delegated wallets."
+        )
         assert plugin.get_tools() == []
 
         tool = MagicMock()
@@ -450,41 +577,189 @@ class TestPrivyKaminoInternals:
     async def test_build_transaction_and_internal_helpers(self, privy_kamino_tool):
         kamino = MagicMock()
         kamino.build_earn_withdraw = AsyncMock(
-            return_value=MagicMock(success=True, transaction="tx", request_id="req", raw_response={"ok": True})
+            return_value=MagicMock(
+                success=True,
+                transaction="tx",
+                request_id="req",
+                raw_response={"ok": True},
+            )
         )
         kamino.build_borrow_deposit = AsyncMock(
-            return_value=MagicMock(success=True, transaction="deposit-tx", request_id="req2", raw_response={"deposit": True})
+            return_value=MagicMock(
+                success=True,
+                transaction="deposit-tx",
+                request_id="req2",
+                raw_response={"deposit": True},
+            )
         )
         kamino.build_borrow_borrow = AsyncMock(
-            return_value=MagicMock(success=True, transaction="borrow-tx", request_id="req3", raw_response={"borrow": True})
+            return_value=MagicMock(
+                success=True,
+                transaction="borrow-tx",
+                request_id="req3",
+                raw_response={"borrow": True},
+            )
         )
         kamino.build_borrow_repay = AsyncMock(
-            return_value=MagicMock(success=False, transaction=None, error="repay failed", raw_response={"raw": True})
+            return_value=MagicMock(
+                success=False,
+                transaction=None,
+                error="repay failed",
+                raw_response={"raw": True},
+            )
         )
 
         earn_missing = await privy_kamino_tool._build_transaction(
-            kamino, "earn_deposit", "wallet", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "earn_deposit",
+            "wallet",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         borrow_missing = await privy_kamino_tool._build_transaction(
-            kamino, "borrow_repay", "wallet", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "borrow_repay",
+            "wallet",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         setup_missing = await privy_kamino_tool._build_transaction(
-            kamino, "setup_referrer", "wallet", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "setup_referrer",
+            "wallet",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         withdraw_missing = await privy_kamino_tool._build_transaction(
-            kamino, "withdraw_referrer_fees", "wallet", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "withdraw_referrer_fees",
+            "wallet",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         earn_success = await privy_kamino_tool._build_transaction(
-            kamino, "earn_withdraw", "wallet", "vault", "", "", "1", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "earn_withdraw",
+            "wallet",
+            "vault",
+            "",
+            "",
+            "1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         borrow_failure = await privy_kamino_tool._build_transaction(
-            kamino, "borrow_repay", "wallet", "", "market", "reserve", "1", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "borrow_repay",
+            "wallet",
+            "",
+            "market",
+            "reserve",
+            "1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         borrow_deposit = await privy_kamino_tool._build_transaction(
-            kamino, "borrow_deposit", "wallet", "", "market", "reserve", "1", "ref", "code", "", "", "", "", "", "", "", ""
+            kamino,
+            "borrow_deposit",
+            "wallet",
+            "",
+            "market",
+            "reserve",
+            "1",
+            "ref",
+            "code",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         borrow_borrow = await privy_kamino_tool._build_transaction(
-            kamino, "borrow_borrow", "wallet", "", "market", "reserve", "1", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "borrow_borrow",
+            "wallet",
+            "",
+            "market",
+            "reserve",
+            "1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
 
         assert earn_missing["status"] == "error"
@@ -497,7 +772,9 @@ class TestPrivyKaminoInternals:
         assert borrow_borrow["status"] == "success"
         assert kamino.build_borrow_deposit.await_args.kwargs["referral_code"] == "code"
 
-        assert await privy_kamino_tool._run_pre_transaction_referral_automation("borrow_deposit", "x") == {
+        assert await privy_kamino_tool._run_pre_transaction_referral_automation(
+            "borrow_deposit", "x"
+        ) == {
             "status": "skipped",
             "reason": "no_pre_transaction_steps_required",
         }
@@ -506,7 +783,13 @@ class TestPrivyKaminoInternals:
     async def test_execute_early_error_returns(self, privy_kamino_tool):
         with (
             patch("sakit.privy_kamino.AsyncPrivyAPI") as MockPrivy,
-            patch.object(privy_kamino_tool, "_run_pre_transaction_referral_automation", new=AsyncMock(return_value={"status": "error", "message": "pre failed"})),
+            patch.object(
+                privy_kamino_tool,
+                "_run_pre_transaction_referral_automation",
+                new=AsyncMock(
+                    return_value={"status": "error", "message": "pre failed"}
+                ),
+            ),
         ):
             mock_privy_client = MagicMock()
             mock_privy_client.close = AsyncMock()
@@ -523,7 +806,13 @@ class TestPrivyKaminoInternals:
 
         with (
             patch("sakit.privy_kamino.AsyncPrivyAPI") as MockPrivy,
-            patch.object(privy_kamino_tool, "_build_transaction", new=AsyncMock(return_value={"status": "error", "message": "build failed"})),
+            patch.object(
+                privy_kamino_tool,
+                "_build_transaction",
+                new=AsyncMock(
+                    return_value={"status": "error", "message": "build failed"}
+                ),
+            ),
         ):
             mock_privy_client = MagicMock()
             mock_privy_client.close = AsyncMock()
@@ -540,8 +829,18 @@ class TestPrivyKaminoInternals:
 
         with (
             patch("sakit.privy_kamino.AsyncPrivyAPI") as MockPrivy,
-            patch.object(privy_kamino_tool, "_build_transaction", new=AsyncMock(return_value={"status": "success", "transaction": "tx"})),
-            patch.object(privy_kamino_tool, "_sign_and_send", new=AsyncMock(return_value={"status": "error", "message": "sign failed"})),
+            patch.object(
+                privy_kamino_tool,
+                "_build_transaction",
+                new=AsyncMock(return_value={"status": "success", "transaction": "tx"}),
+            ),
+            patch.object(
+                privy_kamino_tool,
+                "_sign_and_send",
+                new=AsyncMock(
+                    return_value={"status": "error", "message": "sign failed"}
+                ),
+            ),
         ):
             mock_privy_client = MagicMock()
             mock_privy_client.close = AsyncMock()
@@ -557,37 +856,83 @@ class TestPrivyKaminoInternals:
         assert sign_result == {"status": "error", "message": "sign failed"}
 
     @pytest.mark.asyncio
-    async def test_post_transaction_referral_and_format_helpers(self, privy_kamino_tool):
-        assert await privy_kamino_tool._run_post_transaction_referral_automation("earn_deposit", "m", "r", "x") == []
-        assert await privy_kamino_tool._run_post_transaction_referral_automation("borrow_deposit", "m", "r", "other") == []
+    async def test_post_transaction_referral_and_format_helpers(
+        self, privy_kamino_tool
+    ):
+        assert (
+            await privy_kamino_tool._run_post_transaction_referral_automation(
+                "earn_deposit", "m", "r", "x"
+            )
+            == []
+        )
+        assert (
+            await privy_kamino_tool._run_post_transaction_referral_automation(
+                "borrow_deposit", "m", "r", "other"
+            )
+            == []
+        )
 
-        with patch.object(privy_kamino_tool, "_get_internal_referrer_keypair", return_value=None):
-            assert await privy_kamino_tool._run_post_transaction_referral_automation(
-                "borrow_deposit", "m", "r", privy_kamino_tool._managed_referrer
-            ) == []
+        with patch.object(
+            privy_kamino_tool, "_get_internal_referrer_keypair", return_value=None
+        ):
+            assert (
+                await privy_kamino_tool._run_post_transaction_referral_automation(
+                    "borrow_deposit", "m", "r", privy_kamino_tool._managed_referrer
+                )
+                == []
+            )
 
         wrong_signer = Keypair()
-        with patch.object(privy_kamino_tool, "_get_internal_referrer_keypair", return_value=wrong_signer):
-            assert await privy_kamino_tool._run_post_transaction_referral_automation(
-                "borrow_deposit", "m", "r", privy_kamino_tool._managed_referrer
-            ) == []
-
-        right_signer = Keypair.from_base58_string(privy_kamino_tool._referrer_private_key)
-        with (
-            patch.object(privy_kamino_tool, "_get_internal_referrer_keypair", return_value=right_signer),
-            patch("sakit.privy_kamino.fetch_kamino_reserve_metadata", new=AsyncMock(side_effect=RuntimeError("fetch failed"))),
+        with patch.object(
+            privy_kamino_tool,
+            "_get_internal_referrer_keypair",
+            return_value=wrong_signer,
         ):
-            fetch_error = await privy_kamino_tool._run_post_transaction_referral_automation(
-                "borrow_deposit", "m", "r", privy_kamino_tool._managed_referrer
+            assert (
+                await privy_kamino_tool._run_post_transaction_referral_automation(
+                    "borrow_deposit", "m", "r", privy_kamino_tool._managed_referrer
+                )
+                == []
+            )
+
+        right_signer = Keypair.from_base58_string(
+            privy_kamino_tool._referrer_private_key
+        )
+        with (
+            patch.object(
+                privy_kamino_tool,
+                "_get_internal_referrer_keypair",
+                return_value=right_signer,
+            ),
+            patch(
+                "sakit.privy_kamino.fetch_kamino_reserve_metadata",
+                new=AsyncMock(side_effect=RuntimeError("fetch failed")),
+            ),
+        ):
+            fetch_error = (
+                await privy_kamino_tool._run_post_transaction_referral_automation(
+                    "borrow_deposit", "m", "r", privy_kamino_tool._managed_referrer
+                )
             )
         assert fetch_error[0]["status"] == "error"
 
         with (
-            patch.object(privy_kamino_tool, "_get_internal_referrer_keypair", return_value=right_signer),
-            patch("sakit.privy_kamino.fetch_kamino_reserve_metadata", new=AsyncMock(return_value=MagicMock(lending_market="other", reserve="r"))),
+            patch.object(
+                privy_kamino_tool,
+                "_get_internal_referrer_keypair",
+                return_value=right_signer,
+            ),
+            patch(
+                "sakit.privy_kamino.fetch_kamino_reserve_metadata",
+                new=AsyncMock(
+                    return_value=MagicMock(lending_market="other", reserve="r")
+                ),
+            ),
         ):
-            mismatch = await privy_kamino_tool._run_post_transaction_referral_automation(
-                "borrow_deposit", "m", "r", privy_kamino_tool._managed_referrer
+            mismatch = (
+                await privy_kamino_tool._run_post_transaction_referral_automation(
+                    "borrow_deposit", "m", "r", privy_kamino_tool._managed_referrer
+                )
             )
         assert "does not match" in mismatch[0]["message"]
 
@@ -602,12 +947,26 @@ class TestPrivyKaminoInternals:
             token_program_id="token-program",
         )
         with (
-            patch.object(privy_kamino_tool, "_get_internal_referrer_keypair", return_value=right_signer),
-            patch("sakit.privy_kamino.fetch_kamino_reserve_metadata", new=AsyncMock(return_value=metadata)),
-            patch("sakit.privy_kamino.build_kamino_withdraw_referrer_fees_transaction", new=AsyncMock(return_value={"status": "error", "message": "withdraw failed"})),
+            patch.object(
+                privy_kamino_tool,
+                "_get_internal_referrer_keypair",
+                return_value=right_signer,
+            ),
+            patch(
+                "sakit.privy_kamino.fetch_kamino_reserve_metadata",
+                new=AsyncMock(return_value=metadata),
+            ),
+            patch(
+                "sakit.privy_kamino.build_kamino_withdraw_referrer_fees_transaction",
+                new=AsyncMock(
+                    return_value={"status": "error", "message": "withdraw failed"}
+                ),
+            ),
         ):
-            withdraw_error = await privy_kamino_tool._run_post_transaction_referral_automation(
-                "borrow_deposit", "m", "r", privy_kamino_tool._managed_referrer
+            withdraw_error = (
+                await privy_kamino_tool._run_post_transaction_referral_automation(
+                    "borrow_deposit", "m", "r", privy_kamino_tool._managed_referrer
+                )
             )
         assert withdraw_error[0]["message"] == "withdraw failed"
 
@@ -616,16 +975,28 @@ class TestPrivyKaminoInternals:
         assert tool_without_referrer._get_internal_referrer_keypair() is None
 
         assert privy_kamino_tool._parse_json_object("", "params_json") is None
-        assert privy_kamino_tool._parse_json_object("{\"x\":1}", "params_json") == {"x": 1}
-        assert privy_kamino_tool._parse_json_object("bad", "params_json")["status"] == "error"
-        assert privy_kamino_tool._parse_json_object("[]", "params_json")["status"] == "error"
+        assert privy_kamino_tool._parse_json_object('{"x":1}', "params_json") == {
+            "x": 1
+        }
+        assert (
+            privy_kamino_tool._parse_json_object("bad", "params_json")["status"]
+            == "error"
+        )
+        assert (
+            privy_kamino_tool._parse_json_object("[]", "params_json")["status"]
+            == "error"
+        )
 
-        assert privy_kamino_tool._format_read_response("x", {"success": False, "error": "nope"}) == {
+        assert privy_kamino_tool._format_read_response(
+            "x", {"success": False, "error": "nope"}
+        ) == {
             "status": "error",
             "message": "nope",
             "path": None,
         }
-        assert privy_kamino_tool._format_read_response("x", {"success": True, "data": 1}, path="/p") == {
+        assert privy_kamino_tool._format_read_response(
+            "x", {"success": True, "data": 1}, path="/p"
+        ) == {
             "status": "success",
             "action": "x",
             "data": 1,
@@ -639,42 +1010,84 @@ class TestPrivyKaminoInternals:
 
         tx_base64 = _make_unsigned_transaction_base64(signer)
 
-        with patch("sakit.privy_kamino.get_fresh_blockhash", new=AsyncMock(return_value={"error": "rpc down"})):
-            blockhash_error = await privy_kamino_tool._sign_and_send_with_keypair(signer, tx_base64)
+        with patch(
+            "sakit.privy_kamino.get_fresh_blockhash",
+            new=AsyncMock(return_value={"error": "rpc down"}),
+        ):
+            blockhash_error = await privy_kamino_tool._sign_and_send_with_keypair(
+                signer, tx_base64
+            )
         assert blockhash_error["status"] == "error"
 
         with (
-            patch("sakit.privy_kamino.get_fresh_blockhash", new=AsyncMock(return_value={"blockhash": str(Keypair().pubkey())})),
-            patch("sakit.privy_kamino.replace_blockhash_in_transaction", return_value=_make_unsigned_transaction_base64(Keypair())),
+            patch(
+                "sakit.privy_kamino.get_fresh_blockhash",
+                new=AsyncMock(return_value={"blockhash": str(Keypair().pubkey())}),
+            ),
+            patch(
+                "sakit.privy_kamino.replace_blockhash_in_transaction",
+                return_value=_make_unsigned_transaction_base64(Keypair()),
+            ),
         ):
-            signer_missing = await privy_kamino_tool._sign_and_send_with_keypair(signer, tx_base64)
+            signer_missing = await privy_kamino_tool._sign_and_send_with_keypair(
+                signer, tx_base64
+            )
         assert "not found" in signer_missing["message"]
 
         with (
-            patch("sakit.privy_kamino.get_fresh_blockhash", new=AsyncMock(return_value={"blockhash": str(Keypair().pubkey())})),
-            patch("sakit.privy_kamino.replace_blockhash_in_transaction", return_value=tx_base64),
-            patch("sakit.privy_kamino.send_raw_transaction_with_priority", new=AsyncMock(return_value={"success": False, "error": "send failed"})),
+            patch(
+                "sakit.privy_kamino.get_fresh_blockhash",
+                new=AsyncMock(return_value={"blockhash": str(Keypair().pubkey())}),
+            ),
+            patch(
+                "sakit.privy_kamino.replace_blockhash_in_transaction",
+                return_value=tx_base64,
+            ),
+            patch(
+                "sakit.privy_kamino.send_raw_transaction_with_priority",
+                new=AsyncMock(return_value={"success": False, "error": "send failed"}),
+            ),
         ):
-            send_failure = await privy_kamino_tool._sign_and_send_with_keypair(signer, tx_base64)
+            send_failure = await privy_kamino_tool._sign_and_send_with_keypair(
+                signer, tx_base64
+            )
         assert send_failure == {"status": "error", "message": "send failed"}
 
-        with patch("sakit.privy_kamino.get_fresh_blockhash", new=AsyncMock(side_effect=RuntimeError("boom"))):
-            exception_result = await privy_kamino_tool._sign_and_send_with_keypair(signer, tx_base64)
+        with patch(
+            "sakit.privy_kamino.get_fresh_blockhash",
+            new=AsyncMock(side_effect=RuntimeError("boom")),
+        ):
+            exception_result = await privy_kamino_tool._sign_and_send_with_keypair(
+                signer, tx_base64
+            )
         assert exception_result["status"] == "error"
 
         with (
-            patch("sakit.privy_kamino.get_fresh_blockhash", new=AsyncMock(return_value={"blockhash": str(Hash.default())})),
-            patch("sakit.privy_kamino.replace_blockhash_in_transaction", return_value=tx_base64),
-            patch("sakit.privy_kamino.send_raw_transaction_with_priority", new=AsyncMock(return_value={"success": True, "signature": "sig-1"})),
+            patch(
+                "sakit.privy_kamino.get_fresh_blockhash",
+                new=AsyncMock(return_value={"blockhash": str(Hash.default())}),
+            ),
+            patch(
+                "sakit.privy_kamino.replace_blockhash_in_transaction",
+                return_value=tx_base64,
+            ),
+            patch(
+                "sakit.privy_kamino.send_raw_transaction_with_priority",
+                new=AsyncMock(return_value={"success": True, "signature": "sig-1"}),
+            ),
         ):
-            success = await privy_kamino_tool._sign_and_send_with_keypair(signer, tx_base64)
+            success = await privy_kamino_tool._sign_and_send_with_keypair(
+                signer, tx_base64
+            )
         assert success == {"status": "success", "signature": "sig-1"}
 
     @pytest.mark.asyncio
     async def test_build_transaction_remaining_branches(self, privy_kamino_tool):
         with patch(
             "sakit.privy_kamino.build_kamino_withdraw_referrer_fees_transaction",
-            new=AsyncMock(return_value={"status": "success", "transaction": "tx", "extra": True}),
+            new=AsyncMock(
+                return_value={"status": "success", "transaction": "tx", "extra": True}
+            ),
         ) as mock_withdraw:
             withdraw_result = await privy_kamino_tool._build_transaction(
                 MagicMock(),
@@ -701,11 +1114,32 @@ class TestPrivyKaminoInternals:
 
         kamino = MagicMock()
         kamino.build_borrow_withdraw = AsyncMock(
-            return_value=MagicMock(success=True, transaction="withdraw-tx", request_id="req", raw_response={"withdraw": True})
+            return_value=MagicMock(
+                success=True,
+                transaction="withdraw-tx",
+                request_id="req",
+                raw_response={"withdraw": True},
+            )
         )
 
         borrow_withdraw = await privy_kamino_tool._build_transaction(
-            kamino, "borrow_withdraw", "wallet", "", "market", "reserve", "1", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "borrow_withdraw",
+            "wallet",
+            "",
+            "market",
+            "reserve",
+            "1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
 
         assert borrow_withdraw["status"] == "success"

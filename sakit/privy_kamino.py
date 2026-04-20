@@ -264,11 +264,15 @@ class PrivyKaminoTool(AutoTool):
             if not self._rpc_url:
                 return {"status": "error", "message": "RPC URL not configured."}
 
-            privy_client = AsyncPrivyAPI(app_id=self._app_id, app_secret=self._app_secret)
+            privy_client = AsyncPrivyAPI(
+                app_id=self._app_id, app_secret=self._app_secret
+            )
             try:
-                referral_automation = await self._run_pre_transaction_referral_automation(
-                    action=action,
-                    effective_referrer=effective_referrer,
+                referral_automation = (
+                    await self._run_pre_transaction_referral_automation(
+                        action=action,
+                        effective_referrer=effective_referrer,
+                    )
                 )
                 if referral_automation.get("status") == "error":
                     return referral_automation
@@ -303,11 +307,13 @@ class PrivyKaminoTool(AutoTool):
                 if execution.get("status") == "error":
                     return execution
 
-                withdrawal_results = await self._run_post_transaction_referral_automation(
-                    action=action,
-                    market=market,
-                    reserve=reserve,
-                    effective_referrer=effective_referrer,
+                withdrawal_results = (
+                    await self._run_post_transaction_referral_automation(
+                        action=action,
+                        market=market,
+                        reserve=reserve,
+                        effective_referrer=effective_referrer,
+                    )
                 )
 
                 response = {
@@ -365,7 +371,9 @@ class PrivyKaminoTool(AutoTool):
             if isinstance(params, dict) and params.get("status") == "error":
                 return params
             return self._format_read_response(
-                action, await kamino.api_get(path=path, params=params or None), path=path
+                action,
+                await kamino.api_get(path=path, params=params or None),
+                path=path,
             )
         if action == "api_post":
             if not path:
@@ -406,7 +414,10 @@ class PrivyKaminoTool(AutoTool):
             return []
 
         referrer_keypair = self._get_internal_referrer_keypair()
-        if not referrer_keypair or str(referrer_keypair.pubkey()) != self._managed_referrer:
+        if (
+            not referrer_keypair
+            or str(referrer_keypair.pubkey()) != self._managed_referrer
+        ):
             return []
 
         try:
@@ -511,7 +522,10 @@ class PrivyKaminoTool(AutoTool):
             )
         if action == "setup_referrer":
             if not short_url:
-                return {"status": "error", "message": "short_url is required for setup_referrer."}
+                return {
+                    "status": "error",
+                    "message": "short_url is required for setup_referrer.",
+                }
             return await build_kamino_referrer_setup_transaction(
                 rpc_url=self._rpc_url,
                 wallet_public_key=wallet_public_key,

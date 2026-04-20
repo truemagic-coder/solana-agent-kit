@@ -80,7 +80,9 @@ class TestKaminoToolExecute:
     async def test_list_vaults_success(self, kamino_tool):
         with patch("sakit.kamino.KaminoAPI") as MockKamino:
             mock_api = MagicMock()
-            mock_api.list_vaults = AsyncMock(return_value={"success": True, "data": [{"vault": "A"}]})
+            mock_api.list_vaults = AsyncMock(
+                return_value={"success": True, "data": [{"vault": "A"}]}
+            )
             MockKamino.return_value = mock_api
 
             result = await kamino_tool.execute(action="list_vaults")
@@ -91,7 +93,9 @@ class TestKaminoToolExecute:
 
     @pytest.mark.asyncio
     async def test_user_obligations_requires_market_and_user(self, kamino_tool):
-        result = await kamino_tool.execute(action="user_obligations", market="", user_pubkey="")
+        result = await kamino_tool.execute(
+            action="user_obligations", market="", user_pubkey=""
+        )
 
         assert result["status"] == "error"
         assert "market" in result["message"].lower()
@@ -111,20 +115,42 @@ class TestKaminoToolExecute:
     async def test_read_actions_and_path_validation(self, kamino_tool):
         with patch("sakit.kamino.KaminoAPI") as MockKamino:
             mock_api = MagicMock()
-            mock_api.list_markets = AsyncMock(return_value={"success": True, "data": [{"m": 1}]})
-            mock_api.get_oracle_prices = AsyncMock(return_value={"success": False, "error": "oracle down"})
-            mock_api.get_user_vault_positions = AsyncMock(return_value={"success": True, "data": [{"p": 1}]})
-            mock_api.get_user_obligations = AsyncMock(return_value={"success": True, "data": [{"o": 1}]})
-            mock_api.api_get = AsyncMock(return_value={"success": True, "data": {"ok": True}})
-            mock_api.api_post = AsyncMock(return_value={"success": True, "data": {"posted": True}})
+            mock_api.list_markets = AsyncMock(
+                return_value={"success": True, "data": [{"m": 1}]}
+            )
+            mock_api.get_oracle_prices = AsyncMock(
+                return_value={"success": False, "error": "oracle down"}
+            )
+            mock_api.get_user_vault_positions = AsyncMock(
+                return_value={"success": True, "data": [{"p": 1}]}
+            )
+            mock_api.get_user_obligations = AsyncMock(
+                return_value={"success": True, "data": [{"o": 1}]}
+            )
+            mock_api.api_get = AsyncMock(
+                return_value={"success": True, "data": {"ok": True}}
+            )
+            mock_api.api_post = AsyncMock(
+                return_value={"success": True, "data": {"posted": True}}
+            )
             MockKamino.return_value = mock_api
 
             markets = await kamino_tool.execute(action="list_markets")
-            oracle_failure = await kamino_tool.execute(action="oracle_prices", params_json='{"symbol":"SOL"}')
-            vault_positions = await kamino_tool.execute(action="vault_positions", user_pubkey="user-1")
-            obligations = await kamino_tool.execute(action="user_obligations", market="market-1", user_pubkey="user-1")
-            api_get = await kamino_tool.execute(action="api_get", path="/ping", params_json='{"a":1}')
-            api_post = await kamino_tool.execute(action="api_post", path="/ping", body_json='{"b":2}')
+            oracle_failure = await kamino_tool.execute(
+                action="oracle_prices", params_json='{"symbol":"SOL"}'
+            )
+            vault_positions = await kamino_tool.execute(
+                action="vault_positions", user_pubkey="user-1"
+            )
+            obligations = await kamino_tool.execute(
+                action="user_obligations", market="market-1", user_pubkey="user-1"
+            )
+            api_get = await kamino_tool.execute(
+                action="api_get", path="/ping", params_json='{"a":1}'
+            )
+            api_post = await kamino_tool.execute(
+                action="api_post", path="/ping", body_json='{"b":2}'
+            )
 
         assert markets["status"] == "success"
         assert oracle_failure["status"] == "error"
@@ -133,10 +159,18 @@ class TestKaminoToolExecute:
         assert api_get["path"] == "/ping"
         assert api_post["data"] == {"posted": True}
 
-        assert (await kamino_tool.execute(action="vault_positions", user_pubkey=""))["status"] == "error"
-        assert (await kamino_tool.execute(action="api_get", path="", params_json=""))["status"] == "error"
-        assert (await kamino_tool.execute(action="api_post", path="", body_json=""))["status"] == "error"
-        assert (await kamino_tool.execute(action="api_post", path="/x", body_json="[]"))["status"] == "error"
+        assert (await kamino_tool.execute(action="vault_positions", user_pubkey=""))[
+            "status"
+        ] == "error"
+        assert (await kamino_tool.execute(action="api_get", path="", params_json=""))[
+            "status"
+        ] == "error"
+        assert (await kamino_tool.execute(action="api_post", path="", body_json=""))[
+            "status"
+        ] == "error"
+        assert (
+            await kamino_tool.execute(action="api_post", path="/x", body_json="[]")
+        )["status"] == "error"
 
     @pytest.mark.asyncio
     async def test_oracle_prices_invalid_json(self, kamino_tool):
@@ -152,8 +186,13 @@ class TestKaminoToolExecute:
         with (
             patch("sakit.kamino.Keypair") as MockKeypair,
             patch("sakit.kamino.KaminoAPI") as MockKamino,
-            patch("sakit.kamino.get_fresh_blockhash", new_callable=AsyncMock) as mock_blockhash,
-            patch("sakit.kamino.send_raw_transaction_with_priority", new_callable=AsyncMock) as mock_send,
+            patch(
+                "sakit.kamino.get_fresh_blockhash", new_callable=AsyncMock
+            ) as mock_blockhash,
+            patch(
+                "sakit.kamino.send_raw_transaction_with_priority",
+                new_callable=AsyncMock,
+            ) as mock_send,
             patch("sakit.kamino.replace_blockhash_in_transaction") as mock_replace,
         ):
             MockKeypair.from_base58_string.return_value = signer
@@ -198,8 +237,13 @@ class TestKaminoToolExecute:
         with (
             patch("sakit.kamino.Keypair") as MockKeypair,
             patch("sakit.kamino.KaminoAPI") as MockKamino,
-            patch("sakit.kamino.get_fresh_blockhash", new_callable=AsyncMock) as mock_blockhash,
-            patch("sakit.kamino.send_raw_transaction_with_priority", new_callable=AsyncMock) as mock_send,
+            patch(
+                "sakit.kamino.get_fresh_blockhash", new_callable=AsyncMock
+            ) as mock_blockhash,
+            patch(
+                "sakit.kamino.send_raw_transaction_with_priority",
+                new_callable=AsyncMock,
+            ) as mock_send,
             patch("sakit.kamino.replace_blockhash_in_transaction") as mock_replace,
         ):
             MockKeypair.from_base58_string.return_value = signer
@@ -284,7 +328,13 @@ class TestKaminoToolExecute:
                     }
                 ),
             ) as mock_setup,
-            patch.object(kamino_tool, "_sign_and_send", new=AsyncMock(return_value={"status": "success", "signature": "sig-setup"})),
+            patch.object(
+                kamino_tool,
+                "_sign_and_send",
+                new=AsyncMock(
+                    return_value={"status": "success", "signature": "sig-setup"}
+                ),
+            ),
         ):
             MockKeypair.from_base58_string.return_value = signer
 
@@ -319,7 +369,9 @@ class TestKaminoToolExecute:
             patch.object(
                 kamino_tool,
                 "_sign_and_send",
-                new=AsyncMock(return_value={"status": "success", "signature": "sig-lut"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "signature": "sig-lut"}
+                ),
             ),
         ):
             MockKeypair.from_base58_string.return_value = signer
@@ -349,7 +401,9 @@ class TestKaminoToolExecute:
             patch.object(
                 kamino_tool,
                 "_sign_and_send",
-                new=AsyncMock(return_value={"status": "success", "signature": "sig-meta"}),
+                new=AsyncMock(
+                    return_value={"status": "success", "signature": "sig-meta"}
+                ),
             ),
         ):
             MockKeypair.from_base58_string.return_value = signer
@@ -360,7 +414,9 @@ class TestKaminoToolExecute:
         assert mock_init.await_args.kwargs["referrer"] == kamino_tool._managed_referrer
 
     @pytest.mark.asyncio
-    async def test_borrow_deposit_runs_internal_referral_automation_when_configured(self):
+    async def test_borrow_deposit_runs_internal_referral_automation_when_configured(
+        self,
+    ):
         user_signer = Keypair()
         referrer_signer = Keypair()
         tool = KaminoTool()
@@ -486,41 +542,189 @@ class TestKaminoToolInternals:
     async def test_build_transaction_and_internal_helpers(self, kamino_tool):
         kamino = MagicMock()
         kamino.build_earn_withdraw = AsyncMock(
-            return_value=MagicMock(success=True, transaction="tx", request_id="req", raw_response={"ok": True})
+            return_value=MagicMock(
+                success=True,
+                transaction="tx",
+                request_id="req",
+                raw_response={"ok": True},
+            )
         )
         kamino.build_borrow_deposit = AsyncMock(
-            return_value=MagicMock(success=True, transaction="borrow-deposit-tx", request_id="req2", raw_response={"deposit": True})
+            return_value=MagicMock(
+                success=True,
+                transaction="borrow-deposit-tx",
+                request_id="req2",
+                raw_response={"deposit": True},
+            )
         )
         kamino.build_borrow_borrow = AsyncMock(
-            return_value=MagicMock(success=False, transaction=None, error="borrow failed", raw_response={"raw": True})
+            return_value=MagicMock(
+                success=False,
+                transaction=None,
+                error="borrow failed",
+                raw_response={"raw": True},
+            )
         )
         kamino.build_borrow_withdraw = AsyncMock(
-            return_value=MagicMock(success=True, transaction="borrow-withdraw-tx", request_id="req3", raw_response={"withdraw": True})
+            return_value=MagicMock(
+                success=True,
+                transaction="borrow-withdraw-tx",
+                request_id="req3",
+                raw_response={"withdraw": True},
+            )
         )
 
         earn_missing = await kamino_tool._build_transaction(
-            kamino, "earn_deposit", "wallet", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "earn_deposit",
+            "wallet",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         borrow_missing = await kamino_tool._build_transaction(
-            kamino, "borrow_borrow", "wallet", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "borrow_borrow",
+            "wallet",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         setup_missing = await kamino_tool._build_transaction(
-            kamino, "setup_referrer", "wallet", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "setup_referrer",
+            "wallet",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         withdraw_missing = await kamino_tool._build_transaction(
-            kamino, "withdraw_referrer_fees", "wallet", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "withdraw_referrer_fees",
+            "wallet",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         earn_success = await kamino_tool._build_transaction(
-            kamino, "earn_withdraw", "wallet", "vault", "", "", "1", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "earn_withdraw",
+            "wallet",
+            "vault",
+            "",
+            "",
+            "1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         borrow_failure = await kamino_tool._build_transaction(
-            kamino, "borrow_borrow", "wallet", "", "market", "reserve", "1", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "borrow_borrow",
+            "wallet",
+            "",
+            "market",
+            "reserve",
+            "1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         borrow_deposit = await kamino_tool._build_transaction(
-            kamino, "borrow_deposit", "wallet", "", "market", "reserve", "1", "ref", "code", "", "", "", "", "", "", "", ""
+            kamino,
+            "borrow_deposit",
+            "wallet",
+            "",
+            "market",
+            "reserve",
+            "1",
+            "ref",
+            "code",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
         borrow_withdraw = await kamino_tool._build_transaction(
-            kamino, "borrow_withdraw", "wallet", "", "market", "reserve", "1", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "borrow_withdraw",
+            "wallet",
+            "",
+            "market",
+            "reserve",
+            "1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
 
         assert earn_missing["status"] == "error"
@@ -537,7 +741,9 @@ class TestKaminoToolInternals:
     async def test_build_transaction_withdraw_referrer_fees_branch(self, kamino_tool):
         with patch(
             "sakit.kamino.build_kamino_withdraw_referrer_fees_transaction",
-            new=AsyncMock(return_value={"status": "success", "transaction": "tx", "extra": True}),
+            new=AsyncMock(
+                return_value={"status": "success", "transaction": "tx", "extra": True}
+            ),
         ) as mock_withdraw:
             result = await kamino_tool._build_transaction(
                 MagicMock(),
@@ -566,11 +772,32 @@ class TestKaminoToolInternals:
     async def test_build_transaction_borrow_repay_branch(self, kamino_tool):
         kamino = MagicMock()
         kamino.build_borrow_repay = AsyncMock(
-            return_value=MagicMock(success=True, transaction="repay-tx", request_id="req", raw_response={"repay": True})
+            return_value=MagicMock(
+                success=True,
+                transaction="repay-tx",
+                request_id="req",
+                raw_response={"repay": True},
+            )
         )
 
         result = await kamino_tool._build_transaction(
-            kamino, "borrow_repay", "wallet", "", "market", "reserve", "1", "", "", "", "", "", "", "", "", "", ""
+            kamino,
+            "borrow_repay",
+            "wallet",
+            "",
+            "market",
+            "reserve",
+            "1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         )
 
         assert result["status"] == "success"
@@ -581,52 +808,105 @@ class TestKaminoToolInternals:
 
         with (
             patch("sakit.kamino.Keypair") as MockKeypair,
-            patch.object(kamino_tool, "_run_pre_transaction_referral_automation", new=AsyncMock(return_value={"status": "error", "message": "pre failed"})),
+            patch.object(
+                kamino_tool,
+                "_run_pre_transaction_referral_automation",
+                new=AsyncMock(
+                    return_value={"status": "error", "message": "pre failed"}
+                ),
+            ),
         ):
             MockKeypair.from_base58_string.return_value = signer
-            pre_result = await kamino_tool.execute(action="earn_deposit", kvault="vault", amount="1")
+            pre_result = await kamino_tool.execute(
+                action="earn_deposit", kvault="vault", amount="1"
+            )
 
         assert pre_result == {"status": "error", "message": "pre failed"}
 
         with (
             patch("sakit.kamino.Keypair") as MockKeypair,
-            patch.object(kamino_tool, "_build_transaction", new=AsyncMock(return_value={"status": "error", "message": "build failed"})),
+            patch.object(
+                kamino_tool,
+                "_build_transaction",
+                new=AsyncMock(
+                    return_value={"status": "error", "message": "build failed"}
+                ),
+            ),
         ):
             MockKeypair.from_base58_string.return_value = signer
-            build_result = await kamino_tool.execute(action="earn_deposit", kvault="vault", amount="1")
+            build_result = await kamino_tool.execute(
+                action="earn_deposit", kvault="vault", amount="1"
+            )
 
         assert build_result == {"status": "error", "message": "build failed"}
 
         with (
             patch("sakit.kamino.Keypair") as MockKeypair,
-            patch.object(kamino_tool, "_build_transaction", new=AsyncMock(return_value={"status": "success", "transaction": "tx"})),
-            patch.object(kamino_tool, "_sign_and_send", new=AsyncMock(return_value={"status": "error", "message": "sign failed"})),
+            patch.object(
+                kamino_tool,
+                "_build_transaction",
+                new=AsyncMock(return_value={"status": "success", "transaction": "tx"}),
+            ),
+            patch.object(
+                kamino_tool,
+                "_sign_and_send",
+                new=AsyncMock(
+                    return_value={"status": "error", "message": "sign failed"}
+                ),
+            ),
         ):
             MockKeypair.from_base58_string.return_value = signer
-            sign_result = await kamino_tool.execute(action="earn_deposit", kvault="vault", amount="1")
+            sign_result = await kamino_tool.execute(
+                action="earn_deposit", kvault="vault", amount="1"
+            )
 
         assert sign_result == {"status": "error", "message": "sign failed"}
 
     @pytest.mark.asyncio
     async def test_post_transaction_referral_branches(self, kamino_tool):
-        assert await kamino_tool._run_post_transaction_referral_automation("earn_deposit", "m", "r", "x") == []
-        assert await kamino_tool._run_post_transaction_referral_automation("borrow_deposit", "m", "r", "other") == []
+        assert (
+            await kamino_tool._run_post_transaction_referral_automation(
+                "earn_deposit", "m", "r", "x"
+            )
+            == []
+        )
+        assert (
+            await kamino_tool._run_post_transaction_referral_automation(
+                "borrow_deposit", "m", "r", "other"
+            )
+            == []
+        )
 
-        with patch.object(kamino_tool, "_get_internal_referrer_keypair", return_value=None):
-            assert await kamino_tool._run_post_transaction_referral_automation(
-                "borrow_deposit", "m", "r", kamino_tool._managed_referrer
-            ) == []
+        with patch.object(
+            kamino_tool, "_get_internal_referrer_keypair", return_value=None
+        ):
+            assert (
+                await kamino_tool._run_post_transaction_referral_automation(
+                    "borrow_deposit", "m", "r", kamino_tool._managed_referrer
+                )
+                == []
+            )
 
         wrong_signer = Keypair()
-        with patch.object(kamino_tool, "_get_internal_referrer_keypair", return_value=wrong_signer):
-            assert await kamino_tool._run_post_transaction_referral_automation(
-                "borrow_deposit", "m", "r", kamino_tool._managed_referrer
-            ) == []
+        with patch.object(
+            kamino_tool, "_get_internal_referrer_keypair", return_value=wrong_signer
+        ):
+            assert (
+                await kamino_tool._run_post_transaction_referral_automation(
+                    "borrow_deposit", "m", "r", kamino_tool._managed_referrer
+                )
+                == []
+            )
 
         right_signer = Keypair.from_base58_string(kamino_tool._referrer_private_key)
         with (
-            patch.object(kamino_tool, "_get_internal_referrer_keypair", return_value=right_signer),
-            patch("sakit.kamino.fetch_kamino_reserve_metadata", new=AsyncMock(side_effect=RuntimeError("fetch failed"))),
+            patch.object(
+                kamino_tool, "_get_internal_referrer_keypair", return_value=right_signer
+            ),
+            patch(
+                "sakit.kamino.fetch_kamino_reserve_metadata",
+                new=AsyncMock(side_effect=RuntimeError("fetch failed")),
+            ),
         ):
             fetch_error = await kamino_tool._run_post_transaction_referral_automation(
                 "borrow_deposit", "m", "r", kamino_tool._managed_referrer
@@ -635,8 +915,15 @@ class TestKaminoToolInternals:
         assert fetch_error[0]["status"] == "error"
 
         with (
-            patch.object(kamino_tool, "_get_internal_referrer_keypair", return_value=right_signer),
-            patch("sakit.kamino.fetch_kamino_reserve_metadata", new=AsyncMock(return_value=MagicMock(lending_market="other", reserve="r"))),
+            patch.object(
+                kamino_tool, "_get_internal_referrer_keypair", return_value=right_signer
+            ),
+            patch(
+                "sakit.kamino.fetch_kamino_reserve_metadata",
+                new=AsyncMock(
+                    return_value=MagicMock(lending_market="other", reserve="r")
+                ),
+            ),
         ):
             mismatch = await kamino_tool._run_post_transaction_referral_automation(
                 "borrow_deposit", "m", "r", kamino_tool._managed_referrer
@@ -655,12 +942,24 @@ class TestKaminoToolInternals:
             token_program_id="token-program",
         )
         with (
-            patch.object(kamino_tool, "_get_internal_referrer_keypair", return_value=right_signer),
-            patch("sakit.kamino.fetch_kamino_reserve_metadata", new=AsyncMock(return_value=metadata)),
-            patch("sakit.kamino.build_kamino_withdraw_referrer_fees_transaction", new=AsyncMock(return_value={"status": "error", "message": "withdraw failed"})),
+            patch.object(
+                kamino_tool, "_get_internal_referrer_keypair", return_value=right_signer
+            ),
+            patch(
+                "sakit.kamino.fetch_kamino_reserve_metadata",
+                new=AsyncMock(return_value=metadata),
+            ),
+            patch(
+                "sakit.kamino.build_kamino_withdraw_referrer_fees_transaction",
+                new=AsyncMock(
+                    return_value={"status": "error", "message": "withdraw failed"}
+                ),
+            ),
         ):
-            withdraw_error = await kamino_tool._run_post_transaction_referral_automation(
-                "borrow_deposit", "m", "r", kamino_tool._managed_referrer
+            withdraw_error = (
+                await kamino_tool._run_post_transaction_referral_automation(
+                    "borrow_deposit", "m", "r", kamino_tool._managed_referrer
+                )
             )
 
         assert withdraw_error[0]["message"] == "withdraw failed"
@@ -670,26 +969,46 @@ class TestKaminoToolInternals:
         signer = Keypair()
         tx_base64 = _make_unsigned_transaction_base64(signer)
 
-        with patch("sakit.kamino.get_fresh_blockhash", new=AsyncMock(return_value={"error": "rpc down"})):
+        with patch(
+            "sakit.kamino.get_fresh_blockhash",
+            new=AsyncMock(return_value={"error": "rpc down"}),
+        ):
             blockhash_error = await kamino_tool._sign_and_send(signer, tx_base64)
         assert blockhash_error["status"] == "error"
 
         with (
-            patch("sakit.kamino.get_fresh_blockhash", new=AsyncMock(return_value={"blockhash": str(Hash.default())})),
-            patch("sakit.kamino.replace_blockhash_in_transaction", return_value=_make_unsigned_transaction_base64(Keypair())),
+            patch(
+                "sakit.kamino.get_fresh_blockhash",
+                new=AsyncMock(return_value={"blockhash": str(Hash.default())}),
+            ),
+            patch(
+                "sakit.kamino.replace_blockhash_in_transaction",
+                return_value=_make_unsigned_transaction_base64(Keypair()),
+            ),
         ):
             signer_missing = await kamino_tool._sign_and_send(signer, tx_base64)
         assert "not found" in signer_missing["message"]
 
         with (
-            patch("sakit.kamino.get_fresh_blockhash", new=AsyncMock(return_value={"blockhash": str(Hash.default())})),
-            patch("sakit.kamino.replace_blockhash_in_transaction", return_value=tx_base64),
-            patch("sakit.kamino.send_raw_transaction_with_priority", new=AsyncMock(return_value={"success": False, "error": "send failed"})),
+            patch(
+                "sakit.kamino.get_fresh_blockhash",
+                new=AsyncMock(return_value={"blockhash": str(Hash.default())}),
+            ),
+            patch(
+                "sakit.kamino.replace_blockhash_in_transaction", return_value=tx_base64
+            ),
+            patch(
+                "sakit.kamino.send_raw_transaction_with_priority",
+                new=AsyncMock(return_value={"success": False, "error": "send failed"}),
+            ),
         ):
             send_failure = await kamino_tool._sign_and_send(signer, tx_base64)
         assert send_failure == {"status": "error", "message": "send failed"}
 
-        with patch("sakit.kamino.get_fresh_blockhash", new=AsyncMock(side_effect=RuntimeError("boom"))):
+        with patch(
+            "sakit.kamino.get_fresh_blockhash",
+            new=AsyncMock(side_effect=RuntimeError("boom")),
+        ):
             exception_result = await kamino_tool._sign_and_send(signer, tx_base64)
         assert exception_result["status"] == "error"
 
@@ -698,16 +1017,20 @@ class TestKaminoToolInternals:
         assert tool_without_referrer._get_internal_referrer_keypair("") is None
 
         assert kamino_tool._parse_json_object("", "params_json") is None
-        assert kamino_tool._parse_json_object("{\"x\":1}", "params_json") == {"x": 1}
+        assert kamino_tool._parse_json_object('{"x":1}', "params_json") == {"x": 1}
         assert kamino_tool._parse_json_object("bad", "params_json")["status"] == "error"
         assert kamino_tool._parse_json_object("[]", "params_json")["status"] == "error"
 
-        assert kamino_tool._format_read_response("x", {"success": False, "error": "nope"}) == {
+        assert kamino_tool._format_read_response(
+            "x", {"success": False, "error": "nope"}
+        ) == {
             "status": "error",
             "message": "nope",
             "path": None,
         }
-        assert kamino_tool._format_read_response("x", {"success": True, "data": 1}, path="/p") == {
+        assert kamino_tool._format_read_response(
+            "x", {"success": True, "data": 1}, path="/p"
+        ) == {
             "status": "success",
             "action": "x",
             "data": 1,

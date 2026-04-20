@@ -39,20 +39,14 @@ KAMINO_LEND_PROGRAM_ID = Pubkey.from_string(
 KAMINO_RESERVE_ACCOUNT_DISCRIMINATOR = bytes([43, 242, 204, 202, 26, 247, 59, 127])
 SYSTEM_PROGRAM_ID = Pubkey.from_string("11111111111111111111111111111111")
 SYSVAR_RENT_ID = Pubkey.from_string("SysvarRent111111111111111111111111111111111")
-SPL_TOKEN_PROGRAM_ID = Pubkey.from_string(
-    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-)
+SPL_TOKEN_PROGRAM_ID = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
 TOKEN_2022_PROGRAM_ID = Pubkey.from_string(
     "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 )
 
 INIT_USER_METADATA_DISCRIMINATOR = bytes([117, 169, 176, 69, 197, 23, 15, 162])
-INIT_REFERRER_TOKEN_STATE_DISCRIMINATOR = bytes(
-    [116, 45, 66, 148, 58, 13, 218, 115]
-)
-WITHDRAW_REFERRER_FEES_DISCRIMINATOR = bytes(
-    [171, 118, 121, 201, 233, 140, 23, 228]
-)
+INIT_REFERRER_TOKEN_STATE_DISCRIMINATOR = bytes([116, 45, 66, 148, 58, 13, 218, 115])
+WITHDRAW_REFERRER_FEES_DISCRIMINATOR = bytes([171, 118, 121, 201, 233, 140, 23, 228])
 INIT_REFERRER_STATE_AND_SHORT_URL_DISCRIMINATOR = bytes(
     [165, 19, 25, 127, 100, 55, 31, 90]
 )
@@ -293,9 +287,7 @@ def validate_kamino_short_url(short_url: str) -> Optional[str]:
     if not short_url:
         return "short_url is required."
     if not SHORT_URL_PATTERN.fullmatch(short_url):
-        return (
-            "short_url must be 1-32 characters using only ASCII letters, digits, '-' or '_'."
-        )
+        return "short_url must be 1-32 characters using only ASCII letters, digits, '-' or '_'."
     return None
 
 
@@ -358,7 +350,9 @@ def _read_pubkey(data: bytes, offset: int) -> str:
     return str(Pubkey.from_bytes(data[offset : offset + 32]))
 
 
-def parse_kamino_reserve_metadata(reserve: str, account_data: bytes) -> KaminoReserveMetadata:
+def parse_kamino_reserve_metadata(
+    reserve: str, account_data: bytes
+) -> KaminoReserveMetadata:
     """Decode the minimal reserve metadata needed for referral fee withdrawals."""
 
     if account_data.startswith(KAMINO_RESERVE_ACCOUNT_DISCRIMINATOR):
@@ -398,7 +392,9 @@ async def fetch_kamino_reserve_metadata(
         account = getattr(response, "value", None)
         if not account or not getattr(account, "data", b""):
             raise ValueError(f"Reserve account {reserve} was not found.")
-        return parse_kamino_reserve_metadata(reserve=reserve, account_data=bytes(account.data))
+        return parse_kamino_reserve_metadata(
+            reserve=reserve, account_data=bytes(account.data)
+        )
     finally:
         await client.close()
 
@@ -601,7 +597,9 @@ async def _build_create_lookup_table_instruction(
         slot_response = await client.get_slot()
         recent_slot = getattr(slot_response, "value", None)
         if recent_slot is None:
-            raise ValueError("RPC did not return a recent slot for lookup table creation.")
+            raise ValueError(
+                "RPC did not return a recent slot for lookup table creation."
+            )
     finally:
         await client.close()
 
@@ -619,7 +617,10 @@ async def build_kamino_create_lookup_table_transaction(
     rpc_url: str,
     wallet_public_key: str,
 ) -> Dict[str, Any]:
-    create_instruction, lookup_table_address = await _build_create_lookup_table_instruction(
+    (
+        create_instruction,
+        lookup_table_address,
+    ) = await _build_create_lookup_table_instruction(
         rpc_url,
         wallet_public_key,
     )
@@ -658,9 +659,10 @@ async def build_kamino_init_user_metadata_transaction(
     instructions: list[Instruction] = []
     lookup_table_address = user_lookup_table
     if not lookup_table_address:
-        create_lookup_table_instruction, derived_lookup_table = (
-            await _build_create_lookup_table_instruction(rpc_url, wallet_public_key)
-        )
+        (
+            create_lookup_table_instruction,
+            derived_lookup_table,
+        ) = await _build_create_lookup_table_instruction(rpc_url, wallet_public_key)
         instructions.append(create_lookup_table_instruction)
         lookup_table_address = str(derived_lookup_table)
 
@@ -721,9 +723,10 @@ async def build_kamino_referrer_setup_transaction(
     if not has_user_metadata:
         lookup_table_address = user_lookup_table
         if not lookup_table_address:
-            create_lookup_table_instruction, derived_lookup_table = (
-                await _build_create_lookup_table_instruction(rpc_url, wallet_public_key)
-            )
+            (
+                create_lookup_table_instruction,
+                derived_lookup_table,
+            ) = await _build_create_lookup_table_instruction(rpc_url, wallet_public_key)
             instructions.append(create_lookup_table_instruction)
             lookup_table_address = str(derived_lookup_table)
         instructions.append(
@@ -787,7 +790,9 @@ async def build_kamino_withdraw_referrer_fees_transaction(
         referrer_token_state = derive_kamino_referrer_token_state_pda(
             wallet_public_key, reserve
         )
-        has_referrer_token_account = await _account_exists(client, referrer_token_account)
+        has_referrer_token_account = await _account_exists(
+            client, referrer_token_account
+        )
         has_referrer_token_state = await _account_exists(client, referrer_token_state)
     finally:
         await client.close()

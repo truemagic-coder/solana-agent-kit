@@ -420,11 +420,17 @@ class KaminoTool(AutoTool):
                     referral_code=referral_code or None,
                 )
             elif action == "borrow_borrow":
-                result = await kamino.build_borrow_borrow(wallet, market, reserve, amount)
+                result = await kamino.build_borrow_borrow(
+                    wallet, market, reserve, amount
+                )
             elif action == "borrow_repay":
-                result = await kamino.build_borrow_repay(wallet, market, reserve, amount)
+                result = await kamino.build_borrow_repay(
+                    wallet, market, reserve, amount
+                )
             else:
-                result = await kamino.build_borrow_withdraw(wallet, market, reserve, amount)
+                result = await kamino.build_borrow_withdraw(
+                    wallet, market, reserve, amount
+                )
 
         if not result.success or not result.transaction:
             return {
@@ -461,7 +467,10 @@ class KaminoTool(AutoTool):
             return []
 
         referrer_keypair = self._get_internal_referrer_keypair("")
-        if not referrer_keypair or str(referrer_keypair.pubkey()) != self._managed_referrer:
+        if (
+            not referrer_keypair
+            or str(referrer_keypair.pubkey()) != self._managed_referrer
+        ):
             return []
 
         try:
