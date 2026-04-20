@@ -344,6 +344,32 @@ config = {
 - Token symbols and names
 - Token metadata (logo, decimals, etc.)
 
+### Kamino
+
+This plugin enables Solana Agent to use Kamino Finance for Earn vault deposits and withdrawals, K-Lend deposit/borrow/repay/withdraw flows, and Kamino public API reads. Referral attribution is automated when `referrer_private_key` is configured.
+
+```python
+config = {
+    "tools": {
+        "kamino": {
+            "private_key": "your-base58-private-key", # Required - signer used for Kamino transactions
+            "rpc_url": "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY", # Required - RPC used for blockhash refresh and transaction sending
+            "base_url": "https://api.kamino.finance", # Optional - override Kamino API base URL
+            "referrer_private_key": "your-referrer-base58-private-key", # Optional - enables default Kamino referral attribution and internal fee sweeping for that referrer wallet
+        },
+    },
+}
+```
+
+**Actions:**
+- `earn_deposit` - Build, sign, and send a Kamino Earn deposit transaction
+- `earn_withdraw` - Build, sign, and send a Kamino Earn withdrawal transaction
+- `borrow_deposit` - Deposit collateral into Kamino K-Lend
+- `borrow_borrow` - Borrow from a Kamino K-Lend reserve
+- `borrow_repay` - Repay a Kamino K-Lend borrow
+- `borrow_withdraw` - Withdraw collateral from Kamino K-Lend
+- `list_vaults`, `list_markets`, `oracle_prices`, `vault_positions`, `user_obligations`, `api_get`, `api_post` - Read Kamino public API data
+
 
 ### Privy Transfer
 
@@ -362,6 +388,29 @@ config = {
     },
 }
 ```
+
+### Privy Kamino
+
+This plugin enables Kamino Earn, K-Lend, and Kamino public API reads for Privy delegated wallets. Transactions are signed through Privy and sent through your configured `rpc_url`, matching the repo's current Privy transaction handling pattern. Referral attribution is automated when `referrer_private_key` is configured.
+
+```python
+config = {
+    "tools": {
+        "privy_kamino": {
+            "app_id": "your-privy-app-id", # Required - your Privy application ID
+            "app_secret": "your-privy-app-secret", # Required - your Privy application secret
+            "signing_key": "wallet-auth:your-signing-key", # Required - your Privy wallet authorization signing key
+            "rpc_url": "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY", # Required - RPC used for blockhash refresh and transaction sending
+            "base_url": "https://api.kamino.finance", # Optional - override Kamino API base URL
+            "referrer_private_key": "your-referrer-base58-private-key", # Optional - enables default Kamino referral attribution and internal fee sweeping for that referrer wallet
+        },
+    },
+}
+```
+
+**Actions:**
+- `earn_deposit`, `earn_withdraw`, `borrow_deposit`, `borrow_borrow`, `borrow_repay`, `borrow_withdraw`
+- `list_vaults`, `list_markets`, `oracle_prices`, `vault_positions`, `user_obligations`, `api_get`, `api_post`
 
 ### Privy Privacy Cash
 
